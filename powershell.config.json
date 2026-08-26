@@ -1,5 +1,5 @@
 {
-    "Microsoft.PowerShell:ExecutionPolicy": "Unrestricted",
+    "Microsoft.PowerShell:ExecutionPolicy": "RemoteSigned",
     "ExperimentalFeatures": [
         "PSFeedbackProvider",
         "PSCommandNotFoundSuggestion"
