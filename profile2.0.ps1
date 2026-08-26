@@ -6,9 +6,64 @@ using namespace System.Management.Automation.Host
 using namespace System.Management.Automation.Runspaces
 
 #- Set Filters
+
+<#
+.SYNOPSIS
+    Filters pipeline input to items with a Length at or below a given size.
+.DESCRIPTION
+    Intended for use after Get-ChildItem to filter files by size.
+.PARAMETER size
+    The maximum size, in bytes, an item's Length may be to pass the filter.
+.EXAMPLE
+    Get-ChildItem | FileSizeBelow 1MB
+.OUTPUTS
+    System.IO.FileSystemInfo
+#>
 filter FileSizeBelow($size) { if ($_.length -le $size) { $_ } }
+
+<#
+.SYNOPSIS
+    Filters pipeline input to items with a Length at or above a given size.
+.DESCRIPTION
+    Intended for use after Get-ChildItem to filter files by size.
+.PARAMETER size
+    The minimum size, in bytes, an item's Length must be to pass the filter.
+.EXAMPLE
+    Get-ChildItem | FileSizeAbove 1MB
+.OUTPUTS
+    System.IO.FileSystemInfo
+#>
 filter FileSizeAbove($size) { if ($_.Length -ge $size) { $_ } }
+
+<#
+.SYNOPSIS
+    Filters pipeline input to items with a Length within a given range.
+.DESCRIPTION
+    Intended for use after Get-ChildItem to filter files by size.
+.PARAMETER min
+    The minimum size, in bytes, an item's Length must be to pass the filter.
+.PARAMETER max
+    The maximum size, in bytes, an item's Length may be to pass the filter.
+.EXAMPLE
+    Get-ChildItem | FileSizeBetween 1MB 10MB
+.OUTPUTS
+    System.IO.FileSystemInfo
+#>
 filter FileSizeBetween($min, $max) { if ($_.Length -ge $min -and $_.Length -le $max) { $_ } }
+
+<#
+.SYNOPSIS
+    Escapes PowerShell special characters in a string.
+.DESCRIPTION
+    Backtick-escapes whitespace and characters PowerShell treats specially
+    (#, @, $, ;, comma, quotes, braces, parens, backtick, pipe, angle brackets, &)
+    so a value can be safely embedded in a command line, e.g. an oh-my-posh segment
+    value passed through Invoke-Expression.
+.EXAMPLE
+    "some value" | __oh-my-posh_escapeStringWithSpecialChars
+.OUTPUTS
+    System.String
+#>
 filter __oh-my-posh_escapeStringWithSpecialChars {
     $_ -replace '\s|#|@|\$|;|,|''|\{|\}|\(|\)|"|`|\||<|>|&', '`$&'
 }
@@ -16,7 +71,30 @@ filter __oh-my-posh_escapeStringWithSpecialChars {
 #---------------------------------------------------------------
 # Configuration
 #---------------------------------------------------------------
+
+<#
+.SYNOPSIS
+    Loads the PSProfile JSON configuration.
+.DESCRIPTION
+    Looks for a personal config at assets\config\config.json, relative to this
+    profile script's directory. If it isn't present, falls back to the checked-in
+    assets\config\sample-config.json template and emits a warning. Returns $null
+    if neither file exists or the JSON fails to parse, so callers should treat
+    every setting as optional and supply a default.
+.EXAMPLE
+    $config = Get-PSProfileConfig
+    $config.settings.MaximumHistoryCount
+.OUTPUTS
+    System.Management.Automation.PSCustomObject, or $null if no config could be loaded.
+.NOTES
+    Copy sample-config.json to config.json and edit it to customize this profile.
+    config.json is gitignored so personal paths never get committed.
+#>
 function Get-PSProfileConfig {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param()
+
     $configPath = Join-Path $PSScriptRoot 'assets\config\config.json'
     $samplePath = Join-Path $PSScriptRoot 'assets\config\sample-config.json'
 
@@ -39,8 +117,28 @@ function Get-PSProfileConfig {
     }
 }
 
+<#
+.SYNOPSIS
+    Tests whether the current OS matches a config entry's OS field.
+.DESCRIPTION
+    Compares the running platform ($IsWindows/$IsMacOS/$IsLinux) against a
+    comma-separated list of OS names from profile config, e.g. "Windows,MacOS".
+    A blank value or the literal "All" matches every OS.
+.PARAMETER OSField
+    The OS field from a config entry (e.g. a Modules[] item), such as "Windows",
+    "MacOS,Linux", or "All".
+.EXAMPLE
+    Test-PSProfileOSMatch -OSField 'Windows,MacOS'
+.OUTPUTS
+    System.Boolean
+#>
 function Test-PSProfileOSMatch {
-    param([string]$OSField)
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [string]$OSField
+    )
+
     if ([string]::IsNullOrWhiteSpace($OSField) -or $OSField -eq 'All') { return $true }
     $osList = $OSField -split '\s*,\s*'
     if ($IsWindows -and $osList -contains 'Windows') { return $true }
