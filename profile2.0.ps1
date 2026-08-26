@@ -178,6 +178,9 @@ Foreach ($function in $functions) {
     Catch { Write-Error -Message "Failed to import $($function.Name)" }
 }
 
+Enable-Tls12
+$IsInteractiveShell = Test-InteractiveShell
+
 #---------------------------------------------------------------
 # Document Roots
 #---------------------------------------------------------------
@@ -281,7 +284,7 @@ foreach ($alias in $PSProfileConfig.Aliases) {
 # PSReadLine
 #---------------------------------------------------------------
 $readlineConfig = $PSProfileSettings.PSReadLine
-if ($readlineConfig -and (Get-Module -Name PSReadLine -ListAvailable -ErrorAction SilentlyContinue)) {
+if ($IsInteractiveShell -and $readlineConfig -and (Get-Module -Name PSReadLine -ListAvailable -ErrorAction SilentlyContinue)) {
     # Wrapped in try/catch: PredictionSource/PredictionViewStyle throw when the host
     # doesn't support virtual terminal processing (redirected output, some remote/CI shells).
     try {
@@ -292,6 +295,19 @@ if ($readlineConfig -and (Get-Module -Name PSReadLine -ListAvailable -ErrorActio
             Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward -ErrorAction Stop
             Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward -ErrorAction Stop
         }
+        if ($readlineConfig.FilterSecretsFromHistory) {
+            # Keeps lines that look like they contain a secret out of PSReadLine's
+            # plaintext on-disk history file. Doesn't stop the command from running.
+            Set-PSReadLineOption -AddToHistoryHandler {
+                param([string]$line)
+                $line -notmatch '(?i)(password|secret|token|apikey|connectionstring)'
+            } -ErrorAction Stop
+        }
+        if ($readlineConfig.Colors) {
+            $colorTable = @{}
+            foreach ($colorProperty in $readlineConfig.Colors.PSObject.Properties) { $colorTable[$colorProperty.Name] = $colorProperty.Value }
+            Set-PSReadLineOption -Colors $colorTable -ErrorAction Stop
+        }
     }
     catch { Write-Verbose "Skipping PSReadLine configuration: $_" }
 }
@@ -299,9 +315,9 @@ if ($readlineConfig -and (Get-Module -Name PSReadLine -ListAvailable -ErrorActio
 #---------------------------------------------------------------
 # Windows Section
 #---------------------------------------------------------------
-if ($IsWindows) {
-    if ($PSProfileSettings.ShowWindowTitle -and (Get-Command -Name Set-Console -ErrorAction SilentlyContinue)) {
-        Set-Console -WindowTitle
+if ($IsWindows -and $IsInteractiveShell) {
+    if ($PSProfileSettings.ShowWindowTitle) {
+        Set-ProfileWindowTitle
     }
 
     if ($PSProfileSettings.ShowSplashScreen) {
@@ -332,7 +348,11 @@ if ($IsWindows) {
 #---------------------------------------------------------------
 # macOS Section
 #---------------------------------------------------------------
-ElseIf ($IsMacOS) {
+ElseIf ($IsMacOS -and $IsInteractiveShell) {
+    if ($PSProfileSettings.ShowWindowTitle) {
+        Set-ProfileWindowTitle
+    }
+
     if ($PSProfileSettings.ShowSplashScreen) {
         $splashCommand = $PSProfileSettings.SplashCommand.MacOS
         if ($splashCommand -and (Get-Command -Name ($splashCommand -split '\s+')[0] -ErrorAction SilentlyContinue)) {
@@ -361,7 +381,11 @@ ElseIf ($IsMacOS) {
 #---------------------------------------------------------------
 # Linux Section
 #---------------------------------------------------------------
-ElseIf ($IsLinux) {
+ElseIf ($IsLinux -and $IsInteractiveShell) {
+    if ($PSProfileSettings.ShowWindowTitle) {
+        Set-ProfileWindowTitle
+    }
+
     if ($PSProfileSettings.ShowSplashScreen) {
         $splashCommand = $PSProfileSettings.SplashCommand.Linux
         if ($splashCommand -and (Get-Command -Name ($splashCommand -split '\s+')[0] -ErrorAction SilentlyContinue)) {

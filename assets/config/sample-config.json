@@ -26,7 +26,20 @@
             "PredictionSource": "History",
             "PredictionViewStyle": "ListView",
             "EditMode": "Windows",
-            "HistorySearchArrowKeys": true
+            "HistorySearchArrowKeys": true,
+            "FilterSecretsFromHistory": true,
+            "Colors": {
+                "Command": "#87CEEB",
+                "Parameter": "#98FB98",
+                "Operator": "#FFB6C1",
+                "Variable": "#DDA0DD",
+                "String": "#FFDAB9",
+                "Number": "#B0E0E6",
+                "Type": "#F0E68C",
+                "Comment": "#D3D3D3",
+                "Keyword": "#8367c7",
+                "Error": "#FF6347"
+            }
         }
     },
     "Aliases": [
