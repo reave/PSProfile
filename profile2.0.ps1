@@ -342,7 +342,13 @@ if ($IsWindows -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue)) {
-        oh-my-posh init pwsh --config "$env:POSH_THEMES_PATH\$($PSProfileSettings.PoshTheme).omp.json" | Invoke-Expression
+        $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
+        if ($themePath) {
+            oh-my-posh init pwsh --config $themePath | Invoke-Expression
+        }
+        else {
+            oh-my-posh init pwsh | Invoke-Expression
+        }
     }
 }
 #---------------------------------------------------------------
@@ -375,7 +381,13 @@ ElseIf ($IsMacOS -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue)) {
-        oh-my-posh init pwsh --config (Join-Path $env:POSH_THEMES_PATH "$($PSProfileSettings.PoshTheme).omp.json") | Invoke-Expression
+        $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
+        if ($themePath) {
+            oh-my-posh init pwsh --config $themePath | Invoke-Expression
+        }
+        else {
+            oh-my-posh init pwsh | Invoke-Expression
+        }
     }
 }
 #---------------------------------------------------------------
@@ -408,6 +420,12 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue)) {
-        oh-my-posh init pwsh --config (Join-Path $env:POSH_THEMES_PATH "$($PSProfileSettings.PoshTheme).omp.json") | Invoke-Expression
+        $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
+        if ($themePath) {
+            oh-my-posh init pwsh --config $themePath | Invoke-Expression
+        }
+        else {
+            oh-my-posh init pwsh | Invoke-Expression
+        }
     }
 }
