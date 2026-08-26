@@ -217,15 +217,56 @@ foreach ($module in $PSProfileConfig.Modules) {
     }
 }
 
+$IsElevated = if ($IsWindows) {
+    ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+}
+else {
+    try { (id -u) -eq '0' } catch { $false }
+}
+
 #---------------------------------------------------------------
 # Packages
 #---------------------------------------------------------------
-if ($IsWindows) {
-    foreach ($package in $PSProfileConfig.Packages) {
-        if ($package.Source -ne 'winget') { continue }
-        if (Get-Command -Name $package.Name -ErrorAction SilentlyContinue) { continue }
-        try { Install-WinGetPackage -Id $package.Id -Mode Silent -ErrorAction Stop }
-        catch { Write-Error "Unable to install $($package.Id)" }
+# Supported Source values: winget (Windows), brew (macOS/Linuxbrew), apt, yum, pacman (Linux).
+# Each entry only acts if its package manager's command is actually present, so a config can
+# safely list entries for every OS/manager and the ones that don't apply are silently skipped.
+# apt/yum/pacman require root and are skipped (with a warning) when not elevated, rather than
+# invoking sudo interactively and risking a password prompt hanging profile load.
+foreach ($package in $PSProfileConfig.Packages) {
+    if (Get-Command -Name $package.Name -ErrorAction SilentlyContinue) { continue }
+
+    switch ($package.Source) {
+        'winget' {
+            if (-not (Get-Command -Name winget -ErrorAction SilentlyContinue)) { continue }
+            try { Install-WinGetPackage -Id $package.Id -Mode Silent -ErrorAction Stop }
+            catch { Write-Error "Unable to install $($package.Id) via winget" }
+        }
+        'brew' {
+            if (-not (Get-Command -Name brew -ErrorAction SilentlyContinue)) { continue }
+            try { & brew install $package.Id }
+            catch { Write-Error "Unable to install $($package.Id) via brew" }
+        }
+        'apt' {
+            $aptCmd = Get-Command -Name apt-get -ErrorAction SilentlyContinue
+            if (-not $aptCmd) { continue }
+            if (-not $IsElevated) { Write-Warning "Skipping apt install of $($package.Id): not running as root."; continue }
+            try { & apt-get install -y $package.Id }
+            catch { Write-Error "Unable to install $($package.Id) via apt" }
+        }
+        'yum' {
+            $yumCmd = Get-Command -Name dnf -ErrorAction SilentlyContinue
+            if (-not $yumCmd) { $yumCmd = Get-Command -Name yum -ErrorAction SilentlyContinue }
+            if (-not $yumCmd) { continue }
+            if (-not $IsElevated) { Write-Warning "Skipping $($yumCmd.Name) install of $($package.Id): not running as root."; continue }
+            try { & $yumCmd.Name install -y $package.Id }
+            catch { Write-Error "Unable to install $($package.Id) via $($yumCmd.Name)" }
+        }
+        'pacman' {
+            if (-not (Get-Command -Name pacman -ErrorAction SilentlyContinue)) { continue }
+            if (-not $IsElevated) { Write-Warning "Skipping pacman install of $($package.Id): not running as root."; continue }
+            try { & pacman -S --noconfirm $package.Id }
+            catch { Write-Error "Unable to install $($package.Id) via pacman" }
+        }
     }
 }
 
@@ -255,26 +296,10 @@ if ($readlineConfig -and (Get-Module -Name PSReadLine -ListAvailable -ErrorActio
     catch { Write-Verbose "Skipping PSReadLine configuration: $_" }
 }
 
-$IsElevated = if ($IsWindows) {
-    ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-}
-else {
-    try { (id -u) -eq '0' } catch { $false }
-}
-
 #---------------------------------------------------------------
 # Windows Section
 #---------------------------------------------------------------
 if ($IsWindows) {
-    if ($PSProfileSettings.EnableChocolateyIntegration) {
-        # Import the Chocolatey Profile that contains the necessary code to enable
-        # tab-completions to function for `choco`. See https://ch0.co/tab-completion
-        $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-        if (Test-Path($ChocolateyProfile)) {
-            Import-Module "$ChocolateyProfile"
-        }
-    }
-
     if ($PSProfileSettings.ShowWindowTitle -and (Get-Command -Name Set-Console -ErrorAction SilentlyContinue)) {
         Set-Console -WindowTitle
     }

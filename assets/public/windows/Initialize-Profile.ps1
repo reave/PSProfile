@@ -17,18 +17,6 @@ function Initialize-Profile {
         [string]$OneDriveRoot = "OneDrive is not configured"
     }
 
-    #- Import Chocolatey if it exists
-    If (Test-Path -Path "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1" -ErrorAction SilentlyContinue) {
-        $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-        if (Test-Path($ChocolateyProfile)) {
-            Import-Module "$ChocolateyProfile"
-        }
-    }
-    else {
-        #- Install Chocolatey
-        Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-    }
-
     #- Winget Completer
     $wingetCompleter = {
         param($wordToComplete, $commandAst, $cursorPosition)

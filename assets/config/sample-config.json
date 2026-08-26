@@ -15,7 +15,6 @@
         "ShowElevatedWarning": true,
         "RunUpdateHelpOnElevated": true,
         "ShowPSVersionBanner": true,
-        "EnableChocolateyIntegration": true,
         "DefaultParameterValues": {
             "Export-Csv:NoTypeInformation": true,
             "ConvertTo-Csv:NoTypeInformation": true,
@@ -68,6 +67,26 @@
             "Name": "speedtest",
             "Id": "ookla.speedtest.cli",
             "Source": "winget"
+        },
+        {
+            "Name": "speedtest",
+            "Id": "speedtest-cli",
+            "Source": "brew"
+        },
+        {
+            "Name": "speedtest",
+            "Id": "speedtest-cli",
+            "Source": "apt"
+        },
+        {
+            "Name": "speedtest",
+            "Id": "speedtest-cli",
+            "Source": "yum"
+        },
+        {
+            "Name": "speedtest",
+            "Id": "speedtest-cli",
+            "Source": "pacman"
         }
     ]
 }

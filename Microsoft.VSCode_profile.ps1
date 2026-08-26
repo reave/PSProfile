@@ -97,16 +97,6 @@ public static extern IntPtr SendMessageTimeout(
     }
     #f45873b3-b655-43a6-b217-97c00aa0db58
 
-    # Import the Chocolatey Profile that contains the necessary code to enable
-    # tab-completions to function for `choco`.
-    # Be aware that if you are missing these lines from your profile, tab completion
-    # for `choco` will not function.
-    # See https://ch0.co/tab-completion for details.
-    $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-    if (Test-Path($ChocolateyProfile)) {
-        Import-Module "$ChocolateyProfile"
-    }
-
     fastfetch
 
     If (([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
@@ -233,12 +223,3 @@ ElseIf ($IsLinux) {
 #---------------------------------------------------------------
 #- Set Aliases that are needed
 New-Alias -Name edit -Value Edit-File -Description "Edit a file"
-# Import the Chocolatey Profile that contains the necessary code to enable
-# tab-completions to function for `choco`.
-# Be aware that if you are missing these lines from your profile, tab completion
-# for `choco` will not function.
-# See https://ch0.co/tab-completion for details.
-$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-if (Test-Path($ChocolateyProfile)) {
-    Import-Module "$ChocolateyProfile"
-}
