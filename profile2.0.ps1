@@ -162,20 +162,20 @@ if ($PSProfileSettings.DefaultParameterValues) {
 #---------------------------------------------------------------
 # Functions
 #---------------------------------------------------------------
-#- Dot Source Functions
-$functions = Get-ChildItem -Path $PSScriptRoot\assets\public\*.ps1 -ErrorAction SilentlyContinue
+$OSFolder = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } elseif ($IsLinux) { 'linux' }
+
+#- Dot Source Public Functions (assets\public\<windows|macos|linux>\*.ps1)
+$functions = Get-ChildItem -Path "$PSScriptRoot\assets\public\$OSFolder\*.ps1" -ErrorAction SilentlyContinue
 Foreach ($function in $functions) {
     try { . $function.FullName }
     Catch { Write-Error -Message "Failed to import $($function.Name)" }
 }
 
-if ($IsWindows) {
-    #- Dot Source Private Functions
-    $functions = Get-ChildItem -Path $PSScriptRoot\assets\private\windows\*.ps1 -ErrorAction SilentlyContinue
-    Foreach ($function in $functions) {
-        try { . $function.FullName }
-        Catch { Write-Error -Message "Failed to import $($function.Name)" }
-    }
+#- Dot Source Private Functions (assets\private\<windows|macos|linux>\*.ps1)
+$functions = Get-ChildItem -Path "$PSScriptRoot\assets\private\$OSFolder\*.ps1" -ErrorAction SilentlyContinue
+Foreach ($function in $functions) {
+    try { . $function.FullName }
+    Catch { Write-Error -Message "Failed to import $($function.Name)" }
 }
 
 #---------------------------------------------------------------

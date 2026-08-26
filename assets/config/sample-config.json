@@ -20,7 +20,9 @@
             "Export-Csv:NoTypeInformation": true,
             "ConvertTo-Csv:NoTypeInformation": true,
             "*-PSDrive:PSProvider": "FileSystem",
-            "Get-Help:Detailed": true
+            "Get-Help:Detailed": true,
+            "Get-Weather:APIKey": "",
+            "Search-Bing:ApiKey": ""
         },
         "PSReadLine": {
             "PredictionSource": "History",
