@@ -255,6 +255,13 @@ if ($readlineConfig -and (Get-Module -Name PSReadLine -ListAvailable -ErrorActio
     catch { Write-Verbose "Skipping PSReadLine configuration: $_" }
 }
 
+$IsElevated = if ($IsWindows) {
+    ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+}
+else {
+    try { (id -u) -eq '0' } catch { $false }
+}
+
 #---------------------------------------------------------------
 # Windows Section
 #---------------------------------------------------------------
@@ -279,7 +286,7 @@ if ($IsWindows) {
         }
     }
 
-    if ($PSProfileSettings.ShowElevatedWarning -and ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    if ($PSProfileSettings.ShowElevatedWarning -and $IsElevated) {
         Write-Host "--------------------------------------------" -ForegroundColor Red
         Write-Host "  THIS CONSOLE IS AN ELEVATED CONSOLE.  " -ForegroundColor Red
         Write-Host "---------------------------------------------" -ForegroundColor Red
@@ -308,12 +315,22 @@ ElseIf ($IsMacOS) {
         }
     }
 
-    if ($PSProfileSettings.RunUpdateHelpOnElevated) {
+    if ($PSProfileSettings.ShowElevatedWarning -and $IsElevated) {
+        Write-Host "--------------------------------------------" -ForegroundColor Red
+        Write-Host "  THIS SHELL IS RUNNING AS ROOT.  " -ForegroundColor Red
+        Write-Host "---------------------------------------------" -ForegroundColor Red
+    }
+
+    if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
         Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue | Out-Null
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {
         Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
+    }
+
+    if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue)) {
+        oh-my-posh init pwsh --config (Join-Path $env:POSH_THEMES_PATH "$($PSProfileSettings.PoshTheme).omp.json") | Invoke-Expression
     }
 }
 #---------------------------------------------------------------
@@ -327,7 +344,21 @@ ElseIf ($IsLinux) {
         }
     }
 
+    if ($PSProfileSettings.ShowElevatedWarning -and $IsElevated) {
+        Write-Host "--------------------------------------------" -ForegroundColor Red
+        Write-Host "  THIS SHELL IS RUNNING AS ROOT.  " -ForegroundColor Red
+        Write-Host "---------------------------------------------" -ForegroundColor Red
+    }
+
+    if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
+        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue | Out-Null
+    }
+
     if ($PSProfileSettings.ShowPSVersionBanner) {
         Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
+    }
+
+    if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue)) {
+        oh-my-posh init pwsh --config (Join-Path $env:POSH_THEMES_PATH "$($PSProfileSettings.PoshTheme).omp.json") | Invoke-Expression
     }
 }
