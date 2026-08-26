@@ -344,23 +344,49 @@ function Invoke-IPv4NetworkScan {
             $MAC = [String]::Empty
 
             if (($EnableMACResolving) -and (($Status -eq "Up") -or ($IncludeInactive))) {
-                $Arp_Result = (arp -a ).ToUpper()
+                if ($IsWindows -or $null -eq $IsWindows) {
+                    # Windows: arp -a, falling back to nbtstat
+                    $Arp_Result = (arp -a ).ToUpper()
 
-                foreach ($Line in $Arp_Result) {
-                    if ($Line.TrimStart().StartsWith($IPv4Address)) {
-                        $MAC = [Regex]::Matches($Line, "([0-9A-F][0-9A-F]-){5}([0-9A-F][0-9A-F])").Value
+                    foreach ($Line in $Arp_Result) {
+                        if ($Line.TrimStart().StartsWith($IPv4Address)) {
+                            $MAC = [Regex]::Matches($Line, "([0-9A-F][0-9A-F]-){5}([0-9A-F][0-9A-F])").Value
+                        }
+                    }
+
+                    # If the first function is not able to get the MAC-Address
+                    if ([String]::IsNullOrEmpty($MAC)) {
+                        try {
+                            $Nbtstat_Result = nbtstat -A $IPv4Address | Select-String "MAC"
+                            $MAC = [Regex]::Matches($Nbtstat_Result, "([0-9A-F][0-9A-F]-){5}([0-9A-F][0-9A-F])").Value
+                        }
+                        catch { } # No MAC
                     }
                 }
-
-                # If the first function is not able to get the MAC-Address
-                if ([String]::IsNullOrEmpty($MAC)) {
+                elseif ($IsLinux) {
+                    # Linux: kernel ARP table, populated by the ICMP probe above
                     try {
-                        $Nbtstat_Result = nbtstat -A $IPv4Address | Select-String "MAC"
-                        $MAC = [Regex]::Matches($Nbtstat_Result, "([0-9A-F][0-9A-F]-){5}([0-9A-F][0-9A-F])").Value
+                        $ArpEntry = Get-Content -Path '/proc/net/arp' -ErrorAction Stop | Select-Object -Skip 1 | Where-Object { ($_ -split '\s+')[0] -eq $IPv4Address }
+                        if ($ArpEntry) {
+                            $Candidate = (($ArpEntry -split '\s+')[3]).ToUpper()
+                            if ($Candidate -and $Candidate -ne "00:00:00:00:00:00") {
+                                $MAC = $Candidate
+                            }
+                        }
                     }
                     catch { } # No MAC
                 }
-
+                elseif ($IsMacOS) {
+                    # macOS: BSD arp, populated by the ICMP probe above
+                    try {
+                        $Arp_Result = arp -n $IPv4Address 2>$null
+                        $Match = [Regex]::Match($Arp_Result, "([0-9A-Fa-f]{1,2}:){5}[0-9A-Fa-f]{1,2}")
+                        if ($Match.Success) {
+                            $MAC = $Match.Value.ToUpper()
+                        }
+                    }
+                    catch { } # No MAC
+                }
             }
 
             # +++ Get extended informations +++

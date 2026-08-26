@@ -21,8 +21,7 @@
             "ConvertTo-Csv:NoTypeInformation": true,
             "*-PSDrive:PSProvider": "FileSystem",
             "Get-Help:Detailed": true,
-            "Get-Weather:APIKey": "",
-            "Search-Bing:ApiKey": ""
+            "Get-Weather:APIKey": ""
         },
         "PSReadLine": {
             "PredictionSource": "History",

@@ -113,7 +113,31 @@ function Get-RandomPassword
 	)
 
 	Begin{
+		# Cross-platform clipboard copy: Set-Clipboard (Windows), pbcopy (macOS), xclip/xsel/wl-copy (Linux)
+		function Set-CrossPlatformClipboard {
+			param([Parameter(Mandatory=$true)][string]$Value)
 
+			if ($IsWindows -or $null -eq $IsWindows) {
+				Set-Clipboard -Value $Value
+			}
+			elseif ($IsMacOS) {
+				$Value | & pbcopy
+			}
+			elseif ($IsLinux) {
+				if (Get-Command xclip -ErrorAction SilentlyContinue) {
+					$Value | & xclip -selection clipboard
+				}
+				elseif (Get-Command xsel -ErrorAction SilentlyContinue) {
+					$Value | & xsel --clipboard --input
+				}
+				elseif (Get-Command wl-copy -ErrorAction SilentlyContinue) {
+					$Value | & wl-copy
+				}
+				else {
+					Write-Warning "No clipboard utility found (xclip, xsel, or wl-copy). Install one to use -CopyToClipboard on Linux."
+				}
+			}
+		}
 	}
 
 	Process{
@@ -163,7 +187,7 @@ function Get-RandomPassword
 				# Set to clipboard
 				if($CopyToClipboard)
 				{
-					Set-Clipboard -Value $Password
+					Set-CrossPlatformClipboard -Value $Password
 				}
 
 				[pscustomobject] @{
