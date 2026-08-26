@@ -1,0 +1,7 @@
+{
+    "Microsoft.PowerShell:ExecutionPolicy": "Unrestricted",
+    "ExperimentalFeatures": [
+        "PSFeedbackProvider",
+        "PSCommandNotFoundSuggestion"
+    ]
+}

@@ -1,0 +1,34 @@
+{
+    "name": "Joes Profile Config",
+    "version": "0.0.0.1",
+    "settings": {
+        "MaximumHistoryCount": 8192,
+        "OneDrivePath": "C:\\Users\\josep\\OneDrive"
+    },
+    "Modules": [
+        {
+            "Name": "Terminal-Icons",
+            "Description": "PowerShell module to add file icons to terminal based on file extension",
+            "PSVersionMajor": "5",
+            "OS": "Windows"
+        },
+        {
+            "Name": "TabExpansionPlusPlus",
+            "Description": "An enhanced tab expansion module for PowerShell",
+            "PSVersionMajor": "5",
+            "OS": "Windows"
+        },
+        {
+            "Name": "Microsoft.WinGet.Client",
+            "Description": "Windows Package Manager Client",
+            "PSVersionMajor": "5",
+            "OS": "Windows"
+        }
+    ],
+    "Packages": [
+        {
+            "Name": "speedtest",
+            "Source": "winget"
+        }
+    ]
+}
