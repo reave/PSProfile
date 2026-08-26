@@ -179,6 +179,7 @@ Foreach ($function in $functions) {
 }
 
 Enable-Tls12
+Initialize-HomebrewPath
 $IsInteractiveShell = Test-InteractiveShell
 
 #---------------------------------------------------------------
