@@ -29,7 +29,7 @@
 .EXAMPLE
     &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1))) -InstallPath 'C:\PSProfile' -Branch 'develop'
 #>
-[CmdletBinding(SupportsShouldProcess)]
+[CmdletBinding()]
 param(
     [string]$InstallPath = (Join-Path $HOME '.config/powershell/PSProfile'),
     [string]$Branch = 'main',
@@ -131,7 +131,7 @@ try {
         if ($existingContent -and $existingContent.Contains($marker)) {
             Write-SetupStep "Profile at $profileTarget already links to PSProfile - leaving it alone"
         }
-        elseif ($PSCmdlet.ShouldProcess($profileTarget, 'Point profile at installed PSProfile')) {
+        else {
             if ($existingContent) {
                 $backupPath = "$profileTarget.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
                 Write-SetupStep "Backing up existing profile to $backupPath"
