@@ -3,14 +3,45 @@
     "version": "0.0.0.1",
     "settings": {
         "MaximumHistoryCount": 8192,
-        "OneDrivePath": "C:\\Users\\josep\\OneDrive"
+        "OneDrivePath": "C:\\Users\\josep\\OneDrive",
+        "PoshTheme": "M365Princess",
+        "ShowWindowTitle": true,
+        "ShowSplashScreen": true,
+        "SplashCommand": {
+            "Windows": "winfetch",
+            "MacOS": "screenfetch -E",
+            "Linux": "screenfetch -E"
+        },
+        "ShowElevatedWarning": true,
+        "RunUpdateHelpOnElevated": true,
+        "ShowPSVersionBanner": true,
+        "EnableChocolateyIntegration": true,
+        "DefaultParameterValues": {
+            "Export-Csv:NoTypeInformation": true,
+            "ConvertTo-Csv:NoTypeInformation": true,
+            "*-PSDrive:PSProvider": "FileSystem",
+            "Get-Help:Detailed": true
+        },
+        "PSReadLine": {
+            "PredictionSource": "History",
+            "PredictionViewStyle": "ListView",
+            "EditMode": "Windows",
+            "HistorySearchArrowKeys": true
+        }
     },
+    "Aliases": [
+        {
+            "Name": "edit",
+            "Value": "Edit-File",
+            "Description": "Edit a file"
+        }
+    ],
     "Modules": [
         {
             "Name": "Terminal-Icons",
             "Description": "PowerShell module to add file icons to terminal based on file extension",
             "PSVersionMajor": "5",
-            "OS": "Windows"
+            "OS": "All"
         },
         {
             "Name": "TabExpansionPlusPlus",
@@ -23,11 +54,18 @@
             "Description": "Windows Package Manager Client",
             "PSVersionMajor": "5",
             "OS": "Windows"
+        },
+        {
+            "Name": "Microsoft.WinGet.CommandNotFound",
+            "Description": "PowerToys CommandNotFound module - suggests winget packages for unrecognized commands",
+            "PSVersionMajor": "5",
+            "OS": "Windows"
         }
     ],
     "Packages": [
         {
             "Name": "speedtest",
+            "Id": "ookla.speedtest.cli",
             "Source": "winget"
         }
     ]
