@@ -58,8 +58,8 @@
         },
         {
             "Name": "TabExpansionPlusPlus",
-            "Description": "An enhanced tab expansion module for PowerShell",
-            "PSVersionMajor": "5",
+            "Description": "An enhanced tab expansion module for Windows PowerShell 5.1 - doesn't support PowerShell 7+ (Core), superseded there by native/PSReadLine completion",
+            "PSVersionMajorMax": "5",
             "OS": "Windows"
         },
         {

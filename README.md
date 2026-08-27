@@ -102,7 +102,7 @@ Applied via `New-Alias -Force`. Keep in mind PowerShell resolves existing aliase
 }
 ```
 
-Each entry is installed (`Install-Module -Force`) and imported if not already present. `OS` is `"Windows"`, `"MacOS"`, `"Linux"`, `"All"`, or a comma-separated combination (e.g. `"Windows,MacOS"`). `PSVersionMajor` is a **minimum** PowerShell major version — the entry is skipped if `$PSVersionTable.PSVersion.Major` is lower.
+Each entry is installed (`Install-Module -Force`) and imported if not already present. `OS` is `"Windows"`, `"MacOS"`, `"Linux"`, `"All"`, or a comma-separated combination (e.g. `"Windows,MacOS"`). `PSVersionMajor` is a **minimum** PowerShell major version — the entry is skipped if `$PSVersionTable.PSVersion.Major` is lower. `PSVersionMajorMax` is the inverse — a **maximum** PowerShell major version, for a module that stops working on newer PowerShell (e.g. `TabExpansionPlusPlus`, which only supports Windows PowerShell 5.1 and doesn't install cleanly on PS7+/Core). The two can be combined to bound a module to a specific range.
 
 ### `Packages`
 

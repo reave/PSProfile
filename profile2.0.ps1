@@ -212,6 +212,7 @@ else {
 foreach ($module in $PSProfileConfig.Modules) {
     if (-not (Test-PSProfileOSMatch -OSField $module.OS)) { continue }
     if ($module.PSVersionMajor -and $PSVersionTable.PSVersion.Major -lt [int]$module.PSVersionMajor) { continue }
+    if ($module.PSVersionMajorMax -and $PSVersionTable.PSVersion.Major -gt [int]$module.PSVersionMajorMax) { continue }
 
     if (Get-Module -Name $module.Name -ListAvailable -ErrorAction SilentlyContinue) {
         try { Import-Module -Name $module.Name -ErrorAction Stop }
