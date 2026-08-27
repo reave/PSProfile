@@ -162,6 +162,11 @@ if ($PSProfileSettings.DefaultParameterValues) {
 #---------------------------------------------------------------
 # Functions
 #---------------------------------------------------------------
+# Exposed so functions dot-sourced from assets\public\* (whose own $PSScriptRoot
+# points at their own file, not this one) can still find the install root - e.g.
+# Update-Profile's git pull.
+Set-Variable -Name PSProfileRoot -Value $PSScriptRoot -Scope Global
+
 $OSFolder = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } elseif ($IsLinux) { 'linux' }
 
 #- Dot Source Public Functions (assets\public\<windows|macos|linux>\*.ps1)

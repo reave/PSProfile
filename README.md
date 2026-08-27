@@ -37,7 +37,9 @@ cp ~/.config/powershell/PSProfile/assets/config/sample-config.json ~/.config/pow
 
 ### Updating
 
-Re-run the install one-liner at the top of this file, or if you cloned manually, `git pull` inside the install directory. Either way, your `config.json` is untouched — it isn't part of the repo (it's gitignored), so nothing can overwrite it.
+From an already-loaded profile, run `Update-Profile` — it `git pull`s the install directory and reloads `$PROFILE` in place, no restart needed. Otherwise, re-run the install one-liner at the top of this file, or if you cloned manually, `git pull` inside the install directory. Either way, your `config.json` is untouched — it isn't part of the repo (it's gitignored), so nothing can overwrite it.
+
+`Update-Profile` only works for a git-based install (the default); a zip-installed copy (no git available at install time) needs the install one-liner re-run instead.
 
 ### Uninstalling
 
@@ -208,7 +210,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ### File / data utilities (cross-platform)
 
-`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` · `Resolve-Error`
+`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` · `Resolve-Error` · `Update-Profile` (`git pull`s the install directory and reloads `$PROFILE` — see [Updating](#updating))
 
 ### File utilities (Windows-only)
 
