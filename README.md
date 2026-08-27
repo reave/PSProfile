@@ -114,6 +114,8 @@ Supports `winget`, `brew`, `apt`, `yum` (or `dnf`), and `pacman`. Unlike `Module
 
 `apt`/`yum`/`pacman` require root. If not elevated, the entry is skipped with a warning instead of invoking `sudo` interactively — a password prompt there would hang profile load.
 
+The `winget` case imports `Microsoft.WinGet.Client` itself, lazily, right before calling `Install-WinGetPackage` — not eagerly in [Modules](#modules) — because once every configured package is already installed (the common case after first setup) this branch never runs, so there's no reason to pay that module's import cost on every session.
+
 ### Secrets in config
 
 Some functions take API keys as parameters (e.g. `Get-Weather -APIKey`). Rather than hardcoding a key in the function file, set it in `DefaultParameterValues`:
@@ -163,6 +165,8 @@ assets/
 Every function under `assets/public/` and `assets/private/` was individually reviewed for what it actually depends on — WMI/CIM, the Windows registry, Active Directory, WinRM `TrustedHosts`, Windows-only cmdlets (`Get-LocalUser`, `Set-ScreenResolution`, `Test-NetConnection`), P/Invoke, or Windows-formatted parsing of `arp`/`netstat`/`nbtstat` output — rather than assumed from its name. Functions that only depend on those live in `windows/` only; everything genuinely cross-platform (IP/subnet math, string conversions, git shortcuts, Unix-alias utilities like `unzip`/`pkill`/`tail`, web-request-based tools) is duplicated into `macos/` and `linux/` too. `profile2.0.ps1` only dot-sources the folder matching the OS it's actually running on.
 
 `private/` functions (`Test-InteractiveShell`, `Enable-Tls12`, `Initialize-HomebrewPath`, `Resolve-PoshTheme`, `Set-ProfileWindowTitle`, plus `completions.ps1`/`history.ps1` for tab-completion and PSReadLine key bindings) exist to help the profile configure itself — they're not really meant to be called directly, though nothing stops you.
+
+`completions.ps1` is a small dispatcher, not the completers themselves: each tool's argument completer lives in its own file under `private/<os>/completions/` (`winget.ps1`, `dotnet.ps1`, `op.ps1`, `oh-my-posh.ps1`) and `completions.ps1` only dot-sources one if `Get-Command` finds that tool installed. Dot-sourcing forces a full parse of whatever file it points at regardless of any `if` inside that file, so gating had to happen at file-selection level — one file per tool, not one giant always-loaded file with conditionals in it. Add a new tool's completer the same way: a new file under `completions/`, plus one `if (Get-Command ...) { . ... }` line in `completions.ps1`.
 
 ### Interactive-only behavior
 

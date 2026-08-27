@@ -248,7 +248,15 @@ foreach ($package in $PSProfileConfig.Packages) {
     switch ($package.Source) {
         'winget' {
             if (-not (Get-Command -Name winget -ErrorAction SilentlyContinue)) { continue }
-            try { Install-WinGetPackage -Id $package.Id -Mode Silent -ErrorAction Stop }
+            try {
+                # Imported here rather than eagerly in the Modules loop above: once every
+                # configured package is already installed (the common case after first
+                # setup), this branch never runs, so the module's import cost is skipped too.
+                if (-not (Get-Command -Name Install-WinGetPackage -ErrorAction SilentlyContinue)) {
+                    Import-Module -Name Microsoft.WinGet.Client -ErrorAction Stop
+                }
+                Install-WinGetPackage -Id $package.Id -Mode Silent -ErrorAction Stop
+            }
             catch { Write-Error "Unable to install $($package.Id) via winget" }
         }
         'brew' {
@@ -338,10 +346,10 @@ if ($IsWindows -and $IsInteractiveShell) {
         Write-Host "--------------------------------------------" -ForegroundColor Red
         Write-Host "  THIS CONSOLE IS AN ELEVATED CONSOLE.  " -ForegroundColor Red
         Write-Host "---------------------------------------------" -ForegroundColor Red
+    }
 
-        if ($PSProfileSettings.RunUpdateHelpOnElevated) {
-            Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue | Out-Null
-        }
+    if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
+        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue | Out-Null
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {

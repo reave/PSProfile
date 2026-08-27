@@ -63,12 +63,6 @@
             "OS": "Windows"
         },
         {
-            "Name": "Microsoft.WinGet.Client",
-            "Description": "Windows Package Manager Client",
-            "PSVersionMajor": "5",
-            "OS": "Windows"
-        },
-        {
             "Name": "Microsoft.WinGet.CommandNotFound",
             "Description": "PowerToys CommandNotFound module - suggests winget packages for unrecognized commands",
             "PSVersionMajor": "5",
