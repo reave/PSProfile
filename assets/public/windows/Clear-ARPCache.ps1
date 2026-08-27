@@ -36,7 +36,7 @@ function Clear-ARPCache
 
     Process{
         try{
-            Start-Process -FilePath "$env:SystemRoot\System32\netsh.exe" -ArgumentList "interface ip delete arpcache" -Verb "RunAs" -WindowStyle Hidden -Wait
+            Start-Process -FilePath "$env:SystemRoot\System32\netsh.exe" -ArgumentList "interface ipv4 delete arpcache" -Verb "RunAs" -WindowStyle Hidden -Wait
         }
         catch{
             throw
