@@ -10,6 +10,12 @@ if (Get-Command -Name winget -ErrorAction SilentlyContinue) { . "$PSScriptRoot\c
 if (Get-Command -Name dotnet -ErrorAction SilentlyContinue) { . "$PSScriptRoot\completions\dotnet.ps1" }
 if (Get-Command -Name op -ErrorAction SilentlyContinue) { . "$PSScriptRoot\completions\op.ps1" }
 if (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue) { . "$PSScriptRoot\completions\oh-my-posh.ps1" }
+if (Get-Command -Name yt-dlp -ErrorAction SilentlyContinue) { . "$PSScriptRoot\completions\yt-dlp.ps1" }
+if (Get-Command -Name ffmpeg -ErrorAction SilentlyContinue) { . "$PSScriptRoot\completions\ffmpeg.ps1" }
+if (Get-Command -Name ssh-keygen -ErrorAction SilentlyContinue) { . "$PSScriptRoot\completions\ssh-keygen.ps1" }
+if (Get-Command -Name sqlite3 -ErrorAction SilentlyContinue) { . "$PSScriptRoot\completions\sqlite3.ps1" }
+if (Get-Command -Name pwsh -ErrorAction SilentlyContinue) { . "$PSScriptRoot\completions\pwsh.ps1" }
+if (Get-Command -Name npx -ErrorAction SilentlyContinue) { . "$PSScriptRoot\completions\npx.ps1" }
 
 # config.json's NativeCompletions: tools with their own `completion powershell`-style generator.
 # The generated script is cached under .\completions\native\<name>.ps1 by Update-Completions
