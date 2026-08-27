@@ -4,6 +4,7 @@
 # Autor        :  BornToBeRoot (https://github.com/BornToBeRoot)
 # Description  :  Send a network message to turn on or wake up a remote computer
 # Repository   :  https://github.com/BornToBeRoot/PowerShell
+# License      :  GPL-3.0 (inherited from source repository - see LICENSE)
 ###############################################################################################################
 
 <#

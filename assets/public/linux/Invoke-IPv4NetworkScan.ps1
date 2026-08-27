@@ -4,6 +4,7 @@
 # Autor        :  BornToBeRoot (https://github.com/BornToBeRoot)
 # Description  :  Powerful asynchronus IPv4 Network Scanner
 # Repository   :  https://github.com/BornToBeRoot/PowerShell
+# License      :  GPL-3.0 (inherited from source repository - see LICENSE)
 ###############################################################################################################
 
 <#

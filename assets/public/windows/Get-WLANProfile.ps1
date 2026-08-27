@@ -1,9 +1,10 @@
-﻿###############################################################################################################
+###############################################################################################################
 # Language     :  PowerShell 5.0
 # Filename     :  Get-WLANProfile.ps1
 # Autor        :  BornToBeRoot (https://github.com/BornToBeRoot)
 # Description  :  Get WLAN profiles, include password as SecureString or as plain text
 # Repository   :  https://github.com/BornToBeRoot/PowerShell
+# License      :  GPL-3.0 (inherited from source repository - see LICENSE)
 ###############################################################################################################
 
 <#

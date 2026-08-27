@@ -1,9 +1,10 @@
-﻿###############################################################################################################
+###############################################################################################################
 # Language     :  PowerShell 4.0
 # Filename     :  Get-ConsoleColor.ps1
 # Autor        :  BornToBeRoot (https://github.com/BornToBeRoot)
 # Description  :  Get all available console colors
 # Repository   :  https://github.com/BornToBeRoot/PowerShell
+# License      :  GPL-3.0 (inherited from source repository - see LICENSE)
 ###############################################################################################################
 
 <#

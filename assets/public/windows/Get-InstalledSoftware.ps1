@@ -4,6 +4,7 @@
 # Autor        :  BornToBeRoot (https://github.com/BornToBeRoot)
 # Description  :  Get all installed software with DisplayName, Publisher and UninstallString
 # Repository   :  https://github.com/BornToBeRoot/PowerShell
+# License      :  GPL-3.0 (inherited from source repository - see LICENSE)
 ###############################################################################################################
 
 <#

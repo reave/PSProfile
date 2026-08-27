@@ -4,6 +4,7 @@
 # Autor        :  BornToBeRoot (https://github.com/BornToBeRoot)
 # Description  :  Generate PINs with freely definable number of numbers
 # Repository   :  https://github.com/BornToBeRoot/PowerShell
+# License      :  GPL-3.0 (inherited from source repository - see LICENSE)
 ###############################################################################################################
 
 <#

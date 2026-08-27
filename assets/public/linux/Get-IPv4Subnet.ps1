@@ -1,9 +1,10 @@
-﻿###############################################################################################################
+###############################################################################################################
 # Language     :  PowerShell 4.0
 # Filename     :  Get-IPv4Subnet.ps1
 # Autor        :  BornToBeRoot (https://github.com/BornToBeRoot)
 # Description  :  Calculate a subnet based on an IP-Address and the subnetmask or CIDR
 # Repository   :  https://github.com/BornToBeRoot/PowerShell
+# License      :  GPL-3.0 (inherited from source repository - see LICENSE)
 ###############################################################################################################
 
 <#
