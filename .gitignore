@@ -1,2 +1,7 @@
 # Personal profile config - copy assets/config/sample-config.json to config.json and edit it locally
 assets/config/config.json
+
+# Machine-generated completion scripts (from each installed tool's own `completion powershell`
+# generator, cached by Update-Completions) - version/machine-specific, regenerated on demand,
+# never meant to be committed. See NativeCompletions in config.json.
+assets/private/*/completions/native/

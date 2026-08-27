@@ -151,6 +151,34 @@ $marker (https://github.com/reave/PSProfile) - edit assets/config/config.json in
         }
     }
 
+    # Populate cached native completions (config.json's NativeCompletions - e.g. docker,
+    # kubectl, gh, helm) for whichever of those tools are already installed, so they work
+    # from the very first shell restart. Everything else config-driven (Modules, Packages)
+    # runs itself the first time profile2.0.ps1 loads; NativeCompletions is deliberately not
+    # auto-run on every load (shelling out to each tool - e.g. docker - on every profile load
+    # would be slow), so it needs this explicit populate step instead. Non-fatal: setup still
+    # succeeds even if this fails, same as everything else below "Cloning/Installing" above.
+    try {
+        $osFolder = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } else { 'linux' }
+        $updateCompletionsScript = Join-Path $InstallPath "assets\public\$osFolder\Update-Completions.ps1"
+        if (Test-Path -Path $updateCompletionsScript) {
+            Write-SetupStep 'Populating native completions for installed tools'
+            $Global:PSProfileRoot = $InstallPath
+            function Get-PSProfileConfig {
+                $configPath = Join-Path $InstallPath 'assets\config\config.json'
+                $samplePath = Join-Path $InstallPath 'assets\config\sample-config.json'
+                $path = if (Test-Path -Path $configPath) { $configPath } else { $samplePath }
+                if (-not (Test-Path -Path $path)) { return $null }
+                Get-Content -Path $path -Raw | ConvertFrom-Json
+            }
+            . $updateCompletionsScript
+            Update-Completions
+        }
+    }
+    catch {
+        Write-Warning "Could not populate native completions: $_"
+    }
+
     Write-Host ''
     Write-Host "PSProfile installed at $InstallPath" -ForegroundColor Green
     if (-not $SkipProfileLink) {

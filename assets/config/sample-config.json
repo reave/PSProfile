@@ -95,5 +95,23 @@
             "Id": "speedtest-cli",
             "Source": "pacman"
         }
+    ],
+    "NativeCompletions": [
+        {
+            "Name": "docker",
+            "GenerateCommand": "docker completion powershell"
+        },
+        {
+            "Name": "kubectl",
+            "GenerateCommand": "kubectl completion powershell"
+        },
+        {
+            "Name": "gh",
+            "GenerateCommand": "gh completion -s powershell"
+        },
+        {
+            "Name": "helm",
+            "GenerateCommand": "helm completion powershell"
+        }
     ]
 }
