@@ -209,14 +209,41 @@ else {
 #---------------------------------------------------------------
 # Modules
 #---------------------------------------------------------------
+# Terminal-Icons re-exports its theme cache on every import with a non-atomic Export-Clixml,
+# so two shells starting at once can read a half-written file ("Root element is missing").
+# A named mutex makes concurrent profile loads take turns importing.
+$moduleImportMutex = [System.Threading.Mutex]::new($false, 'PSProfile-ModuleImport')
 foreach ($module in $PSProfileConfig.Modules) {
     if (-not (Test-PSProfileOSMatch -OSField $module.OS)) { continue }
     if ($module.PSVersionMajor -and $PSVersionTable.PSVersion.Major -lt [int]$module.PSVersionMajor) { continue }
     if ($module.PSVersionMajorMax -and $PSVersionTable.PSVersion.Major -gt [int]$module.PSVersionMajorMax) { continue }
 
     if (Get-Module -Name $module.Name -ListAvailable -ErrorAction SilentlyContinue) {
-        try { Import-Module -Name $module.Name -ErrorAction Stop }
-        catch { Write-Error "Unable to import $($module.Name) module" }
+        $hasImportMutex = $false
+        try {
+            # A shell that died mid-import abandons the mutex; ownership still passes to us.
+            try { $hasImportMutex = $moduleImportMutex.WaitOne(10000) }
+            catch [System.Threading.AbandonedMutexException] { $hasImportMutex = $true }
+            try { Import-Module -Name $module.Name -ErrorAction Stop }
+            catch {
+                if ($module.Name -ne 'Terminal-Icons') { throw }
+                # A shell closed mid-write still leaves a truncated theme file, and the module stops
+                # before rewriting it, so every later load fails too. Drop unreadable files and retry
+                # once; the module regenerates its built-in themes on import.
+                $themeCacheBase = if ($IsLinux -or $IsMacOS) {
+                    if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { [IO.Path]::Combine($HOME, '.local', 'share') }
+                }
+                else { $env:APPDATA }
+                $themeCachePath = [IO.Path]::Combine($themeCacheBase, 'powershell', 'Community', 'Terminal-Icons')
+                foreach ($themeFile in Get-ChildItem -Path $themeCachePath -Filter '*.xml' -ErrorAction SilentlyContinue) {
+                    try { $null = Import-Clixml -Path $themeFile.FullName -ErrorAction Stop }
+                    catch { Remove-Item -LiteralPath $themeFile.FullName -Force }
+                }
+                Import-Module -Name $module.Name -ErrorAction Stop
+            }
+        }
+        catch { Write-Error "Unable to import $($module.Name) module: $($_.Exception.Message)" }
+        finally { if ($hasImportMutex) { $moduleImportMutex.ReleaseMutex() } }
     }
     else {
         try {
@@ -226,6 +253,7 @@ foreach ($module in $PSProfileConfig.Modules) {
         catch { Write-Error "Unable to install $($module.Name) module" }
     }
 }
+$moduleImportMutex.Dispose()
 
 $IsElevated = if ($IsWindows) {
     ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
