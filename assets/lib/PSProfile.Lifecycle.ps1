@@ -98,9 +98,30 @@ function Update-PSProfileNotice {
 }
 
 function Get-PSProfileConfigFromPath {
+    <#
+        The merged config of the install at $InstallPath: every layer under assets/config, the
+        same way the profile reads it. The layering helpers are borrowed from that install's
+        profile2.0.ps1 rather than kept as a second copy here that could drift.
+    #>
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$InstallPath)
 
+    $helpers = 'Get-PSProfileConfigLayer', 'Merge-PSProfileConfigObject', 'Read-PSProfileConfig'
+    $profileScript = Join-Path $InstallPath 'profile2.0.ps1'
+    if (Test-Path -Path $profileScript) {
+        $profileAst = [System.Management.Automation.Language.Parser]::ParseFile($profileScript, [ref]$null, [ref]$null)
+        $definitions = $profileAst.FindAll({
+                param($node)
+                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $helpers -contains $node.Name
+            }, $false)
+        foreach ($definition in $definitions) { . ([scriptblock]::Create($definition.Extent.Text)) }
+    }
+
+    if (Get-Command -Name Read-PSProfileConfig -CommandType Function -ErrorAction Ignore) {
+        return Read-PSProfileConfig -Root $InstallPath
+    }
+
+    # An install from before layered config: config.json, else sample-config.json.
     $configPath = Join-Path $InstallPath 'assets/config/config.json'
     $samplePath = Join-Path $InstallPath 'assets/config/sample-config.json'
     $path = if (Test-Path -Path $configPath) { $configPath } else { $samplePath }
@@ -587,18 +608,21 @@ function Save-PSProfileArchive {
 
 function Copy-PSProfileLocalFile {
     <#
-        Carries machine-local, gitignored files from the live install into a new tree:
-        config.json and any cached native completions.
+        Carries machine-local files from the live install into a new tree: config.json,
+        config.local.json, any config.<MACHINE>.json the new tree doesn't ship itself, and any
+        cached native completions.
     #>
     param([Parameter(Mandatory)][string]$From, [Parameter(Mandatory)][string]$To)
 
     if (-not (Test-Path -Path $From)) { return }
 
-    $config = Join-Path $From 'assets/config/config.json'
-    if (Test-Path -Path $config) {
-        $dest = Join-Path $To 'assets/config'
+    $dest = Join-Path $To 'assets/config'
+    foreach ($config in Get-ChildItem -Path (Join-Path $From 'assets/config') -Filter 'config*.json' -File -ErrorAction SilentlyContinue) {
+        # A machine file committed upstream comes with the new tree, like any tracked file.
+        $isLocal = 'config.json', 'config.local.json' -contains $config.Name
+        if (-not $isLocal -and (Test-Path -Path (Join-Path $dest $config.Name))) { continue }
         if (-not (Test-Path -Path $dest)) { New-Item -ItemType Directory -Path $dest -Force | Out-Null }
-        Copy-Item -Path $config -Destination $dest -Force
+        Copy-Item -Path $config.FullName -Destination $dest -Force
     }
 
     $fromFull = (Resolve-Path -Path $From).Path.TrimEnd('\', '/')

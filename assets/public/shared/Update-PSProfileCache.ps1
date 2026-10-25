@@ -75,7 +75,8 @@ function Update-PSProfileCache {
     $helpers = 'Get-PSProfileCachePath', 'Get-PSProfileFunctionSignature', 'Get-PSProfileFunctionFolders',
     'Get-PSProfileOhMyPoshKey', 'Update-PSProfileOhMyPoshCache', 'Update-PSProfileExecutionPolicyCache',
     'Resolve-PSProfilePoshTheme',
-    'Find-PSProfileExecutable', 'Get-PSProfileInitArguments', 'Get-PSProfileInitCacheHeader', 'Update-PSProfileInitCache'
+    'Find-PSProfileExecutable', 'Get-PSProfileInitArguments', 'Get-PSProfileInitCacheHeader', 'Update-PSProfileInitCache',
+    'Get-PSProfileConfigLayer', 'Merge-PSProfileConfigObject', 'Read-PSProfileConfig'
     $missing = @($helpers | Where-Object { -not (Get-Command -Name $_ -CommandType Function -ErrorAction Ignore) })
     if ($missing) {
         $profileAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'profile2.0.ps1'), [ref]$null, [ref]$null)
@@ -92,13 +93,7 @@ function Update-PSProfileCache {
 
     $config = $null
     if ($Cache -contains 'OhMyPosh' -or $Cache -contains 'Zoxide' -or $Cache -contains 'Atuin') {
-        $config = if (Get-Command -Name Get-PSProfileConfig -CommandType Function -ErrorAction Ignore) { Get-PSProfileConfig }
-        else {
-            # Same lookup as the profile's Get-PSProfileConfig, which relies on its own location.
-            $configPath = Join-Path (Join-Path (Join-Path $root 'assets') 'config') 'config.json'
-            if (-not (Test-Path -Path $configPath)) { $configPath = Join-Path (Join-Path (Join-Path $root 'assets') 'config') 'sample-config.json' }
-            if (Test-Path -Path $configPath) { Get-Content -Path $configPath -Raw | ConvertFrom-Json }
-        }
+        $config = Read-PSProfileConfig -Root $root
     }
 
     foreach ($tool in 'zoxide', 'atuin') {

@@ -13,7 +13,7 @@ This is the only supported install path. It works on Windows PowerShell 5.1, Pow
 ### What it does
 
 1. Installs (or updates) this repo to `~/.config/powershell/PSProfile` — via `git clone`/`git pull` if git is available, otherwise a zip download from GitHub. A zip download is validated in a staging folder next to the install and swapped in whole, so files removed upstream don't linger. Safe to re-run any time to update.
-2. Creates a personal `assets/config/config.json` from `assets/config/sample-config.json`, but only if one doesn't already exist. Re-running never touches a config you've already customized.
+2. Creates a near-empty personal `assets/config/config.json` (just a `$schema` line and an empty `settings`), but only if one doesn't already exist. The repo defaults in `sample-config.json` load underneath it, so it only needs what you change. Re-running never touches a config you've already customized. See [Configuration](#configuration).
 3. Points `$PROFILE.CurrentUserAllHosts` at the installed `profile2.0.ps1`. If you already have a profile, it's backed up (`<profile>.bak-<timestamp>`) and its original content is preserved, appended below the new dot-source line — nothing is discarded.
 4. Installs the [Modules](#modules) and [Packages](#packages) your config lists that are missing (`-SkipDependencies` to skip). `apt`/`dnf`/`yum`/`pacman` go through `sudo` when you're not root, so expect a password prompt on Linux.
 5. Loads the profile once in a separate PowerShell process to check it loads cleanly and to build its caches (including cached [`NativeCompletions`](#nativecompletions)).
@@ -32,7 +32,6 @@ Add `-SkipProfileLink` to just get the repo on disk without touching `$PROFILE` 
 
 ```powershell
 git clone https://github.com/reave/PSProfile.git ~/.config/powershell/PSProfile
-cp ~/.config/powershell/PSProfile/assets/config/sample-config.json ~/.config/powershell/PSProfile/assets/config/config.json
 # then add this line to $PROFILE.CurrentUserAllHosts:
 . "$HOME/.config/powershell/PSProfile/profile2.0.ps1"
 ```
@@ -46,7 +45,7 @@ Run `Update-Profile`. It works for both git and zip installs:
 
 Before an update is accepted, every `.ps1` must parse and `profile2.0.ps1` must load without throwing in a separate, profile-less PowerShell process. A git update that fails either check is reset to the previous commit automatically (`git reset --keep`, so local edits are never discarded); a zip update that fails is never swapped in. That same child process then rebuilds the profile's caches with the new code (`Update-PSProfileCache` and [`Update-Completions`](#nativecompletions)). Finally, any configured modules and packages that are missing get installed (`-SkipDependencies` to skip).
 
-The new version loads in new shells; run `. $PROFILE` to load it into the current one. Your `config.json` is never touched — it's gitignored, and zip updates carry it (and cached native completions) across.
+The new version loads in new shells; run `. $PROFILE` to load it into the current one. Your `config.json` and `config.local.json` are never touched — they're gitignored, and zip updates carry them (plus any uncommitted `config.<MACHINE>.json` and cached native completions) across.
 
 | Command | What it does |
 |---|---|
@@ -63,13 +62,24 @@ The new version loads in new shells; run `. $PROFILE` to load it into the curren
 &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1))) -Uninstall
 ```
 
-Restores `$PROFILE.CurrentUserAllHosts` to its pre-PSProfile content (or deletes it, if setup.ps1 created it), backs up `config.json` next to `$PROFILE`, then deletes the install directory and the state/cache folder. Asks first; add `-Force` to skip the prompt. Installed modules and packages are left alone.
+Restores `$PROFILE.CurrentUserAllHosts` to its pre-PSProfile content (or deletes it, if setup.ps1 created it), backs up `config.json`, `config.local.json` and any `config.<MACHINE>.json` next to `$PROFILE`, then deletes the install directory and the state/cache folder. Asks first; add `-Force` to skip the prompt. Installed modules and packages are left alone.
 
 ## Configuration
 
-Everything behavioral is controlled by `assets/config/config.json`, which you get by copying `assets/config/sample-config.json` (setup.ps1 does this for you automatically on first install). `sample-config.json` stays checked into git as the template/example; `config.json` is yours, gitignored, and never touched by updates.
+Config is layered. The profile reads up to four files from `assets/config/` and merges them in this order, later files winning:
 
-If `config.json` is missing for any reason, the profile falls back to `sample-config.json` with a warning — it never fails to load outright.
+| Layer | File | In git? | Use it for |
+|---|---|---|---|
+| Default | `sample-config.json` | Yes | Repo defaults. Updates change it, so don't edit it for personal settings. |
+| User | `config.json` | Ignored | Your settings on this install. setup.ps1 creates a near-empty one. |
+| Machine | `config.<MACHINE>.json` | Not ignored | Settings for one computer, named after `[Environment]::MachineName` (e.g. `config.ALFHEIM.json`). Commit it to share it with every install of that machine. |
+| Local | `config.local.json` | Ignored | The last word on this install, e.g. a quick experiment. |
+
+Objects merge key by key, so a layer only needs the keys it changes: `{"settings": {"PoshTheme": "atomic"}}` changes the theme and keeps every other default. Arrays (`Aliases`, `Modules`, `Packages`, `NativeCompletions`) are replaced whole, so a layer that sets `Modules` owns the full list. Missing files are skipped, and a file with a JSON error is skipped with a warning naming it, so the profile never fails to load outright.
+
+`Get-PSProfileConfig` returns the merged result; `Get-PSProfileConfig -ListLayers` shows which files were found. An older `config.json` that is a full copy of the sample still works: it just overrides every default, including ones a later update changes. Trimming it down to the keys you've changed lets new defaults through (and merges a little faster at startup).
+
+`assets/config/psprofile.schema.json` is a JSON Schema for all of these files. Every checked-in config has `"$schema": "./psprofile.schema.json"` at the top, which gives VS Code completion and type checks; add the same line to your own layers. CI validates the checked-in files against it.
 
 ### `settings`
 
@@ -88,7 +98,9 @@ If `config.json` is missing for any reason, the profile falls back to `sample-co
 | `ShowPSVersionBanner` | bool | Print the PowerShell version and execution policy on load. |
 | `UpdateCheckIntervalHours` | number | How often the background update check runs. Default `24`; `0` turns the check and the update notice off. See [Updating](#updating). |
 | `EnableChocolateyIntegration` | — | **Removed.** Windows package management is winget-only; see [Packages](#packages). |
-| `DefaultParameterValues` | object | Merged directly into `$PSDefaultParameterValues` — arbitrary `"Cmdlet:Parameter": value` entries, e.g. an API key for a function's parameter (see [Secrets in config](#secrets-in-config)). |
+| `DefaultParameterValues` | object | Merged directly into `$PSDefaultParameterValues` — arbitrary `"Cmdlet:Parameter": value` entries. Don't put API keys here: a `*:APIKey` entry with a value prints a startup warning. Use [Secrets](#secrets) instead. |
+| `Secrets` | object | Where [`Get-PSProfileSecret`](#secrets) finds each named secret. |
+| `SecretVault` | string | Default SecretManagement vault for `Get-PSProfileSecret`. Unset uses your registered default vault. |
 | `PSReadLine` | object | See below. |
 | `Zoxide` | object | `Enabled` (default `true`) starts [zoxide](https://github.com/ajeetdsouza/zoxide) when it's installed; `Command` (default `"z"`) names the jump command, with `<Command>i` for the interactive picker. See [History and navigation](#history-and-navigation). |
 | `Atuin` | object | `Enabled` (default `false`) starts [Atuin](https://atuin.sh) for synced history. Opt-in; see [History and navigation](#history-and-navigation). |
@@ -162,17 +174,26 @@ This is deliberately **not** run on every profile load — shelling out to each 
 
 The profile calls carapace the way carapace's own `carapace _carapace powershell` snippet does, minus the snippet's per-Tab dump of every alias, cmdlet, function and variable into environment variables. That dump costs hundreds of milliseconds per Tab in a loaded session and only feeds completion of shell builtins.
 
-### Secrets in config
+### Secrets
 
-Some functions take API keys as parameters (e.g. `Get-Weather -APIKey`). Rather than hardcoding a key in the function file, set it in `DefaultParameterValues`:
+Functions that need an API key (e.g. `Get-Weather`) look it up at call time with `Get-PSProfileSecret`, never at shell startup and never from a config file. Store the key once with [Microsoft.PowerShell.SecretManagement](https://learn.microsoft.com/powershell/utility-modules/secretmanagement/overview) and a vault such as SecretStore (the profile won't install these for you):
+
+```powershell
+Install-Module Microsoft.PowerShell.SecretManagement, Microsoft.PowerShell.SecretStore -Scope CurrentUser
+Register-SecretVault -Name SecretStore -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault
+Set-Secret -Name OpenWeatherMapApiKey -Secret 'your-key'
+```
+
+`settings.Secrets` can point a name somewhere else: another secret name, a specific vault, or a 1Password reference read with the `op` CLI.
 
 ```json
-"DefaultParameterValues": {
-    "Get-Weather:APIKey": "your-key-here"
+"Secrets": {
+    "OpenWeatherMapApiKey": "op://Personal/OpenWeatherMap/credential",
+    "SomeOtherKey": { "Name": "other-name", "Vault": "Work" }
 }
 ```
 
-`sample-config.json` ships these blank. Since `config.json` is gitignored, your key never ends up in git history.
+An explicit parameter (`Get-Weather -APIKey ...`) still wins. If you had a key in `DefaultParameterValues` (`"Get-Weather:APIKey"`), move it with `Set-Secret` and delete that entry; until you do, it keeps working and the profile warns at startup.
 
 ## Theming
 
@@ -248,7 +269,7 @@ CI guards load time too. Each test job runs `tests/Measure-Startup.ps1`, which t
 
 - **Execution policy**: left at PowerShell's own default, which for pwsh 7 on Windows is `RemoteSigned`: your own local scripts run freely, but anything downloaded from the internet (carrying a Mark-of-the-Web zone identifier) must be signed to auto-execute. Windows PowerShell 5.1 defaults to `Restricted` on client Windows, which blocks profiles entirely, so `setup.ps1` sets `RemoteSigned` for the current user in that one case. It leaves `AllSigned` and Group Policy settings alone. Windows-only; a no-op on macOS/Linux.
 - **Secret-free history**: `PSReadLine.FilterSecretsFromHistory` (on by default in `sample-config.json`) keeps lines that look like they contain a password/token/API key out of the plaintext PSReadLine history file.
-- **No hardcoded credentials**: any function needing an API key takes it as a parameter defaulting to empty, sourced from your gitignored `config.json` via `DefaultParameterValues` — never committed to the repo.
+- **No credentials in config**: functions that need an API key take it as a parameter, and otherwise read it on demand from SecretManagement or 1Password via `Get-PSProfileSecret` (see [Secrets](#secrets)). Nothing is unlocked at startup.
 
 ## Repository structure
 
@@ -264,8 +285,11 @@ assets/
     PSProfile.Completion.ps1  Native-command completion routing and the carapace hand-off. Loaded
                              on the first Tab after a native command.
   config/
-    sample-config.json      Checked-in template/example. Copy to config.json to customize.
-    config.json              Your personal config. Gitignored, created by setup.ps1.
+    sample-config.json      Repo defaults, always loaded first.
+    psprofile.schema.json   JSON Schema for every config layer.
+    config.json             Your settings. Gitignored, created by setup.ps1.
+    config.<MACHINE>.json   Per-machine overrides (e.g. config.ALFHEIM.json). Committable.
+    config.local.json       Last-word overrides for one install. Gitignored.
   public/
     shared/                 User-callable functions that work on every OS, one per file.
     windows/                Windows-only functions (macos/ and linux/ hold any OS-only extras).
@@ -345,7 +369,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ### File / data utilities (cross-platform)
 
-`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` · `Resolve-Error` · `Update-Profile` (updates a git or zip install with validation and rollback — see [Updating](#updating)) · `Update-Completions` (regenerates cached [`NativeCompletions`](#nativecompletions) for whichever configured tools are installed, and [carapace](#carapace)'s tool lists) · `Update-PSProfileCache` (rebuilds the profile's [startup caches](#caches)) · `Update-PowerShell` (upgrades PowerShell 7 to the newest 7.6 LTS patch with winget, brew or the .pkg, or apt/dnf; `-TargetVersion` picks another line, `-CheckOnly` only reports)
+`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` (reads its API key with `Get-PSProfileSecret`) · `Get-PSProfileSecret` (on-demand API key lookup from SecretManagement or 1Password, see [Secrets](#secrets)) · `Resolve-Error` · `Update-Profile` (updates a git or zip install with validation and rollback — see [Updating](#updating)) · `Update-Completions` (regenerates cached [`NativeCompletions`](#nativecompletions) for whichever configured tools are installed, and [carapace](#carapace)'s tool lists) · `Update-PSProfileCache` (rebuilds the profile's [startup caches](#caches)) · `Update-PowerShell` (upgrades PowerShell 7 to the newest 7.6 LTS patch with winget, brew or the .pkg, or apt/dnf; `-TargetVersion` picks another line, `-CheckOnly` only reports)
 
 ### File utilities (Windows-only)
 

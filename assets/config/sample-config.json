@@ -1,9 +1,10 @@
 {
+    "$schema": "./psprofile.schema.json",
     "name": "Joes Profile Config",
     "version": "0.0.0.1",
     "settings": {
         "MaximumHistoryCount": 8192,
-        "OneDrivePath": "C:\\Users\\josep\\OneDrive",
+        "OneDrivePath": "",
         "PoshTheme": "M365Princess",
         "PoshThemeOverrides": {
             "shell_integration": true,
@@ -25,8 +26,7 @@
             "Export-Csv:NoTypeInformation": true,
             "ConvertTo-Csv:NoTypeInformation": true,
             "*-PSDrive:PSProvider": "FileSystem",
-            "Get-Help:Detailed": true,
-            "Get-Weather:APIKey": ""
+            "Get-Help:Detailed": true
         },
         "PSReadLine": {
             "PredictionSource": "HistoryAndPlugin",
@@ -53,7 +53,8 @@
         },
         "Atuin": {
             "Enabled": false
-        }
+        },
+        "Secrets": {}
     },
     "Aliases": [
         {

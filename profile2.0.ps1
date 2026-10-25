@@ -130,47 +130,149 @@ filter __oh-my-posh_escapeStringWithSpecialChars {
 
 <#
 .SYNOPSIS
+    Lists the config files PSProfile layers together, lowest priority first.
+.DESCRIPTION
+    Every layer lives in <Root>\assets\config:
+      1. sample-config.json        Repo defaults. Checked in; updates change it.
+      2. config.json               Your personal config. Gitignored.
+      3. config.<MACHINE>.json     Per-machine overrides, named after
+                                   [Environment]::MachineName (e.g. config.ALFHEIM.json).
+                                   Not gitignored, so it can be committed and follow you.
+      4. config.local.json         Last word for this one install. Gitignored.
+    Only files that exist are returned.
+.PARAMETER Root
+    The install root (the folder that holds profile2.0.ps1).
+.EXAMPLE
+    Get-PSProfileConfigLayer -Root $PSProfileRoot
+.OUTPUTS
+    PSCustomObject with Layer and Path.
+#>
+function Get-PSProfileConfigLayer {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)][string]$Root
+    )
+
+    $configDir = [System.IO.Path]::Combine($Root, 'assets', 'config')
+    $layers = [ordered]@{
+        Default = 'sample-config.json'
+        User    = 'config.json'
+        Machine = "config.$([Environment]::MachineName).json"
+        Local   = 'config.local.json'
+    }
+    foreach ($layer in $layers.Keys) {
+        $path = [System.IO.Path]::Combine($configDir, $layers[$layer])
+        if ([System.IO.File]::Exists($path)) { [PSCustomObject]@{ Layer = $layer; Path = $path } }
+    }
+}
+
+<#
+.SYNOPSIS
+    Merges one parsed config object over another.
+.DESCRIPTION
+    Objects merge key by key, recursively. Anything else (strings, numbers, booleans, null,
+    and arrays such as Modules or Aliases) in the overlay replaces the base value whole, so
+    a layer that lists Modules owns the full list. Neither input is modified.
+.PARAMETER Base
+    The lower-priority config (or part of one).
+.PARAMETER Overlay
+    The higher-priority config whose values win.
+.EXAMPLE
+    Merge-PSProfileConfigObject -Base $defaults -Overlay $machine
+.OUTPUTS
+    The merged value; a PSCustomObject when both inputs are objects.
+#>
+function Merge-PSProfileConfigObject {
+    # A plain function, and it only recurses where both sides are objects: this runs for every
+    # key of every layer on each shell start, and advanced-function binding per key adds up.
+    param($Base, $Overlay)
+
+    if (-not ($Base -is [PSCustomObject] -and $Overlay -is [PSCustomObject])) {
+        # The comma keeps an array (even an empty or one-item one) from unrolling on output.
+        if ($Overlay -is [array]) { return , $Overlay }
+        return $Overlay
+    }
+
+    $merged = [ordered]@{}
+    foreach ($property in $Base.PSObject.Properties) { $merged[$property.Name] = $property.Value }
+    foreach ($property in $Overlay.PSObject.Properties) {
+        $value = $property.Value
+        if ($value -is [PSCustomObject] -and $merged[$property.Name] -is [PSCustomObject]) {
+            $value = Merge-PSProfileConfigObject $merged[$property.Name] $value
+        }
+        $merged[$property.Name] = $value
+    }
+    [PSCustomObject]$merged
+}
+
+<#
+.SYNOPSIS
+    Reads and merges every config layer under an install root.
+.DESCRIPTION
+    Parses each file from Get-PSProfileConfigLayer in order and merges it over the ones
+    before it with Merge-PSProfileConfigObject. A file that fails to parse is skipped with
+    a warning naming it, so one bad edit doesn't throw away the other layers.
+.PARAMETER Root
+    The install root (the folder that holds profile2.0.ps1).
+.EXAMPLE
+    Read-PSProfileConfig -Root $PSProfileRoot
+.OUTPUTS
+    System.Management.Automation.PSCustomObject, or $null if no layer could be loaded.
+#>
+function Read-PSProfileConfig {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)][string]$Root
+    )
+
+    $config = $null
+    foreach ($layer in Get-PSProfileConfigLayer -Root $Root) {
+        try { $parsed = [System.IO.File]::ReadAllText($layer.Path) | ConvertFrom-Json -ErrorAction Stop }
+        catch {
+            Write-Warning "Skipping $($layer.Path): $($_.Exception.Message)"
+            continue
+        }
+        $config = if ($null -eq $config) { $parsed } else { Merge-PSProfileConfigObject -Base $config -Overlay $parsed }
+    }
+    $config
+}
+
+<#
+.SYNOPSIS
     Loads the PSProfile JSON configuration.
 .DESCRIPTION
-    Looks for a personal config at assets\config\config.json, relative to this
-    profile script's directory. If it isn't present, falls back to the checked-in
-    assets\config\sample-config.json template and emits a warning. Returns $null
-    if neither file exists or the JSON fails to parse, so callers should treat
-    every setting as optional and supply a default.
+    Merges the config layers under this profile's assets\config folder: sample-config.json
+    (repo defaults), then config.json, then config.<MACHINE>.json, then config.local.json.
+    Later files win key by key; arrays are replaced whole. See Get-PSProfileConfigLayer.
+    Returns $null if no layer could be loaded, so callers should treat every setting as
+    optional and supply a default.
+.PARAMETER ListLayers
+    Return the layer files that were found, in merge order, instead of the merged config.
 .EXAMPLE
     $config = Get-PSProfileConfig
     $config.settings.MaximumHistoryCount
+.EXAMPLE
+    Get-PSProfileConfig -ListLayers
 .OUTPUTS
     System.Management.Automation.PSCustomObject, or $null if no config could be loaded.
 .NOTES
-    Copy sample-config.json to config.json and edit it to customize this profile.
-    config.json is gitignored so personal paths never get committed.
+    assets\config\psprofile.schema.json describes every key; point a layer's "$schema" at
+    it for editor completion.
 #>
 function Get-PSProfileConfig {
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
-    param()
+    param(
+        [switch]$ListLayers
+    )
 
-    $configPath = Join-Path $PSScriptRoot 'assets\config\config.json'
-    $samplePath = Join-Path $PSScriptRoot 'assets\config\sample-config.json'
+    if ($ListLayers) { return Get-PSProfileConfigLayer -Root $PSScriptRoot }
 
-    $path = if (Test-Path -Path $configPath) { $configPath } else { $samplePath }
-    if ($path -eq $samplePath -and (Test-Path -Path $samplePath)) {
-        Write-Warning "assets\config\config.json not found - falling back to sample-config.json. Copy sample-config.json to config.json and adjust it for your machine."
-    }
-
-    if (-not (Test-Path -Path $path)) {
-        Write-Warning "No profile config found at $path - continuing with built-in defaults."
-        return $null
-    }
-
-    try {
-        return Get-Content -Path $path -Raw | ConvertFrom-Json
-    }
-    catch {
-        Write-Error "Failed to load profile config from $path`: $_"
-        return $null
-    }
+    $config = Read-PSProfileConfig -Root $PSScriptRoot
+    if ($null -eq $config) { Write-Warning "No profile config found under $PSScriptRoot\assets\config - continuing with built-in defaults." }
+    $config
 }
 
 <#
@@ -212,6 +314,9 @@ $MaximumHistoryCount = if ($PSProfileSettings.MaximumHistoryCount) { $PSProfileS
 if ($PSProfileSettings.DefaultParameterValues) {
     foreach ($property in $PSProfileSettings.DefaultParameterValues.PSObject.Properties) {
         $PSDefaultParameterValues[$property.Name] = $property.Value
+        if ($property.Name -like '*:APIKey' -and $property.Value) {
+            Write-Warning "$($property.Name) is set in plain text in your config. Store it with Set-Secret instead (see Get-PSProfileSecret)."
+        }
     }
 }
 Add-PSProfileTrace -Section 'Config'

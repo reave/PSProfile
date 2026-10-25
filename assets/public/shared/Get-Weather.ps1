@@ -28,7 +28,9 @@ function Get-Weather {
 
         These will determine what the units of measurement we return data in
     .PARAMETER APIKey
-        An open weathermap api key is required. Pass one using this parameter.
+        An OpenWeatherMap API key. When omitted, it's looked up with
+        Get-PSProfileSecret -Name OpenWeatherMapApiKey (SecretManagement or 1Password; see
+        settings.Secrets), so store it once with Set-Secret -Name OpenWeatherMapApiKey.
     .EXAMPLE
         C:\PS>.\Get-Weather.ps1 -City 'New York' -Country 'US' -Unit 'Imperial'
 
@@ -45,8 +47,7 @@ function Get-Weather {
         http://openweathermap.org/api
         http://openweathermap.org/current#other
         http://openweathermap.org/weather-data
-        http://myip.dnsomatic.com
-        http://freegeoip.net
+        https://ipinfo.io
 
         Invoke-WebRequest
         New-Object
@@ -95,6 +96,12 @@ function Get-Weather {
     )
 
     Begin {
+        if ([string]::IsNullOrWhiteSpace($APIKey)) { $APIKey = Get-PSProfileSecret -Name 'OpenWeatherMapApiKey' }
+        if ([string]::IsNullOrWhiteSpace($APIKey)) {
+            throw "No OpenWeatherMap API key. Store one with Set-Secret -Name OpenWeatherMapApiKey (Microsoft.PowerShell.SecretManagement), map it in settings.Secrets, or pass -APIKey."
+        }
+        $APIKey = [uri]::EscapeDataString($APIKey)
+
         Switch ($Unit) {
             'Metric' {
                 $u = 'metric'
@@ -108,19 +115,18 @@ function Get-Weather {
         }
 
         if ($ZipCode -eq '' -and $City -ne '') {
-            $APIPath = "http://api.openweathermap.org/data/2.5/weather?q=$City,$Country&APPID=$APIKey&units=$u&mode=xml"
+            $APIPath = "https://api.openweathermap.org/data/2.5/weather?q=$([uri]::EscapeDataString("$City,$Country"))&APPID=$APIKey&units=$u&mode=xml"
         } elseif ($City -eq '' -and $ZipCode -ne '') {
-            $APIPath = "http://api.openweathermap.org/data/2.5/weather?zip=$ZipCode,$Country&APPID=$APIKey&units=$u&mode=xml"
+            $APIPath = "https://api.openweathermap.org/data/2.5/weather?zip=$([uri]::EscapeDataString("$ZipCode,$Country"))&APPID=$APIKey&units=$u&mode=xml"
         } else {
             Try {
-                $MyPublicIP = (Invoke-WebRequest 'http://myip.dnsomatic.com' -UseBasicParsing).Content
-                $html = Invoke-WebRequest -Uri "http://freegeoip.net/xml/$myPublicIP" -UseBasicParsing
-                $content = [xml]$html.Content
-                $ZipCode = $content.response.ZipCode
-                $Country = $content.response.CountryCode
+                # freegeoip.net shut down in 2018; ipinfo.io answers with this IP's location directly.
+                $location = Invoke-RestMethod -Uri 'https://ipinfo.io/json' -UseBasicParsing
+                $ZipCode = $location.postal
+                $Country = $location.country
 
-                If ($ZipCode -ne '' -and $Country -ne '') {
-                    $APIPath = "http://api.openweathermap.org/data/2.5/weather?zip=$ZipCode,$Country&APPID=$APIKey&units=$u&mode=xml"
+                If ($ZipCode -and $Country) {
+                    $APIPath = "https://api.openweathermap.org/data/2.5/weather?zip=$([uri]::EscapeDataString("$ZipCode,$Country"))&APPID=$APIKey&units=$u&mode=xml"
                 } else {
                     $Properties = @{City = $Null
                         Country          = $Null
@@ -172,7 +178,7 @@ function Get-Weather {
     }
     Process {
         Try {
-            [xml]$APIRequest = Invoke-WebRequest -Uri $APIPath
+            [xml]$APIRequest = (Invoke-WebRequest -Uri $APIPath -UseBasicParsing).Content
             $Response = $APIRequest.current
 
             If ($Unit -eq 'Imperial') {

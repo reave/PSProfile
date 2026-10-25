@@ -4,8 +4,9 @@
 .DESCRIPTION
     Downloads the reave/PSProfile repository (via `git clone`/`git pull` when git is
     available, falling back to a zip download otherwise) into a local install directory,
-    creates a personal assets\config\config.json from sample-config.json if one doesn't
-    already exist, installs the modules and packages config.json lists, and points
+    creates a near-empty personal assets\config\config.json if one doesn't already exist
+    (sample-config.json supplies the defaults underneath it), installs the modules and
+    packages the merged config lists, and points
     $PROFILE.CurrentUserAllHosts at the installed profile2.0.ps1.
 
     Safe to re-run: updates the install in place without touching an existing config.json,
@@ -33,7 +34,8 @@
 .PARAMETER Uninstall
     Remove PSProfile: restore $PROFILE.CurrentUserAllHosts to what it was before setup.ps1
     linked it (or delete it if setup.ps1 created it), then delete the install directory and
-    PSProfile's cache/state folder. config.json is backed up next to $PROFILE first.
+    PSProfile's cache/state folder. config.json, config.local.json and any
+    config.<MACHINE>.json are backed up next to $PROFILE first.
     Installed modules and packages are left alone.
 .PARAMETER Force
     With -Uninstall, don't ask for confirmation.
@@ -96,13 +98,14 @@ function Uninstall-PSProfile {
         if ($answer -notmatch '^(y|yes)$') { Write-Host 'Cancelled.'; return }
     }
 
-    $configPath = Join-Path $InstallPath 'assets/config/config.json'
-    if (Test-Path -Path $configPath) {
+    # config.json, config.local.json and any config.<MACHINE>.json: everything but the repo defaults.
+    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    foreach ($config in Get-ChildItem -Path (Join-Path $InstallPath 'assets/config') -Filter 'config*.json' -File -ErrorAction SilentlyContinue) {
         $profileDir = Split-Path -Path $profileTarget -Parent
         if (-not (Test-Path -Path $profileDir)) { New-Item -ItemType Directory -Path $profileDir -Force | Out-Null }
-        $configBackup = Join-Path $profileDir "PSProfile-config.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss').json"
-        Copy-Item -Path $configPath -Destination $configBackup
-        Write-SetupStep "Backed up config.json to $configBackup"
+        $configBackup = Join-Path $profileDir "PSProfile-$($config.BaseName).bak-$stamp.json"
+        Copy-Item -Path $config.FullName -Destination $configBackup
+        Write-SetupStep "Backed up $($config.Name) to $configBackup"
     }
 
     if (Test-Path -Path $profileTarget) {
@@ -183,8 +186,11 @@ try {
     $configPath = Join-Path $configDir 'config.json'
     $samplePath = Join-Path $configDir 'sample-config.json'
     if (-not (Test-Path -Path $configPath) -and (Test-Path -Path $samplePath)) {
-        Write-SetupStep "Creating personal config at $configPath from sample-config.json"
-        Copy-Item -Path $samplePath -Destination $configPath
+        # sample-config.json is always loaded underneath as the defaults, so the personal file
+        # only needs the keys you change. A full copy would freeze today's defaults in place.
+        Write-SetupStep "Creating personal config at $configPath (add only the settings you want to change)"
+        $stub = "{`n    `"`$schema`": `"./psprofile.schema.json`",`n    `"settings`": {}`n}`n"
+        [System.IO.File]::WriteAllText($configPath, $stub)
     }
 
     if (-not $SkipProfileLink) {

@@ -1,5 +1,8 @@
-# Personal profile config - copy assets/config/sample-config.json to config.json and edit it locally
+# Personal config layers. sample-config.json (repo defaults) is always loaded first, then these
+# override it. config.<MACHINE>.json is deliberately not ignored, so per-machine overrides can be
+# committed; see Get-PSProfileConfigLayer in profile2.0.ps1.
 assets/config/config.json
+assets/config/config.local.json
 
 # Machine-generated completion scripts (from each installed tool's own `completion powershell`
 # generator, cached by Update-Completions) - version/machine-specific, regenerated on demand,
