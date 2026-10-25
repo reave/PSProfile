@@ -221,7 +221,7 @@ Two flavors of hand-written completer, by option-surface size: small/stable CLIs
 
 ### Interactive-only behavior
 
-`Test-InteractiveShell` (host is `ConsoleHost` and neither stdin nor stdout is redirected) gates PSReadLine configuration and the entire Windows/macOS/Linux settings section — window title, splash screen, elevated banner, PS-version banner, oh-my-posh init. None of that runs when the profile is dot-sourced by a script, a CI runner, or an editor's integrated PowerShell extension host; only actual interactive terminal sessions get the full experience.
+`Test-InteractiveShell` (host is `ConsoleHost` and neither stdin nor stdout is redirected) gates PSReadLine configuration (including loading `history.ps1`'s key handlers, which would otherwise import PSReadLine just to configure it) and the entire Windows/macOS/Linux settings section — window title, splash screen, elevated banner, PS-version banner, oh-my-posh init. None of that runs when the profile is dot-sourced by a script, a CI runner, or an editor's integrated PowerShell extension host; only actual interactive terminal sessions get the full experience.
 
 ## What's included
 
