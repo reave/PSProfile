@@ -436,7 +436,8 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
 # loaded inside that runspace. State lives outside the install dir, next to the other caches.
 $updateCheckHours = if ($null -ne $PSProfileSettings.UpdateCheckIntervalHours) { [double]$PSProfileSettings.UpdateCheckIntervalHours } else { 24 }
 if ($IsInteractiveShell -and -not $env:PSPROFILE_NO_UPDATE_CHECK) {
-    $stateBase = if ($IsWindows) { $env:LOCALAPPDATA } elseif ($env:XDG_CACHE_HOME) { $env:XDG_CACHE_HOME } else { Join-Path $HOME '.cache' }
+    # PSEdition Desktop = Windows PowerShell 5.1, which has no $IsWindows.
+    $stateBase = if ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') { $env:LOCALAPPDATA } elseif ($env:XDG_CACHE_HOME) { $env:XDG_CACHE_HOME } else { Join-Path $HOME '.cache' }
     $stateDir = [System.IO.Path]::Combine($stateBase, 'PSProfile')
 
     $updateNotices = [System.Collections.Generic.List[string]]::new()

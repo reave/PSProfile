@@ -445,7 +445,7 @@ foreach ($cmd in 'Update-PSProfileCache', 'Update-Completions') {
     $command = @"
 `$env:PSPROFILE_NO_UPDATE_CHECK = '1'
 `$ErrorActionPreference = 'Continue'
-try { . '$profileScript' } catch { [Console]::Error.WriteLine("Profile failed to load: `$_"); exit 1 }
+try { . '$profileScript' } catch { Write-Host "Profile failed to load: `$_" -ForegroundColor Red; exit 1 }
 $maintenance
 exit 0
 "@
@@ -541,6 +541,40 @@ function Copy-PSProfileLocalFile {
     }
 }
 
+function Switch-PSProfileDirectory {
+    <#
+        Replaces $Path with $Replacement and keeps the old tree at $KeepAs. Uses
+        [System.IO.Directory]::Move, a plain rename: Move-Item falls back to copy-then-delete
+        when a rename fails, so one locked folder used to leave half the install moved away.
+        A rename either happens or throws with nothing moved. Every path is a sibling on the
+        same volume, so the rename can't fail for being cross-volume.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Replacement,
+        [Parameter(Mandatory)][string]$KeepAs
+    )
+
+    $resolve = { param($p) $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($p) }
+    $Path = & $resolve $Path; $Replacement = & $resolve $Replacement; $KeepAs = & $resolve $KeepAs
+    $aside = Get-PSProfileSidePath -InstallPath $Path -Suffix 'swap'
+    if (Test-Path -Path $aside) { Remove-Item -Path $aside -Recurse -Force }
+
+    $hadPath = [System.IO.Directory]::Exists($Path)
+    if ($hadPath) { [System.IO.Directory]::Move($Path, $aside) }
+    try { [System.IO.Directory]::Move($Replacement, $Path) }
+    catch {
+        if ($hadPath) { [System.IO.Directory]::Move($aside, $Path) }
+        throw
+    }
+
+    # The old $KeepAs is only dropped once the swap has succeeded.
+    if ($hadPath) {
+        if (Test-Path -Path $KeepAs) { Remove-Item -Path $KeepAs -Recurse -Force }
+        [System.IO.Directory]::Move($aside, $KeepAs)
+    }
+}
+
 function Install-PSProfileStaged {
     <#
         Validates a staged tree, carries local files over, then swaps it in:
@@ -572,16 +606,12 @@ function Install-PSProfileStaged {
 
     $previous = Get-PSProfileSidePath -InstallPath $InstallPath -Suffix 'previous'
     $hadInstall = Test-Path -Path $InstallPath
-    if ($hadInstall) {
-        if (Test-Path -Path $previous) { Remove-Item -Path $previous -Recurse -Force }
-        Move-Item -Path $InstallPath -Destination $previous -ErrorAction Stop
-    }
     try {
-        Move-Item -Path $StagingPath -Destination $InstallPath -ErrorAction Stop
+        Switch-PSProfileDirectory -Path $InstallPath -Replacement $StagingPath -KeepAs $previous
     }
     catch {
-        if ($hadInstall) { Move-Item -Path $previous -Destination $InstallPath -ErrorAction SilentlyContinue }
-        throw "Couldn't swap in the new version ($_). The existing install was left in place. If a shell's current directory is inside $InstallPath, cd out of it and retry."
+        Remove-Item -Path $StagingPath -Recurse -Force -ErrorAction SilentlyContinue
+        throw "Couldn't swap in the new version, so the existing install was left as it was. A process (often a shell or editor) probably has its working directory or a file open inside $InstallPath; close it or cd out of it and retry. ($($_.Exception.Message))"
     }
 
     if ($hadInstall) { Set-PSProfileState -Values @{ PreviousInstallPath = $previous; PreviousCommit = $null } }
@@ -684,12 +714,9 @@ function Undo-PSProfileUpdate {
         # Keep any config edits made since the update.
         Copy-PSProfileLocalFile -From $InstallPath -To $previous
         $failed = Get-PSProfileSidePath -InstallPath $InstallPath -Suffix 'rolledback'
-        if (Test-Path -Path $failed) { Remove-Item -Path $failed -Recurse -Force }
-        Move-Item -Path $InstallPath -Destination $failed -ErrorAction Stop
-        try { Move-Item -Path $previous -Destination $InstallPath -ErrorAction Stop }
+        try { Switch-PSProfileDirectory -Path $InstallPath -Replacement $previous -KeepAs $failed }
         catch {
-            Move-Item -Path $failed -Destination $InstallPath -ErrorAction SilentlyContinue
-            throw "Couldn't restore the previous version ($_). If a shell's current directory is inside $InstallPath, cd out of it and retry."
+            throw "Couldn't restore the previous version, so nothing was changed. A process probably has its working directory or a file open inside $InstallPath; close it or cd out of it and retry. ($($_.Exception.Message))"
         }
         Remove-Item -Path $failed -Recurse -Force -ErrorAction SilentlyContinue
         $restored = Get-PSProfileInstallInfo -InstallPath $InstallPath

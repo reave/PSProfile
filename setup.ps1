@@ -83,7 +83,7 @@ function Uninstall-PSProfile {
     $profileTarget = $PROFILE.CurrentUserAllHosts
     $parent = Split-Path -Path $InstallPath -Parent
     $leaf = Split-Path -Path $InstallPath -Leaf
-    $sideDirs = @('previous', 'staging', 'rolledback') | ForEach-Object { Join-Path $parent ".$leaf.$_" }
+    $sideDirs = @('previous', 'staging', 'rolledback', 'swap') | ForEach-Object { Join-Path $parent ".$leaf.$_" }
     $stateDir = Get-SetupStateDirectory
 
     Write-Host 'This will:' -ForegroundColor Yellow
