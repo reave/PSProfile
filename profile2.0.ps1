@@ -61,11 +61,6 @@ function Add-PSProfileTrace {
     $Global:PSProfileTrace.Add([PSCustomObject]@{ Phase = $Phase; Section = $Section; Ms = [math]::Round($Milliseconds, 1) })
 }
 
-#- Platform
-# Windows PowerShell 5.1 (the Desktop edition) predates $IsWindows/$IsMacOS/$IsLinux and only ever
-# runs on Windows, so test this instead of $IsWindows anywhere in this profile.
-$PSProfileIsWindows = $IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop'
-
 #- Set Filters
 
 <#
@@ -202,7 +197,7 @@ function Test-PSProfileOSMatch {
 
     if ([string]::IsNullOrWhiteSpace($OSField) -or $OSField -eq 'All') { return $true }
     $osList = $OSField -split '\s*,\s*'
-    if ($PSProfileIsWindows -and $osList -contains 'Windows') { return $true }
+    if ($IsWindows -and $osList -contains 'Windows') { return $true }
     if ($IsMacOS -and $osList -contains 'MacOS') { return $true }
     if ($IsLinux -and $osList -contains 'Linux') { return $true }
     return $false
@@ -229,7 +224,7 @@ Add-PSProfileTrace -Section 'Config'
 # Update-Profile's git pull.
 Set-Variable -Name PSProfileRoot -Value $PSScriptRoot -Scope Global
 
-$OSFolder = if ($PSProfileIsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } elseif ($IsLinux) { 'linux' }
+$OSFolder = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } elseif ($IsLinux) { 'linux' }
 
 <#
 .SYNOPSIS
@@ -701,10 +696,10 @@ elseif ($env:OneDriveConsumer -and (Test-Path -Path $env:OneDriveConsumer -Error
 elseif ($env:OneDrive -and (Test-Path -Path $env:OneDrive -ErrorAction SilentlyContinue)) {
     [string]$OneDriveRoot = $env:OneDrive
 }
-elseif ($PSProfileIsWindows -and (Test-Path -Path $env:USERPROFILE\OneDrive -ErrorAction SilentlyContinue)) {
+elseif ($IsWindows -and (Test-Path -Path $env:USERPROFILE\OneDrive -ErrorAction SilentlyContinue)) {
     [string]$OneDriveRoot = "$env:USERPROFILE\OneDrive"
 }
-elseif (-not $PSProfileIsWindows -and (Test-Path -Path "$env:HOME/OneDrive" -ErrorAction SilentlyContinue)) {
+elseif (-not $IsWindows -and (Test-Path -Path "$env:HOME/OneDrive" -ErrorAction SilentlyContinue)) {
     [string]$OneDriveRoot = "$env:HOME/OneDrive"
 }
 else {
@@ -793,7 +788,7 @@ foreach ($module in $PSProfileConfig.Modules) {
 }
 Add-PSProfileTrace -Section 'Modules'
 
-$IsElevated = if ($PSProfileIsWindows) {
+$IsElevated = if ($IsWindows) {
     ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 }
 else {
@@ -1068,7 +1063,7 @@ function Invoke-PSProfileOhMyPosh {
 #---------------------------------------------------------------
 # Windows Section
 #---------------------------------------------------------------
-if ($PSProfileIsWindows -and $IsInteractiveShell) {
+if ($IsWindows -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowWindowTitle) {
         Set-ProfileWindowTitle
     }
