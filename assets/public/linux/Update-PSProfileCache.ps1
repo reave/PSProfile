@@ -31,6 +31,11 @@
           blocks, filters or parse errors are dot-sourced as before, in case that code matters.
         Default parameter values and [ValidateScript()] are left off placeholders; the real
         function applies both once it runs.
+
+    OhMyPosh
+        What `oh-my-posh init pwsh` prints for the configured theme, so a shell can start the
+        prompt without running oh-my-posh (~80 ms). Keyed on the oh-my-posh executable and
+        theme file, and re-checked once a day.
 .PARAMETER Cache
     Which caches to rebuild. Default: all of them.
 .EXAMPLE
@@ -43,8 +48,8 @@
 function Update-PSProfileCache {
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [ValidateSet('Functions')]
-        [string[]]$Cache = @('Functions')
+        [ValidateSet('Functions', 'OhMyPosh')]
+        [string[]]$Cache = @('Functions', 'OhMyPosh')
     )
 
     # This file lives in <install>/assets/public/<os|shared>/.
@@ -53,7 +58,8 @@ function Update-PSProfileCache {
 
     # Standalone (e.g. from setup.ps1, without the profile loaded), borrow the profile's own
     # helpers from profile2.0.ps1 rather than keeping a second copy here that could drift.
-    $helpers = 'Get-PSProfileCachePath', 'Get-PSProfileFunctionSignature', 'Get-PSProfileFunctionFolders'
+    $helpers = 'Get-PSProfileCachePath', 'Get-PSProfileFunctionSignature', 'Get-PSProfileFunctionFolders',
+    'Get-PSProfileOhMyPoshKey', 'Update-PSProfileOhMyPoshCache'
     $missing = @($helpers | Where-Object { -not (Get-Command -Name $_ -CommandType Function -ErrorAction Ignore) })
     if ($missing) {
         $profileAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'profile2.0.ps1'), [ref]$null, [ref]$null)
@@ -62,6 +68,25 @@ function Update-PSProfileCache {
                 $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $missing -contains $node.Name
             }, $false)
         foreach ($definition in $definitions) { . ([scriptblock]::Create($definition.Extent.Text)) }
+    }
+
+    if ($Cache -contains 'OhMyPosh' -and (Get-Command -Name oh-my-posh -CommandType Application -ErrorAction Ignore) -and
+        $PSCmdlet.ShouldProcess('oh-my-posh init', 'Rebuild cache')) {
+        $config = if (Get-Command -Name Get-PSProfileConfig -CommandType Function -ErrorAction Ignore) { Get-PSProfileConfig }
+        else {
+            # Same lookup as the profile's Get-PSProfileConfig, which relies on its own location.
+            $configPath = Join-Path (Join-Path (Join-Path $root 'assets') 'config') 'config.json'
+            if (-not (Test-Path -Path $configPath)) { $configPath = Join-Path (Join-Path (Join-Path $root 'assets') 'config') 'sample-config.json' }
+            if (Test-Path -Path $configPath) { Get-Content -Path $configPath -Raw | ConvertFrom-Json }
+        }
+        if ($config.settings.PoshTheme) {
+            if (-not (Get-Command -Name Resolve-PoshTheme -CommandType Function -ErrorAction Ignore)) {
+                $resolver = Get-PSProfileFunctionFolders -Root $root -Kind private -OSFolder $osFolder |
+                    ForEach-Object { Join-Path $_.Path 'Resolve-PoshTheme.ps1' } | Where-Object { Test-Path -Path $_ } | Select-Object -Last 1
+                if ($resolver) { . $resolver }
+            }
+            $null = Update-PSProfileOhMyPoshCache -Root $root -ThemePath (Resolve-PoshTheme -PoshTheme $config.settings.PoshTheme)
+        }
     }
 
     if ($Cache -contains 'Functions') {
