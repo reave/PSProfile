@@ -219,7 +219,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ### Active Directory (Windows-only)
 
-`Get-ADCertificateInformation` · `Get-ADComputersNoDesc` · `Get-InactiveADComputers` · `Get-LocalAdministrator`/`Get-LocalGroup`/`Get-LocalGroupMember`/`Get-LocalUser`
+`Get-ADCertificateInformation` · `Get-ADComputersNoDesc` · `Get-InactiveADComputers` · `Get-LocalAdministratorBuiltin`/`Get-LocalGroup`/`Get-LocalGroupMember`/`Get-LocalUser`
 
 ### Security / credentials (Windows-only)
 
