@@ -850,6 +850,147 @@ if ($hasPSReadLine -and $readlineConfig) {
 Add-PSProfileTrace -Section 'PSReadLine'
 
 #---------------------------------------------------------------
+# oh-my-posh
+#---------------------------------------------------------------
+<#
+.SYNOPSIS
+    Fingerprints what `oh-my-posh init pwsh` output depends on, for the init cache.
+.DESCRIPTION
+    The oh-my-posh executable (path and modification time, which changes when it's updated)
+    and the theme file (path and modification time).
+.PARAMETER Executable
+    oh-my-posh's path.
+.PARAMETER ThemePath
+    The resolved theme file, or empty for oh-my-posh's default theme.
+.EXAMPLE
+    Get-PSProfileOhMyPoshKey -Executable (Get-Command oh-my-posh).Source -ThemePath $themePath
+.OUTPUTS
+    System.String
+#>
+function Get-PSProfileOhMyPoshKey {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][string]$Executable,
+        [string]$ThemePath
+    )
+
+    $parts = @($Executable, [System.IO.File]::GetLastWriteTimeUtc($Executable).Ticks, $ThemePath)
+    if ($ThemePath -and [System.IO.File]::Exists($ThemePath)) { $parts += [System.IO.File]::GetLastWriteTimeUtc($ThemePath).Ticks }
+    $parts -join '|'
+}
+
+<#
+.SYNOPSIS
+    Runs `oh-my-posh init pwsh` and caches what it printed.
+.DESCRIPTION
+    oh-my-posh's init output is just two environment variables (a per-session id and the
+    config path) and a call to an init script oh-my-posh keeps on disk itself. Recording the
+    config path and that script's path lets later shells set the variables and call the script
+    directly, without starting oh-my-posh (~80 ms). Returns the record, including the full
+    init output in Init, even if the cache file couldn't be written.
+.PARAMETER Root
+    The install directory (for the cache path).
+.PARAMETER ThemePath
+    The resolved theme file, or empty for oh-my-posh's default theme.
+.EXAMPLE
+    Update-PSProfileOhMyPoshCache -Root $Global:PSProfileRoot -ThemePath $themePath
+.OUTPUTS
+    System.Management.Automation.PSCustomObject
+#>
+function Update-PSProfileOhMyPoshCache {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [string]$ThemePath
+    )
+
+    $executable = Get-Command -Name oh-my-posh -CommandType Application -ErrorAction Ignore | Select-Object -First 1
+    if (-not $executable) { return }
+    $initArguments = @('init', 'pwsh')
+    if ($ThemePath) { $initArguments += '--config', $ThemePath }
+    $init = (& $executable.Source @initArguments) -join "`n"
+
+    $record = [PSCustomObject]@{
+        Key    = Get-PSProfileOhMyPoshKey -Executable $executable.Source -ThemePath $ThemePath
+        Config = $null
+        Script = $null
+        Init   = $init
+    }
+    # e.g.  $env:POSH_SESSION_ID = "..."; $env:POSH_CONFIG = 'C:\...\theme.omp.json';& 'C:\...\init.123.ps1'
+    # Anything else (a format change in a future oh-my-posh) leaves Script empty, so the init
+    # output is run as before rather than guessed at.
+    if ($init -match "^\`$env:POSH_SESSION_ID = `"[^`"]*`"; \`$env:POSH_CONFIG = '([^']*)';\s*& '([^']+)'\s*$") {
+        $record.Config = $Matches[1]
+        $record.Script = $Matches[2]
+    }
+
+    try {
+        $cachePath = Get-PSProfileCachePath -Root $Root -Name 'oh-my-posh' -Extension '.json'
+        $cacheDir = Split-Path -Path $cachePath -Parent
+        if (-not (Test-Path -Path $cacheDir)) { $null = New-Item -ItemType Directory -Path $cacheDir -Force -ErrorAction Stop }
+        $tempPath = "$cachePath.$PID.tmp"
+        [System.IO.File]::WriteAllText($tempPath, ($record | ConvertTo-Json -Compress))
+        Move-Item -LiteralPath $tempPath -Destination $cachePath -Force -ErrorAction Stop
+    }
+    catch {
+        Write-Verbose "Could not write the oh-my-posh cache: $_"
+        Remove-Item -LiteralPath "$cachePath.$PID.tmp" -ErrorAction Ignore
+    }
+    $record
+}
+
+<#
+.SYNOPSIS
+    Starts oh-my-posh's prompt, from the init cache when it's current.
+.DESCRIPTION
+    With a current cache entry (same oh-my-posh executable and theme, and oh-my-posh's init
+    script still on disk), does what `oh-my-posh init pwsh` would print - a fresh session id,
+    the config path, then oh-my-posh's own init script - without starting oh-my-posh. The
+    entry is re-checked against `oh-my-posh init` once a day, after the prompt is idle.
+    Otherwise runs `oh-my-posh init pwsh` as before and caches the result.
+.PARAMETER PoshTheme
+    The PoshTheme setting: a bare theme name or a path to a .omp.json file.
+.EXAMPLE
+    Invoke-PSProfileOhMyPosh -PoshTheme 'M365Princess'
+.OUTPUTS
+    None
+#>
+function Invoke-PSProfileOhMyPosh {
+    [CmdletBinding()]
+    param(
+        [string]$PoshTheme
+    )
+
+    $themePath = Resolve-PoshTheme -PoshTheme $PoshTheme
+    $executable = Get-Command -Name oh-my-posh -CommandType Application -ErrorAction Ignore | Select-Object -First 1
+    if (-not $executable) { return }
+
+    $cachePath = Get-PSProfileCachePath -Root $Global:PSProfileRoot -Name 'oh-my-posh' -Extension '.json'
+    $cached = $null
+    try { if ([System.IO.File]::Exists($cachePath)) { $cached = [System.IO.File]::ReadAllText($cachePath) | ConvertFrom-Json } }
+    catch { Write-Verbose "Ignoring an unreadable oh-my-posh cache: $_" }
+
+    if ($cached -and $cached.Script -and [System.IO.File]::Exists($cached.Script) -and
+        $cached.Key -eq (Get-PSProfileOhMyPoshKey -Executable $executable.Source -ThemePath $themePath)) {
+        $env:POSH_SESSION_ID = [guid]::NewGuid().ToString()
+        $env:POSH_CONFIG = $cached.Config
+        & $cached.Script
+        if ([System.IO.File]::GetLastWriteTimeUtc($cachePath) -lt [datetime]::UtcNow.AddDays(-1)) {
+            Add-PSProfileDeferredTask -Name 'Refresh oh-my-posh cache' -Argument @{ Root = $Global:PSProfileRoot; ThemePath = $themePath } -Action {
+                param($Arguments)
+                $null = Update-PSProfileOhMyPoshCache @Arguments
+            }
+        }
+        return
+    }
+
+    $record = Update-PSProfileOhMyPoshCache -Root $Global:PSProfileRoot -ThemePath $themePath
+    if ($record) { Invoke-Expression $record.Init }
+}
+
+#---------------------------------------------------------------
 # Windows Section
 #---------------------------------------------------------------
 if ($PSProfileIsWindows -and $IsInteractiveShell) {
@@ -882,13 +1023,7 @@ if ($PSProfileIsWindows -and $IsInteractiveShell) {
     Add-PSProfileTrace -Section 'Banners'
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
-        $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
-        if ($themePath) {
-            oh-my-posh init pwsh --config $themePath | Invoke-Expression
-        }
-        else {
-            oh-my-posh init pwsh | Invoke-Expression
-        }
+        Invoke-PSProfileOhMyPosh -PoshTheme $PSProfileSettings.PoshTheme
     }
     Add-PSProfileTrace -Section 'oh-my-posh'
 }
@@ -925,13 +1060,7 @@ ElseIf ($IsMacOS -and $IsInteractiveShell) {
     Add-PSProfileTrace -Section 'Banners'
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
-        $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
-        if ($themePath) {
-            oh-my-posh init pwsh --config $themePath | Invoke-Expression
-        }
-        else {
-            oh-my-posh init pwsh | Invoke-Expression
-        }
+        Invoke-PSProfileOhMyPosh -PoshTheme $PSProfileSettings.PoshTheme
     }
     Add-PSProfileTrace -Section 'oh-my-posh'
 }
@@ -968,13 +1097,7 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
     Add-PSProfileTrace -Section 'Banners'
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
-        $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
-        if ($themePath) {
-            oh-my-posh init pwsh --config $themePath | Invoke-Expression
-        }
-        else {
-            oh-my-posh init pwsh | Invoke-Expression
-        }
+        Invoke-PSProfileOhMyPosh -PoshTheme $PSProfileSettings.PoshTheme
     }
     Add-PSProfileTrace -Section 'oh-my-posh'
 }
