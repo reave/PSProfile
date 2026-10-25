@@ -48,7 +48,8 @@ Function Get-EncodedFile {
 
     Process {
         Try {
-            $Content = Get-Content -Path "$inputFile" -Encoding Byte
+            # ReadAllBytes rather than Get-Content -Encoding Byte, which PowerShell 7 removed.
+            $Content = [System.IO.File]::ReadAllBytes((Convert-Path -LiteralPath "$inputFile"))
         }
         Catch {
             Throw "Failed to encode $($inputFile) into [System.Byte]."

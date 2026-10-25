@@ -29,6 +29,7 @@
     )
     Process {
         Write-Verbose -Message "[ConvertTo-Base64] Converting image to Base64 $Path"
-        [System.convert]::ToBase64String((Get-Content -Path $path -Encoding Byte))
+        # ReadAllBytes rather than Get-Content -Encoding Byte, which PowerShell 7 removed.
+        [System.convert]::ToBase64String([System.IO.File]::ReadAllBytes((Convert-Path -LiteralPath $Path)))
     }
 }
