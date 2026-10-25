@@ -276,6 +276,36 @@ Add-PSProfileTrace -Section 'Environment and document roots'
 #---------------------------------------------------------------
 # Modules
 #---------------------------------------------------------------
+<#
+.SYNOPSIS
+    Tests whether a module is installed, without a full Get-Module -ListAvailable scan.
+.DESCRIPTION
+    Get-Module -ListAvailable reads the manifest of every module on $env:PSModulePath
+    (15-30 ms per call here). A module that's imported, or has a folder of its name directly
+    under a PSModulePath entry (how Install-Module lays modules out), is found with a few
+    directory checks; only a miss falls back to the full scan, which also catches unusual
+    layouts and folder-name case differences on case-sensitive filesystems.
+.PARAMETER Name
+    Module name.
+.EXAMPLE
+    Test-PSProfileModuleAvailable -Name Terminal-Icons
+.OUTPUTS
+    System.Boolean
+#>
+function Test-PSProfileModuleAvailable {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory)][string]$Name
+    )
+
+    if (Get-Module -Name $Name) { return $true }
+    foreach ($modulePath in $env:PSModulePath -split [System.IO.Path]::PathSeparator) {
+        if ($modulePath -and [System.IO.Directory]::Exists([System.IO.Path]::Combine($modulePath, $Name))) { return $true }
+    }
+    return [bool](Get-Module -Name $Name -ListAvailable -ErrorAction Ignore)
+}
+
 # Terminal-Icons re-exports its theme cache on every import with a non-atomic Export-Clixml,
 # so two shells starting at once can read a half-written file ("Root element is missing").
 # A named mutex makes concurrent profile loads take turns importing.
@@ -286,7 +316,7 @@ foreach ($module in $PSProfileConfig.Modules) {
     if ($module.PSVersionMajor -and $PSVersionTable.PSVersion.Major -lt [int]$module.PSVersionMajor) { continue }
     if ($module.PSVersionMajorMax -and $PSVersionTable.PSVersion.Major -gt [int]$module.PSVersionMajorMax) { continue }
 
-    if (Get-Module -Name $module.Name -ListAvailable -ErrorAction SilentlyContinue) {
+    if (Test-PSProfileModuleAvailable -Name $module.Name) {
         $hasImportMutex = $false
         try {
             # A shell that died mid-import abandons the mutex; ownership still passes to us.
@@ -347,7 +377,7 @@ Add-PSProfileTrace -Section 'Elevation check, packages and aliases'
 #---------------------------------------------------------------
 # PSReadLine
 #---------------------------------------------------------------
-$hasPSReadLine = $IsInteractiveShell -and (Get-Module -Name PSReadLine -ListAvailable -ErrorAction SilentlyContinue)
+$hasPSReadLine = $IsInteractiveShell -and (Test-PSProfileModuleAvailable -Name PSReadLine)
 
 # Key handlers. Loaded only here, not with the other private files: every Set-PSReadLine* call
 # in it imports PSReadLine (~150 ms), which scripts, CI runners and editor hosts that dot-source
