@@ -74,7 +74,9 @@ try {
     . $env:PSP_COMPLETIONS
     Set-Alias -Name fkt -Value faketool
 
-    foreach ($line in @($env:PSP_LINES | ConvertFrom-Json)) {
+    # Not @(...): Windows PowerShell's ConvertFrom-Json emits a JSON array as one object,
+    # and foreach enumerates either shape.
+    foreach ($line in ($env:PSP_LINES | ConvertFrom-Json)) {
         $log = Join-Path $env:PSP_LOGS ([guid]::NewGuid().ToString('N') + '.log')
         $env:FAKE_CARAPACE_LOG = $log
         $found = (TabExpansion2 -inputScript $line -cursorColumn $line.Length).CompletionMatches
