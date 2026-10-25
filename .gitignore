@@ -5,3 +5,6 @@ assets/config/config.json
 # generator, cached by Update-Completions) - version/machine-specific, regenerated on demand,
 # never meant to be committed. See NativeCompletions in config.json.
 assets/private/*/completions/native/
+
+# Written into zip installs by setup.ps1/Update-Profile (commit + branch the install came from).
+.psprofile-install.json
