@@ -17,9 +17,6 @@ jobs:
   pester:
     name: Pester (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
-    # Windows PowerShell 5.1 is reported but doesn't block merges until the profile
-    # loads cleanly there.
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
@@ -27,19 +24,15 @@ jobs:
           - name: Windows, PowerShell 7
             os: windows-latest
             shell: pwsh
-            experimental: false
           - name: Windows PowerShell 5.1
             os: windows-latest
             shell: powershell
-            experimental: true
           - name: macOS, PowerShell 7
             os: macos-latest
             shell: pwsh
-            experimental: false
           - name: Ubuntu, PowerShell 7
             os: ubuntu-latest
             shell: pwsh
-            experimental: false
     defaults:
       run:
         shell: ${{ matrix.shell }}
