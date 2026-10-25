@@ -1173,36 +1173,6 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
 }
 
 #---------------------------------------------------------------
-# Start deferred startup work
-#---------------------------------------------------------------
-# Swap the public function placeholders for the real functions while the prompt is idle, so
-# nothing waits on loading a file later. Only when deferring: a shell that runs one command and
-# exits is better off loading just the functions it calls.
-if ($PSProfileDeferStartupWork -and $Global:PSProfileLazyFunctionFiles.Count -gt 0) {
-    Add-PSProfileDeferredTask -Name 'Preload functions' -Action ${function:Import-PSProfileLazyFunctionBatch}
-}
-
-if ($Global:PSProfileDeferredTasks.Count -gt 0) {
-    if ($PSProfileDeferStartupWork) {
-        # -SupportEvent keeps this out of Get-EventSubscriber/Get-Job; the subscription removes
-        # itself once the queue is empty.
-        $null = Register-EngineEvent -SourceIdentifier PowerShell.OnIdle -SupportEvent -Action {
-            if (-not (Invoke-PSProfileDeferredTask -Phase Deferred)) {
-                Unregister-Event -SubscriptionId $EventSubscriber.SubscriptionId -Force
-            }
-        }
-    }
-    else {
-        while (Invoke-PSProfileDeferredTask -Phase Load) { }
-    }
-}
-
-if ($Global:PSProfileTrace) {
-    Add-PSProfileTrace -Section 'Total (load)' -Milliseconds $Global:PSProfileTraceClock.Elapsed.TotalMilliseconds
-    $Global:PSProfileTrace | Format-Table -AutoSize | Out-Host
-}
-
-#---------------------------------------------------------------
 # Update notice and background update check
 #---------------------------------------------------------------
 # Prints one line if the last background check found a newer version or missing dependencies.
@@ -1236,4 +1206,35 @@ if ($IsInteractiveShell -and -not $env:PSPROFILE_NO_UPDATE_CHECK) {
             }).AddArgument([System.IO.Path]::Combine($PSScriptRoot, 'assets', 'lib', 'PSProfile.Lifecycle.ps1')).AddArgument($PSScriptRoot)
         $null = $updateCheck.BeginInvoke()
     }
+}
+Add-PSProfileTrace -Section 'Update check'
+
+#---------------------------------------------------------------
+# Start deferred startup work
+#---------------------------------------------------------------
+# Swap the public function placeholders for the real functions while the prompt is idle, so
+# nothing waits on loading a file later. Only when deferring: a shell that runs one command and
+# exits is better off loading just the functions it calls.
+if ($PSProfileDeferStartupWork -and $Global:PSProfileLazyFunctionFiles.Count -gt 0) {
+    Add-PSProfileDeferredTask -Name 'Preload functions' -Action ${function:Import-PSProfileLazyFunctionBatch}
+}
+
+if ($Global:PSProfileDeferredTasks.Count -gt 0) {
+    if ($PSProfileDeferStartupWork) {
+        # -SupportEvent keeps this out of Get-EventSubscriber/Get-Job; the subscription removes
+        # itself once the queue is empty.
+        $null = Register-EngineEvent -SourceIdentifier PowerShell.OnIdle -SupportEvent -Action {
+            if (-not (Invoke-PSProfileDeferredTask -Phase Deferred)) {
+                Unregister-Event -SubscriptionId $EventSubscriber.SubscriptionId -Force
+            }
+        }
+    }
+    else {
+        while (Invoke-PSProfileDeferredTask -Phase Load) { }
+    }
+}
+
+if ($Global:PSProfileTrace) {
+    Add-PSProfileTrace -Section 'Total (load)' -Milliseconds $Global:PSProfileTraceClock.Elapsed.TotalMilliseconds
+    $Global:PSProfileTrace | Format-Table -AutoSize | Out-Host
 }
