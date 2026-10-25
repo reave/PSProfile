@@ -1,0 +1,6 @@
+{
+    "$schema": "./psprofile.schema.json",
+    "settings": {
+        "OneDrivePath": "C:\\Users\\joseph\\OneDrive"
+    }
+}

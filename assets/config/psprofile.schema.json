@@ -1,0 +1,130 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://raw.githubusercontent.com/reave/PSProfile/main/assets/config/psprofile.schema.json",
+    "title": "PSProfile config",
+    "description": "One layer of PSProfile config. Layers merge in this order, later wins: sample-config.json, config.json, config.<MACHINE>.json, config.local.json. Objects merge key by key; arrays are replaced whole.",
+    "type": "object",
+    "properties": {
+        "$schema": { "type": "string" },
+        "name": { "type": "string", "description": "A label for this config. Not used by the profile." },
+        "version": { "type": "string", "description": "A version label for this config. Not used by the profile." },
+        "settings": {
+            "type": "object",
+            "properties": {
+                "MaximumHistoryCount": { "type": "integer", "minimum": 1, "description": "Session command history size. Default 8192." },
+                "OneDrivePath": { "type": "string", "description": "Explicit OneDrive folder, used if it exists. Otherwise auto-detected. A per-machine value belongs in config.<MACHINE>.json." },
+                "PoshTheme": { "type": "string", "description": "An oh-my-posh theme name, or a full path to a .omp.json file." },
+                "ShowWindowTitle": { "type": "boolean" },
+                "ShowSplashScreen": { "type": "boolean" },
+                "SplashCommand": {
+                    "type": "object",
+                    "description": "Per-OS splash command. Only runs if the command is installed.",
+                    "properties": {
+                        "Windows": { "type": "string" },
+                        "MacOS": { "type": "string" },
+                        "Linux": { "type": "string" }
+                    },
+                    "additionalProperties": false
+                },
+                "ShowElevatedWarning": { "type": "boolean" },
+                "RunUpdateHelpOnElevated": { "type": "boolean" },
+                "ShowPSVersionBanner": { "type": "boolean" },
+                "UpdateCheckIntervalHours": { "type": "number", "minimum": 0, "description": "How often the background update check runs. Default 24; 0 turns it off." },
+                "LazyLoadFunctions": { "type": "boolean", "description": "Default true. Load each public function the first time it is called." },
+                "DefaultParameterValues": {
+                    "type": "object",
+                    "description": "Merged into $PSDefaultParameterValues as \"Cmdlet:Parameter\": value. Keep API keys out of here; use settings.Secrets.",
+                    "propertyNames": { "pattern": "^[^:]+:[^:]+$" }
+                },
+                "Secrets": {
+                    "type": "object",
+                    "description": "Where Get-PSProfileSecret finds each named secret. Unlisted names are looked up in SecretManagement under the same name.",
+                    "additionalProperties": {
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "A SecretManagement secret name, or a 1Password reference (op://vault/item/field) read with the op CLI."
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "Name": { "type": "string", "minLength": 1, "description": "The SecretManagement secret name." },
+                                    "Vault": { "type": "string", "minLength": 1, "description": "The SecretManagement vault to read it from." }
+                                },
+                                "required": ["Name"],
+                                "additionalProperties": false
+                            }
+                        ]
+                    }
+                },
+                "SecretVault": { "type": "string", "minLength": 1, "description": "Default SecretManagement vault for Get-PSProfileSecret. Unset uses the registered default vault." },
+                "PSReadLine": {
+                    "type": "object",
+                    "properties": {
+                        "PredictionSource": { "enum": ["None", "History", "Plugin", "HistoryAndPlugin"] },
+                        "PredictionViewStyle": { "enum": ["InlineView", "ListView"] },
+                        "EditMode": { "enum": ["Windows", "Emacs", "Vi"] },
+                        "HistorySearchArrowKeys": { "type": "boolean" },
+                        "FilterSecretsFromHistory": { "type": "boolean" },
+                        "Colors": {
+                            "type": "object",
+                            "description": "Set-PSReadLineOption -Colors entries, e.g. \"Command\": \"#87CEEB\".",
+                            "additionalProperties": { "type": "string" }
+                        }
+                    }
+                }
+            }
+        },
+        "Aliases": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "Name": { "type": "string", "minLength": 1 },
+                    "Value": { "type": "string", "minLength": 1 },
+                    "Description": { "type": "string" }
+                },
+                "required": ["Name", "Value"]
+            }
+        },
+        "Modules": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "Name": { "type": "string", "minLength": 1 },
+                    "Description": { "type": "string" },
+                    "PSVersionMajor": { "type": ["string", "integer"], "pattern": "^[0-9]+$", "description": "Minimum PowerShell major version." },
+                    "PSVersionMajorMax": { "type": ["string", "integer"], "pattern": "^[0-9]+$", "description": "Maximum PowerShell major version." },
+                    "OS": { "type": "string", "pattern": "^\\s*(All|Windows|MacOS|Linux)(\\s*,\\s*(Windows|MacOS|Linux))*\\s*$" },
+                    "DeferImport": { "type": "boolean", "description": "Import just after the prompt appears instead of before it." }
+                },
+                "required": ["Name"]
+            }
+        },
+        "Packages": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "Name": { "type": "string", "minLength": 1, "description": "The command used to check whether the package is installed." },
+                    "Id": { "type": "string", "minLength": 1 },
+                    "Source": { "enum": ["winget", "brew", "apt", "yum", "pacman"] }
+                },
+                "required": ["Name", "Id", "Source"]
+            }
+        },
+        "NativeCompletions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "Name": { "type": "string", "minLength": 1 },
+                    "GenerateCommand": { "type": "string", "minLength": 1 }
+                },
+                "required": ["Name", "GenerateCommand"]
+            }
+        }
+    }
+}
