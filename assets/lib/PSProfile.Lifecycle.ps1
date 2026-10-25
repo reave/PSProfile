@@ -305,6 +305,37 @@ function Test-PSProfileModuleApplies {
     return $true
 }
 
+function Get-PSProfileRequiredModule {
+    <#
+        Modules the profile itself needs at a minimum version, checked and installed on top of
+        config.json's Modules. They live here rather than in sample-config.json because an
+        existing config.json is never refreshed from the sample, so a new sample entry would
+        never reach a machine that's already set up.
+
+        PSReadLine: Windows PowerShell 5.1 ships 2.0.0, where ListView predictions and several
+        Set-PSReadLineOption settings the profile uses don't exist. 2.4.5 still supports 5.1.
+        SkipPublisherCheck because the inbox 2.0.0 is signed with the Windows certificate and
+        Gallery builds with the Microsoft Corporation one, which PowerShellGet otherwise refuses.
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param()
+
+    @(
+        [PSCustomObject]@{ Name = 'PSReadLine'; MinimumVersion = '2.4.5'; PSVersionMajorMax = '5'; OS = 'Windows'; SkipPublisherCheck = $true }
+    )
+}
+
+function Test-PSProfileModuleInstalled {
+    <# True when a module named $Module.Name is available, at $Module.MinimumVersion or newer if set. #>
+    param($Module)
+
+    $available = @(Get-Module -Name $Module.Name -ListAvailable -ErrorAction SilentlyContinue)
+    if (-not $available.Count) { return $false }
+    if (-not $Module.MinimumVersion) { return $true }
+    return [bool]($available | Where-Object { $_.Version -ge [version]$Module.MinimumVersion })
+}
+
 function Get-PSProfilePackageManager {
     <# The command that would install $Package on this machine, or $null if its Source doesn't apply here. #>
     param($Package)
@@ -334,9 +365,10 @@ function Get-PSProfileMissingDependency {
     $modules = [System.Collections.Generic.List[string]]::new()
     $packages = [System.Collections.Generic.List[string]]::new()
 
-    foreach ($module in $Config.Modules) {
+    foreach ($module in @(Get-PSProfileRequiredModule) + @($Config.Modules)) {
+        if (-not $module -or $modules.Contains($module.Name)) { continue }
         if (-not (Test-PSProfileModuleApplies -Module $module)) { continue }
-        if (-not (Get-Module -Name $module.Name -ListAvailable -ErrorAction SilentlyContinue)) { $modules.Add($module.Name) }
+        if (-not (Test-PSProfileModuleInstalled -Module $module)) { $modules.Add($module.Name) }
     }
 
     $installedNames = @{}
@@ -362,7 +394,10 @@ function Install-PSProfileDependency {
     param([Parameter(Mandatory)][string]$InstallPath)
 
     $config = Get-PSProfileConfigFromPath -InstallPath $InstallPath
-    if (-not $config) { Write-Warning 'No config.json or sample-config.json found - skipping dependencies.'; return }
+    if (-not $config) {
+        Write-Warning 'No config.json or sample-config.json found - only checking the modules the profile itself needs.'
+        $config = [PSCustomObject]@{ Modules = @(); Packages = @() }
+    }
 
     $missing = Get-PSProfileMissingDependency -Config $config
     if (-not $missing.Modules.Count -and -not $missing.Packages.Count) {
@@ -372,12 +407,22 @@ function Install-PSProfileDependency {
     }
 
     $isRoot = if (Test-PSProfileIsWindows) { $true } else { try { (id -u) -eq '0' } catch { $false } }
+    if ($PSVersionTable.PSEdition -eq 'Desktop') {
+        # Older Windows builds default Windows PowerShell to TLS 1.0/1.1, which the Gallery refuses.
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    }
+    $moduleSpecs = @(Get-PSProfileRequiredModule) + @($config.Modules)
 
     foreach ($name in $missing.Modules) {
-        if (-not $PSCmdlet.ShouldProcess($name, 'Install-Module -Scope CurrentUser')) { continue }
+        $spec = $moduleSpecs | Where-Object { $_ -and $_.Name -eq $name } | Select-Object -First 1
+        $installArgs = @{ Name = $name; Scope = 'CurrentUser'; Repository = 'PSGallery'; Force = $true; AllowClobber = $true; ErrorAction = 'Stop' }
+        if ($spec.MinimumVersion) { $installArgs.MinimumVersion = $spec.MinimumVersion }
+        if ($spec.SkipPublisherCheck) { $installArgs.SkipPublisherCheck = $true }
+        $label = if ($spec.MinimumVersion) { "$name $($spec.MinimumVersion)+" } else { $name }
+        if (-not $PSCmdlet.ShouldProcess($label, 'Install-Module -Scope CurrentUser')) { continue }
         try {
-            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
-            Write-Host "Installed module $name" -ForegroundColor Green
+            Install-Module @installArgs
+            Write-Host "Installed module $label" -ForegroundColor Green
         }
         catch { Write-Warning "Unable to install module ${name}: $($_.Exception.Message)" }
     }

@@ -220,6 +220,17 @@ $ProfileMarker (https://github.com/reave/PSProfile) - edit assets/config/config.
         }
     }
 
+    # Windows PowerShell 5.1 defaults to Restricted on client SKUs, which blocks $PROFILE from
+    # loading at all. pwsh 7 defaults to RemoteSigned, so this only ever fires on 5.1 or where
+    # someone set Restricted by hand. AllSigned and Group Policy settings are left alone.
+    if (-not $SkipProfileLink -and ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') -and (Get-ExecutionPolicy) -eq 'Restricted') {
+        try {
+            Write-SetupStep 'Execution policy is Restricted, which blocks profiles - setting RemoteSigned for the current user'
+            Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+        }
+        catch { Write-Warning "Could not set the execution policy, so the profile may not load: $_" }
+    }
+
     # Non-fatal from here on: the profile is installed and linked even if these fail.
     if (-not $SkipDependencies) {
         try {

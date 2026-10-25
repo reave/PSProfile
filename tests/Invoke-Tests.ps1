@@ -2,7 +2,7 @@
 .SYNOPSIS
     Runs the PSProfile Pester suites, the same way CI does.
 .DESCRIPTION
-    Requires Pester 5.5+ (Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser).
+    Requires Pester 6 (Install-Module Pester -MinimumVersion 6.0 -Scope CurrentUser -SkipPublisherCheck).
     Exits non-zero when any test fails so it can gate CI.
 .PARAMETER Path
     Test files or folders to run. Defaults to every *.Tests.ps1 in this folder.
@@ -19,8 +19,8 @@ param(
     [string]$OutputFile
 )
 
-$pester = Get-Module -Name Pester -ListAvailable | Where-Object Version -ge '5.5.0' | Sort-Object Version -Descending | Select-Object -First 1
-if (-not $pester) { throw 'Pester 5.5 or newer is required: Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser' }
+$pester = Get-Module -Name Pester -ListAvailable | Where-Object Version -ge '6.0.0' | Sort-Object Version -Descending | Select-Object -First 1
+if (-not $pester) { throw 'Pester 6 or newer is required: Install-Module Pester -MinimumVersion 6.0 -Scope CurrentUser -SkipPublisherCheck' }
 Import-Module $pester -Force
 
 $config = New-PesterConfiguration

@@ -1,0 +1,5 @@
+{
+    "tolerance": 0.25,
+    "minimumRegressionMs": 50,
+    "jobs": {}
+}

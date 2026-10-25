@@ -240,9 +240,13 @@ $env:PSPROFILE_TRACE = 1; pwsh
 
 The profile prints a per-section timing table when it finishes loading, and keeps the rows in `$Global:PSProfileTrace`. Work the profile defers until the first idle prompt is added there too (Phase `Deferred`) a moment after the prompt appears, so look at `$Global:PSProfileTrace` again after a second or two to see it.
 
+CI guards load time too. Each test job runs `tests/Measure-Startup.ps1`, which times bare starts against starts that load the profile (median of 7, after a warm-up) and fails the job when the overhead ratio is more than 25% over that job's entry in `tests/startup-baseline.json` and the overhead grew by more than 50 ms. CI starts are non-interactive, so it measures the load path every shell pays for, not the splash screen or oh-my-posh. A job with no baseline entry only reports its numbers in the job summary; copy them into the baseline file to arm the gate. Re-record an entry when a change makes startup slower on purpose.
+
+**Dev Drive (Windows, optional).** Most of the per-file cost on Windows is Defender scanning each script as it's read. If the clone you develop in lives on a [Dev Drive](https://learn.microsoft.com/en-us/windows/dev-drive/) with Defender [performance mode](https://learn.microsoft.com/en-us/defender-endpoint/microsoft-defender-endpoint-antivirus-performance-mode), those scans run asynchronously instead of blocking the read. This only helps the files on that drive: the live install under `~/.config/powershell` stays on the system drive. Microsoft doesn't say whether AMSI script-block scanning changes too, and lazy loading already reads few files at startup, so measure with `PSPROFILE_TRACE` before and after rather than assuming a win.
+
 ## Security
 
-- **Execution policy**: `powershell.config.json` sets `RemoteSigned`, not `Unrestricted` — your own local scripts run freely, but anything downloaded from the internet (carrying a Mark-of-the-Web zone identifier) must be signed to auto-execute. Windows-only; a no-op on macOS/Linux.
+- **Execution policy**: left at PowerShell's own default, which for pwsh 7 on Windows is `RemoteSigned`: your own local scripts run freely, but anything downloaded from the internet (carrying a Mark-of-the-Web zone identifier) must be signed to auto-execute. Windows PowerShell 5.1 defaults to `Restricted` on client Windows, which blocks profiles entirely, so `setup.ps1` sets `RemoteSigned` for the current user in that one case. It leaves `AllSigned` and Group Policy settings alone. Windows-only; a no-op on macOS/Linux.
 - **Secret-free history**: `PSReadLine.FilterSecretsFromHistory` (on by default in `sample-config.json`) keeps lines that look like they contain a password/token/API key out of the plaintext PSReadLine history file.
 - **No hardcoded credentials**: any function needing an API key takes it as a parameter defaulting to empty, sourced from your gitignored `config.json` via `DefaultParameterValues` — never committed to the repo.
 
@@ -251,7 +255,6 @@ The profile prints a per-section timing table when it finishes loading, and keep
 ```
 profile2.0.ps1              The profile. Loads config, dot-sources functions, applies settings.
 setup.ps1                   The installer and uninstaller (see Install above).
-powershell.config.json      PowerShell engine config (execution policy, experimental features).
 PSScriptAnalyzerSettings.psd1  Lint rules CI enforces (Error severity only).
 tests/                      Pester suites, run by .github/workflows/tests.yml on every push/PR.
 assets/
@@ -342,7 +345,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ### File / data utilities (cross-platform)
 
-`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` · `Resolve-Error` · `Update-Profile` (updates a git or zip install with validation and rollback — see [Updating](#updating)) · `Update-Completions` (regenerates cached [`NativeCompletions`](#nativecompletions) for whichever configured tools are installed, and [carapace](#carapace)'s tool lists) · `Update-PSProfileCache` (rebuilds the profile's [startup caches](#caches))
+`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` · `Resolve-Error` · `Update-Profile` (updates a git or zip install with validation and rollback — see [Updating](#updating)) · `Update-Completions` (regenerates cached [`NativeCompletions`](#nativecompletions) for whichever configured tools are installed, and [carapace](#carapace)'s tool lists) · `Update-PSProfileCache` (rebuilds the profile's [startup caches](#caches)) · `Update-PowerShell` (upgrades PowerShell 7 to the newest 7.6 LTS patch with winget, brew or the .pkg, or apt/dnf; `-TargetVersion` picks another line, `-CheckOnly` only reports)
 
 ### File utilities (Windows-only)
 
@@ -350,13 +353,13 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ### Misc (Windows-only)
 
-`Lock-Computer`/`Lock-Workstation` · `New-Explorer` · `Set-ScreenResolution` · `Set-Console` (WMI-based window title/full-name banner — superseded by the cross-platform `Set-ProfileWindowTitle` for the profile's own `ShowWindowTitle` setting, but still directly callable) · `Set-PathVariable` · `Set-RegValue` · `Send-VoiceMessage` · `Write-Log` · `Start-Elevated`/`Start-PSElevated` · `Invoke-IvantiInventoryScan` · `Update-PowerShell` (checks the latest PowerShell GitHub release, upgrades via winget) · `Edit-File`/`Edit-Profile`/`Open-HistoryFile` (open the right editor for the current host — VS Code, ISE, or OS-appropriate text editor) · `ConvertTo-NatoAlphabet`
+`Lock-Computer`/`Lock-Workstation` · `New-Explorer` · `Set-ScreenResolution` · `Set-Console` (WMI-based window title/full-name banner — superseded by the cross-platform `Set-ProfileWindowTitle` for the profile's own `ShowWindowTitle` setting, but still directly callable) · `Set-PathVariable` · `Set-RegValue` · `Send-VoiceMessage` · `Write-Log` · `Start-Elevated`/`Start-PSElevated` · `Invoke-IvantiInventoryScan` · `Edit-File`/`Edit-Profile`/`Open-HistoryFile` (open the right editor for the current host — VS Code, ISE, or OS-appropriate text editor) · `ConvertTo-NatoAlphabet`
 
 ## Requirements
 
 - PowerShell 5.1+ (Windows) or PowerShell 7+ (Windows/macOS/Linux). Some modules/packages in `sample-config.json` are gated to PS5.1-only or require a minimum version — see `PSVersionMajor` in [Modules](#modules).
 - `git` is recommended (for `setup.ps1`'s clone/pull path and easy updates) but not required — the installer falls back to a zip download.
-- Everything else (oh-my-posh, winget/brew/apt/yum/pacman packages) is optional and installed from your `config.json` by `setup.ps1`/`Update-Profile`, on whichever platforms actually support it. PSReadLine is optional too; older versions that don't support `-PredictionSource`/`-Colors` degrade gracefully (the whole `PSReadLine` config block is wrapped in a try/catch) rather than erroring.
+- Everything else (oh-my-posh, winget/brew/apt/yum/pacman packages) is optional and installed from your `config.json` by `setup.ps1`/`Update-Profile`, on whichever platforms actually support it. On Windows PowerShell 5.1, `setup.ps1` and `Update-Profile` install PSReadLine 2.4.5 or newer for the current user, because the inbox 2.0.0 lacks ListView predictions and several options the profile sets; this is built into the installer rather than listed in `config.json`, so existing configs get it too. Other older PSReadLine versions that don't support `-PredictionSource`/`-Colors` degrade gracefully (the whole `PSReadLine` config block is wrapped in a try/catch) rather than erroring.
 
 ## Adding functions
 
@@ -364,7 +367,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 2. Write comment-based help (`.SYNOPSIS`/`.DESCRIPTION`/`.PARAMETER`/`.EXAMPLE`/`.OUTPUTS`) directly above the `function` keyword, with **no other comment line directly above it** (a `#---` banner immediately above a help block breaks PowerShell's association between the two — always leave a blank line between them).
 3. If the function name might collide with a built-in alias (e.g. `gc`/`Get-Content`, `cd`/`Set-Location`), remove the alias first: `Remove-Item -Path "alias:\<name>" -Force -ErrorAction Ignore`. PowerShell resolves aliases *before* functions of the same name, so without this the function would silently never run. Use `-ErrorAction Ignore` rather than `SilentlyContinue` for checks like this that are expected to fail - `SilentlyContinue` still records every failure in `$Error`, so a fresh shell would start with a pile of meaningless errors in it.
 4. To give one OS its own version of a shared function, add a file with the same name to that OS folder; it replaces the shared one on that OS only. Don't copy a shared file unchanged into an OS folder (the tests reject identical copies).
-5. Run `./tests/Invoke-Tests.ps1` (needs Pester 5.5+: `Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser`). CI runs the same suites on Windows, macOS, and Ubuntu, so a function that parses or loads on one OS but not another fails the PR. The suites check that every file parses, that each public file defines a function named after the file and has a `.SYNOPSIS`, that no OS folder holds an unchanged copy of a shared file, and that the profile loads with no errors and exposes every public function. Pure functions (IP math, encoders, generators) also get behavior tests in `tests/Functions.Tests.ps1`; add a case there when a new function can be tested without network or admin rights.
+5. Run `./tests/Invoke-Tests.ps1` (needs Pester 6: `Install-Module Pester -MinimumVersion 6.0 -Scope CurrentUser -SkipPublisherCheck`; `-SkipPublisherCheck` is only needed on Windows PowerShell 5.1, whose inbox Pester 3.4 is signed differently). CI runs the same suites on Windows PowerShell 5.1 and on pinned PowerShell 7.4 and 7.6 LTS releases across Windows, macOS, and Ubuntu (not the runner image's own pwsh), so a function that parses or loads on one OS but not another fails the PR. The suites check that every file parses, that each public file defines a function named after the file and has a `.SYNOPSIS`, that no OS folder holds an unchanged copy of a shared file, and that the profile loads with no errors and exposes every public function. Pure functions (IP math, encoders, generators) also get behavior tests in `tests/Functions.Tests.ps1`; add a case there when a new function can be tested without network or admin rights.
 6. Nothing to register: the [function index](#lazy-loaded-functions) notices the new file and rebuilds itself on the next shell start. Keep files to function definitions (plus alias lines, if needed) so the function can be lazy-loaded — any other top-level code makes the file load eagerly on every start.
 
 ## Credits

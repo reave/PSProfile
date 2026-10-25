@@ -104,8 +104,4 @@ Describe 'Config files' {
             $package.Source | Should -BeIn 'winget', 'brew', 'apt', 'yum', 'pacman' -Because $package.Id
         }
     }
-
-    It 'powershell.config.json is valid JSON' {
-        { Get-Content -Path (Join-Path $repoRoot 'powershell.config.json') -Raw | ConvertFrom-Json } | Should -Not -Throw
-    }
 }

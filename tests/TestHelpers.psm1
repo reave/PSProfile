@@ -120,6 +120,43 @@ function Import-PSProfileFunction {
 
 <#
 .SYNOPSIS
+    Copies the repo to <Destination>\PSProfile with a minimal config.json, once, and returns
+    the copy's path.
+.DESCRIPTION
+    The config lists no Modules or Packages so loading the copy never installs anything.
+    A second call with the same Destination reuses the existing copy.
+#>
+function New-PSProfileTestInstall {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Destination
+    )
+
+    $profileCopy = Join-Path -Path $Destination -ChildPath 'PSProfile'
+    if (-not (Test-Path -Path $profileCopy)) {
+        $null = New-Item -Path $profileCopy -ItemType Directory -Force
+        Get-ChildItem -Path $script:RepoRoot -Force | Where-Object Name -notin '.git', 'tests', '.github' |
+            Copy-Item -Destination $profileCopy -Recurse -Force
+
+        $config = [ordered]@{
+            name     = 'CI test config'
+            settings = [ordered]@{
+                MaximumHistoryCount    = 4096
+                DefaultParameterValues = [ordered]@{ 'Export-Csv:NoTypeInformation' = $true }
+            }
+            Aliases  = @(@{ Name = 'pstest-alias'; Value = 'Get-ChildItem'; Description = 'CI alias check' })
+            Modules  = @()
+            Packages = @()
+        }
+        $config | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $profileCopy 'assets/config/config.json') -Encoding UTF8
+    }
+    $profileCopy
+}
+
+<#
+.SYNOPSIS
     Copies the repo to a scratch folder with a minimal config.json and loads the profile
     in a child process, returning what the load produced.
 .DESCRIPTION
@@ -147,24 +184,7 @@ function Invoke-PSProfileLoad {
         [string[]]$FunctionName = @()
     )
 
-    $profileCopy = Join-Path -Path $Destination -ChildPath 'PSProfile'
-    if (-not (Test-Path -Path $profileCopy)) {
-        $null = New-Item -Path $profileCopy -ItemType Directory -Force
-        Get-ChildItem -Path $script:RepoRoot -Force | Where-Object Name -notin '.git', 'tests', '.github' |
-            Copy-Item -Destination $profileCopy -Recurse -Force
-
-        $config = [ordered]@{
-            name     = 'CI test config'
-            settings = [ordered]@{
-                MaximumHistoryCount    = 4096
-                DefaultParameterValues = [ordered]@{ 'Export-Csv:NoTypeInformation' = $true }
-            }
-            Aliases  = @(@{ Name = 'pstest-alias'; Value = 'Get-ChildItem'; Description = 'CI alias check' })
-            Modules  = @()
-            Packages = @()
-        }
-        $config | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $profileCopy 'assets/config/config.json') -Encoding UTF8
-    }
+    $profileCopy = New-PSProfileTestInstall -Destination $Destination
 
     $cacheRoot = Join-Path -Path $Destination -ChildPath 'cache'
     $null = New-Item -Path $cacheRoot -ItemType Directory -Force
