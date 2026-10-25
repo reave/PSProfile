@@ -13,6 +13,54 @@ if ($PSVersionTable.PSEdition -eq 'Desktop') {
     $IsLinux = $false
 }
 
+#---------------------------------------------------------------
+# Load timing (opt-in)
+#---------------------------------------------------------------
+# Set $env:PSPROFILE_TRACE = 1 before starting a shell to print how long each section of this
+# profile took. Rows stay in $Global:PSProfileTrace afterward, including work deferred until the
+# first idle prompt (Phase 'Deferred'), which lands there a moment after the prompt appears.
+$Global:PSProfileTrace = $null
+if ($env:PSPROFILE_TRACE) {
+    $Global:PSProfileTrace = [System.Collections.Generic.List[PSCustomObject]]::new()
+    $Global:PSProfileTraceClock = [System.Diagnostics.Stopwatch]::StartNew()
+    $Global:PSProfileTraceLastMark = 0
+}
+
+<#
+.SYNOPSIS
+    Records a timing row for a profile section when PSPROFILE_TRACE is set.
+.DESCRIPTION
+    Without -Milliseconds, the row's time is everything since the previous mark, so calling
+    this at the end of each section times that section. Pass -Milliseconds to record a
+    duration measured separately (e.g. deferred work). A no-op when tracing is off.
+.PARAMETER Section
+    Name of the section being recorded.
+.PARAMETER Phase
+    'Load' for work done before the prompt appears, 'Deferred' for work done after.
+.PARAMETER Milliseconds
+    An explicit duration to record instead of the time since the previous mark.
+.EXAMPLE
+    Add-PSProfileTrace -Section 'Modules'
+.OUTPUTS
+    None
+#>
+function Add-PSProfileTrace {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Section,
+        [string]$Phase = 'Load',
+        [double]$Milliseconds = -1
+    )
+
+    if ($null -eq $Global:PSProfileTrace) { return }
+    $now = $Global:PSProfileTraceClock.Elapsed.TotalMilliseconds
+    if ($Milliseconds -lt 0) {
+        $Milliseconds = $now - $Global:PSProfileTraceLastMark
+        $Global:PSProfileTraceLastMark = $now
+    }
+    $Global:PSProfileTrace.Add([PSCustomObject]@{ Phase = $Phase; Section = $Section; Ms = [math]::Round($Milliseconds, 1) })
+}
+
 #- Set Filters
 
 <#
@@ -166,6 +214,7 @@ if ($PSProfileSettings.DefaultParameterValues) {
         $PSDefaultParameterValues[$property.Name] = $property.Value
     }
 }
+Add-PSProfileTrace -Section 'Config'
 
 #---------------------------------------------------------------
 # Functions
@@ -187,6 +236,7 @@ Foreach ($function in $functions) {
     try { . $function.FullName }
     Catch { Write-Error -Message "Failed to import $($function.Name)" }
 }
+Add-PSProfileTrace -Section 'Public functions'
 
 #- Dot Source Private Functions (assets\private\<windows|macos|linux>\*.ps1)
 $functions = Get-ChildItem -Path "$PSScriptRoot\assets\private\$OSFolder\*.ps1" -ErrorAction SilentlyContinue
@@ -194,6 +244,7 @@ Foreach ($function in $functions) {
     try { . $function.FullName }
     Catch { Write-Error -Message "Failed to import $($function.Name)" }
 }
+Add-PSProfileTrace -Section 'Private functions'
 
 Enable-Tls12
 Initialize-HomebrewPath
@@ -217,6 +268,7 @@ elseif (-not $IsWindows -and (Test-Path -Path "$env:HOME/OneDrive" -ErrorAction 
 else {
     [string]$OneDriveRoot = "OneDrive is not configured"
 }
+Add-PSProfileTrace -Section 'Environment and document roots'
 
 #---------------------------------------------------------------
 # Modules
@@ -265,6 +317,7 @@ foreach ($module in $PSProfileConfig.Modules) {
     }
 }
 $moduleImportMutex.Dispose()
+Add-PSProfileTrace -Section 'Modules'
 
 $IsElevated = if ($IsWindows) {
     ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
@@ -286,6 +339,7 @@ else {
 foreach ($alias in $PSProfileConfig.Aliases) {
     New-Alias -Name $alias.Name -Value $alias.Value -Description $alias.Description -Force
 }
+Add-PSProfileTrace -Section 'Elevation check, packages and aliases'
 
 #---------------------------------------------------------------
 # PSReadLine
@@ -318,6 +372,7 @@ if ($IsInteractiveShell -and $readlineConfig -and (Get-Module -Name PSReadLine -
     }
     catch { Write-Verbose "Skipping PSReadLine configuration: $_" }
 }
+Add-PSProfileTrace -Section 'PSReadLine'
 
 #---------------------------------------------------------------
 # Windows Section
@@ -326,6 +381,7 @@ if ($IsWindows -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowWindowTitle) {
         Set-ProfileWindowTitle
     }
+    Add-PSProfileTrace -Section 'Window title'
 
     if ($PSProfileSettings.ShowSplashScreen) {
         $splashCommand = $PSProfileSettings.SplashCommand.Windows
@@ -333,6 +389,7 @@ if ($IsWindows -and $IsInteractiveShell) {
             Invoke-Expression $splashCommand
         }
     }
+    Add-PSProfileTrace -Section 'Splash screen'
 
     if ($PSProfileSettings.ShowElevatedWarning -and $IsElevated) {
         Write-Host "--------------------------------------------" -ForegroundColor Red
@@ -347,6 +404,7 @@ if ($IsWindows -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowPSVersionBanner) {
         Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
     }
+    Add-PSProfileTrace -Section 'Banners'
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
         $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
@@ -357,6 +415,7 @@ if ($IsWindows -and $IsInteractiveShell) {
             oh-my-posh init pwsh | Invoke-Expression
         }
     }
+    Add-PSProfileTrace -Section 'oh-my-posh'
 }
 #---------------------------------------------------------------
 # macOS Section
@@ -365,6 +424,7 @@ ElseIf ($IsMacOS -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowWindowTitle) {
         Set-ProfileWindowTitle
     }
+    Add-PSProfileTrace -Section 'Window title'
 
     if ($PSProfileSettings.ShowSplashScreen) {
         $splashCommand = $PSProfileSettings.SplashCommand.MacOS
@@ -372,6 +432,7 @@ ElseIf ($IsMacOS -and $IsInteractiveShell) {
             Invoke-Expression $splashCommand
         }
     }
+    Add-PSProfileTrace -Section 'Splash screen'
 
     if ($PSProfileSettings.ShowElevatedWarning -and $IsElevated) {
         Write-Host "--------------------------------------------" -ForegroundColor Red
@@ -386,6 +447,7 @@ ElseIf ($IsMacOS -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowPSVersionBanner) {
         Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
     }
+    Add-PSProfileTrace -Section 'Banners'
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
         $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
@@ -396,6 +458,7 @@ ElseIf ($IsMacOS -and $IsInteractiveShell) {
             oh-my-posh init pwsh | Invoke-Expression
         }
     }
+    Add-PSProfileTrace -Section 'oh-my-posh'
 }
 #---------------------------------------------------------------
 # Linux Section
@@ -404,6 +467,7 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowWindowTitle) {
         Set-ProfileWindowTitle
     }
+    Add-PSProfileTrace -Section 'Window title'
 
     if ($PSProfileSettings.ShowSplashScreen) {
         $splashCommand = $PSProfileSettings.SplashCommand.Linux
@@ -411,6 +475,7 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
             Invoke-Expression $splashCommand
         }
     }
+    Add-PSProfileTrace -Section 'Splash screen'
 
     if ($PSProfileSettings.ShowElevatedWarning -and $IsElevated) {
         Write-Host "--------------------------------------------" -ForegroundColor Red
@@ -425,6 +490,7 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowPSVersionBanner) {
         Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
     }
+    Add-PSProfileTrace -Section 'Banners'
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
         $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
@@ -435,6 +501,12 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
             oh-my-posh init pwsh | Invoke-Expression
         }
     }
+    Add-PSProfileTrace -Section 'oh-my-posh'
+}
+
+if ($Global:PSProfileTrace) {
+    Add-PSProfileTrace -Section 'Total (load)' -Milliseconds $Global:PSProfileTraceClock.Elapsed.TotalMilliseconds
+    $Global:PSProfileTrace | Format-Table -AutoSize | Out-Host
 }
 
 #---------------------------------------------------------------

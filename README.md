@@ -167,6 +167,16 @@ If you installed oh-my-posh via Homebrew and *also* can't run `brew` itself from
 
 Homebrew's installer adds its `PATH` setup to `.zprofile`/`.bash_profile`, which `pwsh` never sources. If you launch PowerShell directly (not from a zsh/bash login shell that already ran that setup), `brew` — and anything installed through it — is invisible to the whole session. This profile detects the standard Homebrew install locations (`/opt/homebrew`, `/usr/local` on macOS; `/home/linuxbrew/.linuxbrew`, `~/.linuxbrew` on Linux) and fixes `$env:PATH` automatically on load, so `brew` works at the prompt afterward too, not just internally for the `Packages` config.
 
+## Load time
+
+To see where profile load time goes, start a shell with `PSPROFILE_TRACE` set:
+
+```powershell
+$env:PSPROFILE_TRACE = 1; pwsh
+```
+
+The profile prints a per-section timing table when it finishes loading, and keeps the rows in `$Global:PSProfileTrace`. Work the profile defers until the first idle prompt is added there too (Phase `Deferred`) a moment after the prompt appears, so look at `$Global:PSProfileTrace` again after a second or two to see it.
+
 ## Security
 
 - **Execution policy**: `powershell.config.json` sets `RemoteSigned`, not `Unrestricted` — your own local scripts run freely, but anything downloaded from the internet (carrying a Mark-of-the-Web zone identifier) must be signed to auto-execute. Windows-only; a no-op on macOS/Linux.
