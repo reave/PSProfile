@@ -211,13 +211,17 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 `Convert-IPv4Address` · `Convert-Subnetmask` · `Get-IPv4Subnet` · `Split-IPv4Subnet` · `Invoke-IPv4NetworkScan` · `Invoke-IPv4PortScan` · `Get-MACVendor` · `Send-WakeOnLan` · `Send-MagicPacket` · `Test-DHCPPxe` · `Test-WebSiteStatus` · `Resolve-ShortURL` · `Update-GoogleDNS`
 
+### Diagnostics (cross-platform)
+
+`Test-Port` (fast TCP reachability check with a timeout) · `Get-ProcessByPort` (which process owns a local TCP/UDP port) · `Test-TlsCertificate` (remote cert expiry, SANs, issuer, chain status) · `ConvertFrom-Jwt` (decode a JWT offline and show its expiry; does not verify the signature) · `Get-PathReport` (PATH entries in order, flagging missing and duplicate dirs) · `Invoke-Retry` (run a script block with retries and exponential backoff) · `Get-LastBootTime`
+
 ### Networking (Windows-only — WMI/registry/Windows-formatted CLI output)
 
 `Get-ARPCache` · `Clear-ARPCache` · `Get-MACAddress` · `Get-Netstat` · `Get-WLANProfile` · `Invoke-DNSCacheFlush` · `Enable-PSRemotingRemote` · `Add-TrustedHost`/`Get-TrustedHost`/`Set-TrustedHost`/`Remove-TrustedHost` · `Enable-RemoteDesktop`/`Disable-RemoteDesktop`
 
 ### System info (Windows-only)
 
-`Get-DeviceInfo` · `Get-OSInfo` · `Get-Uptime` · `Get-LastBootTime` · `Get-PendingReboot` · `Get-DiskInfo`/`Get-DiskSize`/`Get-DriveInfo`/`Get-DriveSpace` · `Get-FolderSizes` · `Get-BatteryStatus` · `Get-InstalledSoftware` · `Get-NetFramework` · `Get-WindowsProductKey` · `Show-Sysinfo` · `Get-UserSession`/`Get-LoggedOnUsers`/`Get-LastLogon`
+`Get-DeviceInfo` · `Get-OSInfo` · `Get-Uptime` · `Get-PendingReboot` · `Get-DiskInfo`/`Get-DiskSize`/`Get-DriveInfo`/`Get-DriveSpace` · `Get-FolderSizes` · `Get-BatteryStatus` · `Get-InstalledSoftware` · `Get-NetFramework` · `Get-WindowsProductKey` · `Show-Sysinfo` · `Get-UserSession`/`Get-LoggedOnUsers`/`Get-LastLogon`
 
 ### Active Directory (Windows-only)
 
