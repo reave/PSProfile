@@ -693,6 +693,14 @@ $configuredOneDrivePath = $PSProfileSettings.OneDrivePath
 if ($configuredOneDrivePath -and (Test-Path -Path $configuredOneDrivePath -ErrorAction SilentlyContinue)) {
     [string]$OneDriveRoot = $configuredOneDrivePath
 }
+# The OneDrive client sets these to wherever it actually syncs (personal and default account),
+# which is a better guess than a fixed folder name when the configured path is missing or stale.
+elseif ($env:OneDriveConsumer -and (Test-Path -Path $env:OneDriveConsumer -ErrorAction SilentlyContinue)) {
+    [string]$OneDriveRoot = $env:OneDriveConsumer
+}
+elseif ($env:OneDrive -and (Test-Path -Path $env:OneDrive -ErrorAction SilentlyContinue)) {
+    [string]$OneDriveRoot = $env:OneDrive
+}
 elseif ($PSProfileIsWindows -and (Test-Path -Path $env:USERPROFILE\OneDrive -ErrorAction SilentlyContinue)) {
     [string]$OneDriveRoot = "$env:USERPROFILE\OneDrive"
 }
