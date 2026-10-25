@@ -1,5 +1,31 @@
 {
     "tolerance": 0.25,
     "minimumRegressionMs": 50,
-    "jobs": {}
+    "recorded": "2026-10-25, main at 569f9ea; higher ratio and overhead of two CI runs (40235638679, 40235884479)",
+    "jobs": {
+        "windows-7.6": {
+            "ratio": 2.495,
+            "overheadMs": 440
+        },
+        "windows-7.4": {
+            "ratio": 2.733,
+            "overheadMs": 745
+        },
+        "windows-5.1": {
+            "ratio": 5.372,
+            "overheadMs": 877
+        },
+        "macos-7.6": {
+            "ratio": 4.547,
+            "overheadMs": 723
+        },
+        "linux-7.6": {
+            "ratio": 6.948,
+            "overheadMs": 1280
+        },
+        "linux-7.4": {
+            "ratio": 6.611,
+            "overheadMs": 1300
+        }
+    }
 }
