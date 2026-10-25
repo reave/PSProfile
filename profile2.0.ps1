@@ -653,14 +653,20 @@ function Invoke-PSProfileDeferredTask {
     $task = $Global:PSProfileDeferredTasks.Dequeue()
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
 
+    # Actions that take no argument (e.g. a function with an empty param block) reject even $null.
+    # Assigned directly rather than from an if expression, which would unroll a one-item array
+    # and leave a string that splats as its individual characters.
+    $arguments = @()
+    if ($null -ne $task.Argument) { $arguments = @(, $task.Argument) }
+
     if ($Phase -eq 'Load') {
-        try { $null = & $task.Action $task.Argument }
+        try { $null = & $task.Action @arguments }
         catch { Write-Error "Profile step '$($task.Name)' failed: $_" }
     }
     else {
         $printed = $false
         try {
-            foreach ($record in (& $task.Action $task.Argument 2>&1 3>&1)) {
+            foreach ($record in (& $task.Action @arguments 2>&1 3>&1)) {
                 if ($record -is [System.Management.Automation.ErrorRecord]) { $Host.UI.WriteErrorLine("$record"); $printed = $true }
                 elseif ($record -is [System.Management.Automation.WarningRecord]) { $Host.UI.WriteWarningLine("$record"); $printed = $true }
             }
