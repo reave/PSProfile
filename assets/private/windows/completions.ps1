@@ -1,32 +1,105 @@
 ##- Registering Auto-Completion for Windows Terminal
 #
-# Each tool's completer lives in its own file under .\completions\ and is only
-# dot-sourced (and therefore only parsed) when that tool is actually present.
-# This used to be one ~1100-line file always parsed in full on every profile
-# load regardless of which of these CLIs were installed - dot-sourcing forces
-# a full parse of whatever file you point it at, so gating had to happen at
-# the file-selection level, not with an `if` inside a single big file.
-if (Get-Command -Name winget -ErrorAction Ignore) { . "$PSScriptRoot\completions\winget.ps1" }
-if (Get-Command -Name dotnet -ErrorAction Ignore) { . "$PSScriptRoot\completions\dotnet.ps1" }
-if (Get-Command -Name op -ErrorAction Ignore) { . "$PSScriptRoot\completions\op.ps1" }
-if (Get-Command -Name oh-my-posh -ErrorAction Ignore) { . "$PSScriptRoot\completions\oh-my-posh.ps1" }
-if (Get-Command -Name yt-dlp -ErrorAction Ignore) { . "$PSScriptRoot\completions\yt-dlp.ps1" }
-if (Get-Command -Name ffmpeg -ErrorAction Ignore) { . "$PSScriptRoot\completions\ffmpeg.ps1" }
-if (Get-Command -Name ssh-keygen -ErrorAction Ignore) { . "$PSScriptRoot\completions\ssh-keygen.ps1" }
-if (Get-Command -Name sqlite3 -ErrorAction Ignore) { . "$PSScriptRoot\completions\sqlite3.ps1" }
-if (Get-Command -Name pwsh -ErrorAction Ignore) { . "$PSScriptRoot\completions\pwsh.ps1" }
-if (Get-Command -Name npx -ErrorAction Ignore) { . "$PSScriptRoot\completions\npx.ps1" }
-if (Get-Command -Name wsl -ErrorAction Ignore) { . "$PSScriptRoot\completions\wsl.ps1" }
+# Each tool's completer lives in its own file under .\completions\ (named after the tool), plus
+# config.json's NativeCompletions cached under .\completions\native\ by Update-Completions.
+#
+# None of them is loaded here. Loading them all cost ~400 ms per shell (op.ps1 alone is ~200 ms),
+# and even checking which tools were installed cost a Get-Command per tool. Instead each tool
+# gets a tiny native completer right away - harmless for a tool that isn't installed, since it
+# only runs when that tool is being completed - and the first Tab after the tool's name loads
+# its real completer file and answers with it. From then on the real completer is used.
 
-# config.json's NativeCompletions: tools with their own `completion powershell`-style generator.
-# The generated script is cached under .\completions\native\<name>.ps1 by Update-Completions
-# (called from Update-Profile/setup.ps1) rather than run here - shelling out to each tool on
-# every profile load would be slow (especially anything backed by a daemon, e.g. docker) and
-# would defeat the whole point of caching. A tool with no cache yet just gets skipped until
-# Update-Completions has run once.
-foreach ($__nc in $PSProfileConfig.NativeCompletions) {
-    if (-not (Get-Command -Name $__nc.Name -ErrorAction Ignore)) { continue }
-    $__ncCache = Join-Path $PSScriptRoot "completions\native\$($__nc.Name).ps1"
-    if (Test-Path -Path $__ncCache) { . $__ncCache }
+<#
+.SYNOPSIS
+    Loads a tool's completer file and returns the completer script block it registers.
+.DESCRIPTION
+    There's no API to read back a registered native completer, so while the file loads,
+    Register-ArgumentCompleter is shadowed by a function that records each script block
+    registered for a command (and still registers it for real). Functions and variables the
+    file defines are made global (see Import-PSProfileScript), as when it was dot-sourced from
+    the profile. Results are cached in $Global:PSProfileLoadedCompleters.
+.PARAMETER CommandName
+    The tool being completed.
+.EXAMPLE
+    Import-PSProfileCompleter -CommandName op
+.OUTPUTS
+    System.Management.Automation.ScriptBlock
+#>
+function Import-PSProfileCompleter {
+    [CmdletBinding()]
+    [OutputType([scriptblock])]
+    param(
+        [Parameter(Mandatory)][string]$CommandName
+    )
+
+    if ($Global:PSProfileLoadedCompleters.ContainsKey($CommandName)) { return $Global:PSProfileLoadedCompleters[$CommandName] }
+
+    $captured = @{}
+    function Register-ArgumentCompleter {
+        [CmdletBinding()]
+        param(
+            [string[]]$CommandName,
+            [string]$ParameterName,
+            [scriptblock]$ScriptBlock,
+            [switch]$Native
+        )
+        if (-not $ParameterName) { foreach ($name in $CommandName) { $captured[$name] = $ScriptBlock } }
+        Microsoft.PowerShell.Core\Register-ArgumentCompleter @PSBoundParameters
+    }
+
+    Import-PSProfileScript -LiteralPath $Global:PSProfileLazyCompleterFiles[$CommandName]
+    foreach ($name in $captured.Keys) { $Global:PSProfileLoadedCompleters[$name] = $captured[$name] }
+    $Global:PSProfileLoadedCompleters[$CommandName]
 }
-Remove-Variable -Name __nc, __ncCache -ErrorAction SilentlyContinue
+
+<#
+.SYNOPSIS
+    The native completer registered up front for each tool; loads the real one on first use.
+.PARAMETER CommandName
+    The tool being completed.
+.PARAMETER WordToComplete
+    Passed through from the completion engine.
+.PARAMETER CommandAst
+    Passed through from the completion engine.
+.PARAMETER CursorPosition
+    Passed through from the completion engine.
+.EXAMPLE
+    Invoke-PSProfileLazyCompleter -CommandName op -WordToComplete '' -CommandAst $ast -CursorPosition 3
+.OUTPUTS
+    System.Management.Automation.CompletionResult
+#>
+function Invoke-PSProfileLazyCompleter {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$CommandName,
+        [AllowEmptyString()][string]$WordToComplete,
+        $CommandAst,
+        $CursorPosition
+    )
+
+    try {
+        $completer = Import-PSProfileCompleter -CommandName $CommandName
+        if ($completer) { & $completer $WordToComplete $CommandAst $CursorPosition }
+    }
+    catch { Write-Verbose "Completer for $CommandName failed: $_" }
+}
+
+$Global:PSProfileLoadedCompleters = @{}
+$Global:PSProfileLazyCompleterFiles = @{}
+foreach ($__completerFile in Get-ChildItem -Path (Join-Path $PSScriptRoot 'completions') -Filter '*.ps1' -File) {
+    $Global:PSProfileLazyCompleterFiles[$__completerFile.BaseName] = $__completerFile.FullName
+}
+# config.json's NativeCompletions: tools with their own `completion powershell`-style generator,
+# whose output Update-Completions caches (running the generators here would mean shelling out to
+# each tool, e.g. a daemon-backed docker, on every load). A tool with no cache yet is skipped
+# until Update-Completions has run.
+foreach ($__nc in $PSProfileConfig.NativeCompletions) {
+    $__ncCache = Join-Path (Join-Path (Join-Path $PSScriptRoot 'completions') 'native') "$($__nc.Name).ps1"
+    if (Test-Path -Path $__ncCache) { $Global:PSProfileLazyCompleterFiles[$__nc.Name] = $__ncCache }
+}
+foreach ($__completerName in $Global:PSProfileLazyCompleterFiles.Keys) {
+    $__quotedName = "'" + $__completerName.Replace("'", "''") + "'"
+    Microsoft.PowerShell.Core\Register-ArgumentCompleter -Native -CommandName $__completerName -ScriptBlock ([scriptblock]::Create(
+            "param(`$wordToComplete, `$commandAst, `$cursorPosition) Invoke-PSProfileLazyCompleter -CommandName $__quotedName -WordToComplete `$wordToComplete -CommandAst `$commandAst -CursorPosition `$cursorPosition"))
+}
+Remove-Variable -Name __completerFile, __nc, __ncCache, __completerName, __quotedName -ErrorAction Ignore
