@@ -14,6 +14,10 @@
                 "MaximumHistoryCount": { "type": "integer", "minimum": 1, "description": "Session command history size. Default 8192." },
                 "OneDrivePath": { "type": "string", "description": "Explicit OneDrive folder, used if it exists. Otherwise auto-detected. A per-machine value belongs in config.<MACHINE>.json." },
                 "PoshTheme": { "type": "string", "description": "An oh-my-posh theme name, or a full path to a .omp.json file." },
+                "PoshThemeOverrides": {
+                    "type": "object",
+                    "description": "oh-my-posh general settings applied to a cached copy of a JSON theme, e.g. \"shell_integration\": true, \"streaming\": 100."
+                },
                 "ShowWindowTitle": { "type": "boolean" },
                 "ShowSplashScreen": { "type": "boolean" },
                 "SplashCommand": {
@@ -26,6 +30,7 @@
                     },
                     "additionalProperties": false
                 },
+                "SplashCacheHours": { "type": "number", "minimum": 0, "description": "How long the captured splash output is replayed before the splash command runs again. Default 24." },
                 "ShowElevatedWarning": { "type": "boolean" },
                 "RunUpdateHelpOnElevated": { "type": "boolean" },
                 "ShowPSVersionBanner": { "type": "boolean" },
@@ -56,6 +61,21 @@
                                 "additionalProperties": false
                             }
                         ]
+                    }
+                },
+                "Zoxide": {
+                    "type": "object",
+                    "description": "zoxide integration, started from a cached init when zoxide is installed.",
+                    "properties": {
+                        "Enabled": { "type": "boolean", "description": "Default true." },
+                        "Command": { "type": "string", "minLength": 1, "description": "The jump command name. Default z." }
+                    }
+                },
+                "Atuin": {
+                    "type": "object",
+                    "description": "Atuin history recording and sync. Ctrl+R and the arrow keys stay with PSFzf and PSReadLine.",
+                    "properties": {
+                        "Enabled": { "type": "boolean", "description": "Default false." }
                     }
                 },
                 "SecretVault": { "type": "string", "minLength": 1, "description": "Default SecretManagement vault for Get-PSProfileSecret. Unset uses the registered default vault." },
@@ -98,7 +118,8 @@
                     "PSVersionMajor": { "type": ["string", "integer"], "pattern": "^[0-9]+$", "description": "Minimum PowerShell major version." },
                     "PSVersionMajorMax": { "type": ["string", "integer"], "pattern": "^[0-9]+$", "description": "Maximum PowerShell major version." },
                     "OS": { "type": "string", "pattern": "^\\s*(All|Windows|MacOS|Linux)(\\s*,\\s*(Windows|MacOS|Linux))*\\s*$" },
-                    "DeferImport": { "type": "boolean", "description": "Import just after the prompt appears instead of before it." }
+                    "DeferImport": { "type": "boolean", "description": "Import just after the prompt appears instead of before it." },
+                    "RequiresCommand": { "type": "string", "minLength": 1, "description": "Skip the import quietly when this executable isn't on PATH." }
                 },
                 "required": ["Name"]
             }
@@ -115,6 +136,7 @@
                 "required": ["Name", "Id", "Source"]
             }
         },
+        "Carapace": { "type": "boolean", "description": "Default true. false leaves carapace out of tab completion even when it's installed." },
         "NativeCompletions": {
             "type": "array",
             "items": {

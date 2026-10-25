@@ -178,6 +178,9 @@ Describe 'Config schema' {
     It 'rejects a wrong type' -Skip:($PSVersionTable.PSVersion.Major -lt 7) {
         $schema = Get-Content -Path $schemaPath -Raw
         '{"settings":{"ShowSplashScreen":"yes"}}' | Test-Json -Schema $schema -ErrorAction SilentlyContinue | Should -BeFalse
+        '{"settings":{"Zoxide":{"Enabled":"yes"}}}' | Test-Json -Schema $schema -ErrorAction SilentlyContinue | Should -BeFalse
+        '{"Modules":[{"Name":"PSFzf","RequiresCommand":""}]}' | Test-Json -Schema $schema -ErrorAction SilentlyContinue | Should -BeFalse
+        '{"Carapace":"no"}' | Test-Json -Schema $schema -ErrorAction SilentlyContinue | Should -BeFalse
     }
 
     It 'keeps API keys out of the sample DefaultParameterValues' {
