@@ -315,7 +315,9 @@ if ($PSProfileSettings.DefaultParameterValues) {
     foreach ($property in $PSProfileSettings.DefaultParameterValues.PSObject.Properties) {
         $PSDefaultParameterValues[$property.Name] = $property.Value
         if ($property.Name -like '*:APIKey' -and $property.Value) {
-            Write-Warning "$($property.Name) is set in plain text in your config. Store it with Set-Secret instead (see Get-PSProfileSecret)."
+            # Get-Weather's key has a known secret name; other functions document their own.
+            $secretName = if ($property.Name -eq 'Get-Weather:APIKey') { 'OpenWeatherMapApiKey' } else { '<name the function looks up>' }
+            Write-Warning "$($property.Name) is in plain text in your config. Move it to a secret: run Update-Profile (installs SecretManagement and SecretStore, and registers the vault), then Set-Secret -Name $secretName, then delete $($property.Name) from DefaultParameterValues."
         }
     }
 }

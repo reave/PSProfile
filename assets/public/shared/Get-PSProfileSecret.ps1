@@ -13,9 +13,10 @@ function Get-PSProfileSecret {
         A name with no entry is looked up in SecretManagement under the same name, in
         settings.SecretVault if set, otherwise the registered default vault.
 
-        Needs Microsoft.PowerShell.SecretManagement plus a vault (e.g.
-        Microsoft.PowerShell.SecretStore), or the op CLI for op:// references. Neither is
-        installed for you. Returns nothing, with a verbose message, when the secret or the
+        Needs Microsoft.PowerShell.SecretManagement plus a vault, or the op CLI for op://
+        references. setup.ps1 and Update-Profile install SecretManagement and SecretStore and
+        register SecretStore as the default vault if none exists; nothing is installed or
+        imported at shell startup. Returns nothing, with a verbose message, when the secret or the
         tool to read it isn't available, so callers decide how to fail.
     .PARAMETER Name
         The secret's name, as functions ask for it (e.g. OpenWeatherMapApiKey).
@@ -63,7 +64,7 @@ function Get-PSProfileSecret {
     }
 
     if (-not (Get-Command -Name Get-Secret -ErrorAction Ignore)) {
-        Write-Verbose "Secret $Name needs Microsoft.PowerShell.SecretManagement, which isn't installed. Install-Module Microsoft.PowerShell.SecretManagement, Microsoft.PowerShell.SecretStore"
+        Write-Verbose "Secret $Name needs Microsoft.PowerShell.SecretManagement, which isn't installed. Run Update-Profile to install it and SecretStore."
         return
     }
     $getSecret = @{ Name = $secretName; AsPlainText = $true; ErrorAction = 'Stop' }

@@ -337,6 +337,10 @@ function Get-PSProfileRequiredModule {
         Set-PSReadLineOption settings the profile uses don't exist. 2.4.5 still supports 5.1.
         SkipPublisherCheck because the inbox 2.0.0 is signed with the Windows certificate and
         Gallery builds with the Microsoft Corporation one, which PowerShellGet otherwise refuses.
+
+        SecretManagement + SecretStore: Get-PSProfileSecret reads API keys through them (Set-Secret
+        and Get-Secret come from SecretManagement). Installed only; the profile never imports
+        them at startup, and PowerShell autoloads them the first time Set-Secret or Get-Secret runs.
     #>
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
@@ -344,6 +348,8 @@ function Get-PSProfileRequiredModule {
 
     @(
         [PSCustomObject]@{ Name = 'PSReadLine'; MinimumVersion = '2.4.5'; PSVersionMajorMax = '5'; OS = 'Windows'; SkipPublisherCheck = $true }
+        [PSCustomObject]@{ Name = 'Microsoft.PowerShell.SecretManagement'; OS = 'All' }
+        [PSCustomObject]@{ Name = 'Microsoft.PowerShell.SecretStore'; OS = 'All' }
     )
 }
 
@@ -473,8 +479,31 @@ function Install-PSProfileDependency {
         catch { Write-Warning "Unable to install $($package.Id) via ${manager}: $_" }
     }
 
+    Register-PSProfileSecretVault
+
     $after = Get-PSProfileMissingDependency -Config $config
     Set-PSProfileState -Values @{ MissingModules = @($after.Modules); MissingPackages = @($after.Packages) }
+}
+
+function Register-PSProfileSecretVault {
+    <#
+        Registers SecretStore as the default SecretManagement vault when no vault is registered
+        yet, so Set-Secret works straight after setup. Leaves any existing vault setup alone.
+        The SecretStore password is created by SecretStore itself the first time a secret is
+        stored, so nothing here prompts.
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param()
+
+    if (-not (Get-Module -Name Microsoft.PowerShell.SecretManagement -ListAvailable -ErrorAction SilentlyContinue) -or
+        -not (Get-Module -Name Microsoft.PowerShell.SecretStore -ListAvailable -ErrorAction SilentlyContinue)) { return }
+    try {
+        if (@(Get-SecretVault -ErrorAction Stop).Count) { return }
+        if (-not $PSCmdlet.ShouldProcess('SecretStore', 'Register-SecretVault -DefaultVault')) { return }
+        Register-SecretVault -Name SecretStore -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault -ErrorAction Stop
+        Write-Host 'Registered SecretStore as the default secret vault. Store API keys with Set-Secret.' -ForegroundColor Green
+    }
+    catch { Write-Warning "Unable to register the SecretStore vault: $($_.Exception.Message)" }
 }
 
 #---------------------------------------------------------------
