@@ -1,37 +1,57 @@
 <#
 .SYNOPSIS
-    Updates the installed PSProfile from GitHub and reloads it into the current session.
+    Updates the installed PSProfile (git or zip install), validates it, and installs missing
+    dependencies. Can also just check for an update, or roll back the last one.
 .DESCRIPTION
-    Runs `git pull --ff-only` in the PSProfile install directory ($Global:PSProfileRoot,
-    set by profile2.0.ps1) and, unless -SkipReload is passed, re-dot-sources
-    $PROFILE.CurrentUserAllHosts afterward so the update takes effect immediately.
-    Never touches assets\config\config.json - it's gitignored, so a pull can't overwrite it.
+    Works for both install types setup.ps1 can produce:
+      - git install: `git pull --ff-only` in the install directory.
+      - zip install: downloads the latest commit, validates it in a staging folder next to
+        the install, then swaps it in. The old tree is kept as .<name>.previous.
 
-    Only works for a git-based install. If PSProfile was installed via the zip fallback
-    (no git available at install time), this stops with a pointer to re-run setup.ps1
-    instead, since that's the only path that can refresh a non-git install.
+    Before an update goes live it's validated: every .ps1 must parse, and profile2.0.ps1 is
+    loaded in a separate profile-less PowerShell process, which must not throw. A git update
+    that fails validation is reset back to the previous commit automatically; a zip update
+    that fails is never swapped in. The same child process then refreshes the profile's caches
+    with the new code (Update-PSProfileCache, if defined, and Update-Completions).
 
-    After reloading, also calls Update-Completions to refresh the cached native
-    completions (config.json's NativeCompletions) for whichever of those tools are
-    installed - see Update-Completions for why that's cached rather than run on every
-    normal profile load.
-.PARAMETER SkipReload
-    Update the repo but don't re-dot-source the profile afterward. Implies -SkipCompletions,
-    since Update-Completions needs the reloaded profile's functions to be current.
-.PARAMETER SkipCompletions
-    Update and reload the profile but don't run Update-Completions afterward.
+    Afterward, any configured Modules/Packages from config.json that are missing get
+    installed (startup only warns about them). Never touches assets\config\config.json.
+
+    The new version takes effect in new shells. Run `. $PROFILE` to load it into this one.
+.PARAMETER CheckOnly
+    Only check whether an update is available (and which configured dependencies are
+    missing). Same check the profile runs in the background once a day.
+.PARAMETER Rollback
+    Return to the version that was installed before the last Update-Profile. The update
+    notice then stays quiet until a commit newer than the rolled-back one is published.
+.PARAMETER SkipDependencies
+    Don't install missing configured modules/packages after updating.
+.PARAMETER SkipValidation
+    Skip loading the new profile in a child process before accepting the update (the parse
+    check still runs). Also skips the cache/completion refresh that runs in that process.
 .EXAMPLE
     Update-Profile
 .EXAMPLE
-    Update-Profile -SkipReload
+    Update-Profile -CheckOnly
+.EXAMPLE
+    Update-Profile -Rollback
 .OUTPUTS
     None
 #>
 function Update-Profile {
-    [CmdletBinding(SupportsShouldProcess)]
+    [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'Update')]
     param(
-        [switch]$SkipReload,
-        [switch]$SkipCompletions
+        [Parameter(ParameterSetName = 'Check')]
+        [switch]$CheckOnly,
+
+        [Parameter(ParameterSetName = 'Rollback')]
+        [switch]$Rollback,
+
+        [Parameter(ParameterSetName = 'Update')]
+        [switch]$SkipDependencies,
+
+        [Parameter(ParameterSetName = 'Update')]
+        [switch]$SkipValidation
     )
 
     $installPath = $Global:PSProfileRoot
@@ -40,38 +60,44 @@ function Update-Profile {
         return
     }
 
-    if (-not (Test-Path -Path (Join-Path $installPath '.git'))) {
-        Write-Warning "This PSProfile install at $installPath isn't a git checkout, so it can't be updated in place. Re-run setup.ps1 to refresh it instead:`nirm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1 | iex"
+    $lifecycle = Join-Path $installPath 'assets/lib/PSProfile.Lifecycle.ps1'
+    if (-not (Test-Path -Path $lifecycle)) {
+        Write-Error "Missing $lifecycle. Re-run setup.ps1 to repair the install:`nirm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1 | iex"
         return
     }
+    . $lifecycle
 
-    if (-not (Get-Command -Name git -ErrorAction SilentlyContinue)) {
-        Write-Error 'git is required to update PSProfile in place.'
-        return
-    }
+    try {
+        if ($CheckOnly) {
+            $result = Test-PSProfileUpdate -InstallPath $installPath
+            if ($result.LastCheckError) { Write-Warning "Update check failed: $($result.LastCheckError)" }
+            elseif ($result.UpdateAvailable) {
+                $detail = if ($result.CommitsBehind) { "$($result.CommitsBehind) new commit(s)" } else { 'a newer version' }
+                Write-Host "PSProfile update available: $detail. Run Update-Profile to install it." -ForegroundColor Yellow
+            }
+            else { Write-Host 'PSProfile is up to date.' -ForegroundColor Green }
 
-    if ($PSCmdlet.ShouldProcess($installPath, 'git pull --ff-only')) {
-        git -C $installPath pull --ff-only
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "git pull failed with exit code $LASTEXITCODE."
+            $missing = @($result.MissingModules) + @($result.MissingPackages) | Where-Object { $_ }
+            if ($missing) { Write-Host "Missing dependencies: $($missing -join ', '). Run Update-Profile to install them." -ForegroundColor Yellow }
             return
         }
 
-        Write-Host 'PSProfile updated.' -ForegroundColor Green
-
-        if (-not $SkipReload) {
-            $profileTarget = $PROFILE.CurrentUserAllHosts
-            if (Test-Path -Path $profileTarget) {
-                Write-Host 'Reloading profile...' -ForegroundColor Cyan
-                . $profileTarget
-
-                if (-not $SkipCompletions) {
-                    Update-Completions
-                }
-            }
-            else {
-                Write-Warning "Could not find $profileTarget to reload. Restart your shell to pick up the update."
-            }
+        if ($Rollback) {
+            Undo-PSProfileUpdate -InstallPath $installPath
+            return
         }
+
+        $updated = Invoke-PSProfileUpdate -InstallPath $installPath -SkipSmokeTest:$SkipValidation
+
+        if (-not $SkipDependencies) {
+            Install-PSProfileDependency -InstallPath $installPath
+        }
+
+        if ($updated) {
+            Write-Host 'Open a new shell, or run `. $PROFILE`, to load the new version. Undo with Update-Profile -Rollback.' -ForegroundColor Cyan
+        }
+    }
+    catch {
+        Write-Error "Update-Profile failed: $_"
     }
 }
