@@ -226,24 +226,292 @@ Set-Variable -Name PSProfileRoot -Value $PSScriptRoot -Scope Global
 
 $OSFolder = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } elseif ($IsLinux) { 'linux' }
 
-#- Dot Source Public Functions (assets\public\shared\*.ps1, then assets\public\<windows|macos|linux>\*.ps1)
-#- The OS folder loads second so an OS-specific file wins over a shared one of the same name.
-$functions = @(
-    Get-ChildItem -Path "$PSScriptRoot\assets\public\shared\*.ps1" -ErrorAction SilentlyContinue
-    Get-ChildItem -Path "$PSScriptRoot\assets\public\$OSFolder\*.ps1" -ErrorAction SilentlyContinue
-)
-Foreach ($function in $functions) {
-    try { . $function.FullName }
-    Catch { Write-Error -Message "Failed to import $($function.Name)" }
+<#
+.SYNOPSIS
+    Lists the function folders the profile loads, lowest precedence first.
+.DESCRIPTION
+    assets/<public|private>/shared (functions common to every OS), if it exists, followed by
+    assets/<public|private>/<os>. Loading in this order lets an OS-specific function override
+    a shared one of the same name.
+.PARAMETER Root
+    The install directory.
+.PARAMETER Kind
+    'public' or 'private'.
+.PARAMETER OSFolder
+    'windows', 'macos' or 'linux'.
+.EXAMPLE
+    Get-PSProfileFunctionFolders -Root $PSScriptRoot -Kind public -OSFolder windows
+.OUTPUTS
+    System.Management.Automation.PSCustomObject (Name, Path)
+#>
+function Get-PSProfileFunctionFolders {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][ValidateSet('public', 'private')][string]$Kind,
+        [Parameter(Mandatory)][string]$OSFolder
+    )
+
+    $kindPath = Join-Path (Join-Path $Root 'assets') $Kind
+    foreach ($name in 'shared', $OSFolder) {
+        $path = Join-Path $kindPath $name
+        if ([System.IO.Directory]::Exists($path)) { [PSCustomObject]@{ Name = $name; Path = $path } }
+    }
+}
+
+<#
+.SYNOPSIS
+    Returns the path of a profile cache file, outside the install directory.
+.DESCRIPTION
+    Caches live under $env:LOCALAPPDATA\PSProfile\cache on Windows and
+    $env:XDG_CACHE_HOME/PSProfile (default ~/.cache/PSProfile) on macOS/Linux, so replacing the
+    install directory (e.g. a zip update) can't leave a mismatched cache inside it. The file
+    name includes a key derived from the install path, so separate installs don't collide.
+    The folder isn't created here; writers create it.
+.PARAMETER Root
+    The install directory.
+.PARAMETER Name
+    Base name of the cache file.
+.PARAMETER Extension
+    File extension, including the dot.
+.EXAMPLE
+    Get-PSProfileCachePath -Root $PSScriptRoot -Name 'functions.windows' -Extension '.ps1'
+.OUTPUTS
+    System.String
+#>
+function Get-PSProfileCachePath {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$Extension
+    )
+
+    $cacheRoot = if ($IsLinux -or $IsMacOS) {
+        $base = if ($env:XDG_CACHE_HOME) { $env:XDG_CACHE_HOME } else { Join-Path $HOME '.cache' }
+        Join-Path $base 'PSProfile'
+    }
+    else {
+        Join-Path (Join-Path $env:LOCALAPPDATA 'PSProfile') 'cache'
+    }
+
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try { $key = [System.BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Root.TrimEnd('\', '/').ToLowerInvariant()))).Replace('-', '').Substring(0, 12) }
+    finally { $sha.Dispose() }
+    Join-Path $cacheRoot "$Name.$key$Extension"
+}
+
+<#
+.SYNOPSIS
+    Fingerprints the .ps1 files in a set of function folders (names, sizes, modification times).
+.DESCRIPTION
+    Written to the function index's first line; a different value means a file was added,
+    removed or changed since the index was generated, so it needs rebuilding.
+.PARAMETER Folder
+    Folders as returned by Get-PSProfileFunctionFolders.
+.EXAMPLE
+    Get-PSProfileFunctionSignature -Folder (Get-PSProfileFunctionFolders -Root $PSScriptRoot -Kind public -OSFolder windows)
+.OUTPUTS
+    System.String
+#>
+function Get-PSProfileFunctionSignature {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Folder
+    )
+
+    # Bump the format number when the placeholders' calling convention changes, so an index
+    # written by an older version is rebuilt even though no function file changed.
+    $entries = [System.Collections.Generic.List[string]]::new()
+    $entries.Add('format 1')
+    foreach ($entry in $Folder) {
+        foreach ($file in [System.IO.DirectoryInfo]::new($entry.Path).GetFiles('*.ps1')) {
+            $entries.Add(('{0}/{1}|{2}|{3}' -f $entry.Name, $file.Name, $file.Length, $file.LastWriteTimeUtc.Ticks))
+        }
+    }
+    $entries.Sort([System.StringComparer]::Ordinal)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try { [System.BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($entries -join "`n"))).Replace('-', '') }
+    finally { $sha.Dispose() }
+}
+
+<#
+.SYNOPSIS
+    Dot-sources a script so what it defines ends up global, from inside a function.
+.DESCRIPTION
+    Dot-sourcing inside a function defines everything in that function's scope, where it
+    disappears when the function returns. This dot-sources the script, then copies every
+    function, alias and variable it defined to the global scope - the same result as the
+    profile dot-sourcing it at load.
+.PARAMETER LiteralPath
+    The script to load.
+.EXAMPLE
+    Import-PSProfileScript -LiteralPath $path
+.OUTPUTS
+    None
+#>
+function Import-PSProfileScript {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$LiteralPath
+    )
+
+    # Locals are __psp-prefixed so the script can't clobber them, and all exist before the
+    # "before" snapshots so none is mistaken for something the script defined. A placeholder
+    # called with -WhatIf/-Confirm passes those preferences down; loading must still happen.
+    $WhatIfPreference = $false
+    $ConfirmPreference = 'None'
+    $__pspPath = $LiteralPath
+    $__pspItem = $null
+    $__pspFunctions = @{}
+    $__pspAliases = @{}
+    $__pspVariables = @{}
+    foreach ($__pspItem in Get-ChildItem -Path Function:) { $__pspFunctions[$__pspItem.Name] = $__pspItem.ScriptBlock }
+    foreach ($__pspItem in Get-ChildItem -Path Alias:) { $__pspAliases[$__pspItem.Name] = $__pspItem.Definition }
+    foreach ($__pspItem in Get-Variable -Scope 0) { $__pspVariables[$__pspItem.Name] = $true }
+
+    . $__pspPath
+
+    foreach ($__pspItem in Get-ChildItem -Path Function:) {
+        if (-not [object]::ReferenceEquals($__pspFunctions[$__pspItem.Name], $__pspItem.ScriptBlock)) {
+            Set-Item -Path "Function:global:$($__pspItem.Name)" -Value $__pspItem.ScriptBlock -Force -WhatIf:$false
+        }
+    }
+    foreach ($__pspItem in Get-ChildItem -Path Alias:) {
+        if ($__pspAliases[$__pspItem.Name] -ne $__pspItem.Definition) {
+            Set-Alias -Name $__pspItem.Name -Value $__pspItem.Definition -Scope Global -Force -WhatIf:$false
+        }
+    }
+    foreach ($__pspItem in Get-Variable -Scope 0) {
+        if (-not $__pspVariables.ContainsKey($__pspItem.Name) -and
+            $__pspItem.Name -notmatch '^(__psp.*|_|PSItem|Matches|foreach|switch|input)$') {
+            Set-Variable -Name $__pspItem.Name -Value $__pspItem.Value -Scope Global -Force -WhatIf:$false
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Returns a lazily-loaded public function, loading its file first if needed.
+.DESCRIPTION
+    Called by a function's placeholder (see Update-PSProfileCache). Loads the file the
+    function lives in, once, and returns the real function so the placeholder can hand its
+    call over.
+.PARAMETER Folder
+    Function folder name under assets/public ('shared', 'windows', ...).
+.PARAMETER File
+    File name of the function's .ps1 in that folder.
+.PARAMETER Name
+    Name of the function.
+.EXAMPLE
+    Resolve-PSProfileLazyFunction -Folder windows -File 'gs.ps1' -Name 'gs'
+.OUTPUTS
+    System.Management.Automation.FunctionInfo
+#>
+function Resolve-PSProfileLazyFunction {
+    [CmdletBinding()]
+    [OutputType([System.Management.Automation.FunctionInfo])]
+    param(
+        [Parameter(Mandatory)][string]$Folder,
+        [Parameter(Mandatory)][string]$File,
+        [Parameter(Mandatory)][string]$Name
+    )
+
+    $path = Join-Path (Join-Path $Global:PSProfilePublicRoot $Folder) $File
+    $command = $ExecutionContext.InvokeCommand.GetCommand($Name, [System.Management.Automation.CommandTypes]::Function)
+    if (-not $command -or $command.ScriptBlock.File -ne $path) {
+        Import-PSProfileScript -LiteralPath $path
+        $null = $Global:PSProfileLazyFunctionFiles.Remove("$Folder|$File")
+        $command = $ExecutionContext.InvokeCommand.GetCommand($Name, [System.Management.Automation.CommandTypes]::Function)
+    }
+    if (-not $command -or $command.ScriptBlock.File -ne $path) {
+        throw "Loading $path didn't define the function $Name."
+    }
+    $command
+}
+
+<#
+.SYNOPSIS
+    Loads not-yet-loaded public function files for ~40 ms, then queues itself again.
+.DESCRIPTION
+    Queued as deferred startup work in interactive shells, so a few seconds after the prompt
+    appears every placeholder has been replaced by its real function - without ever blocking
+    input for more than a moment at a time.
+.EXAMPLE
+    Import-PSProfileLazyFunctionBatch
+.OUTPUTS
+    None
+#>
+function Import-PSProfileLazyFunctionBatch {
+    [CmdletBinding()]
+    param()
+
+    $clock = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($Global:PSProfileLazyFunctionFiles.Count -gt 0 -and $clock.ElapsedMilliseconds -lt 40) {
+        $folder, $file = $Global:PSProfileLazyFunctionFiles[0] -split '\|', 2
+        $Global:PSProfileLazyFunctionFiles.RemoveAt(0)
+        Import-PSProfileScript -LiteralPath (Join-Path (Join-Path $Global:PSProfilePublicRoot $folder) $file)
+    }
+    if ($Global:PSProfileLazyFunctionFiles.Count -gt 0) {
+        Add-PSProfileDeferredTask -Name 'Preload functions' -Action ${function:Import-PSProfileLazyFunctionBatch}
+    }
+}
+
+#- Public Functions (assets\public\<shared|windows|macos|linux>\*.ps1)
+# Lazy-loaded by default: one generated index (see Update-PSProfileCache) defines a placeholder
+# per function carrying the real one's help and parameters, and the real file is dot-sourced on
+# first call - or, in an interactive shell, a little at a time once the prompt is idle. The index
+# is rebuilt whenever it's missing or a function file changed; if that fails, or
+# settings.LazyLoadFunctions is false in config.json, every file is dot-sourced as before.
+$Global:PSProfilePublicRoot = Join-Path (Join-Path $PSScriptRoot 'assets') 'public'
+$Global:PSProfileLazyFunctionFiles = [System.Collections.Generic.List[string]]::new()
+$publicFolders = @(Get-PSProfileFunctionFolders -Root $PSScriptRoot -Kind public -OSFolder $OSFolder)
+$publicFunctionsLoaded = $false
+if ($PSProfileSettings.LazyLoadFunctions -ne $false) {
+    try {
+        $functionIndexPath = Get-PSProfileCachePath -Root $PSScriptRoot -Name "functions.$OSFolder" -Extension '.ps1'
+        $functionIndexHeader = "# PSProfile function index: $(Get-PSProfileFunctionSignature -Folder $publicFolders)"
+        $readHeader = {
+            if (-not [System.IO.File]::Exists($functionIndexPath)) { return $null }
+            $reader = [System.IO.StreamReader]::new($functionIndexPath)
+            try { $reader.ReadLine() } finally { $reader.Dispose() }
+        }
+        if ((& $readHeader) -ne $functionIndexHeader) {
+            $updateCacheScript = $publicFolders | ForEach-Object { Join-Path $_.Path 'Update-PSProfileCache.ps1' } |
+                Where-Object { Test-Path -Path $_ } | Select-Object -Last 1
+            . $updateCacheScript
+            Update-PSProfileCache -Cache Functions
+        }
+        if ((& $readHeader) -eq $functionIndexHeader) {
+            . $functionIndexPath
+            $publicFunctionsLoaded = $true
+        }
+    }
+    catch { Write-Warning "Couldn't use the profile's function index, so loading every function file directly instead: $_" }
+}
+if (-not $publicFunctionsLoaded) {
+    foreach ($folder in $publicFolders) {
+        foreach ($function in Get-ChildItem -Path $folder.Path -Filter '*.ps1') {
+            try { . $function.FullName }
+            Catch { Write-Error -Message "Failed to import $($function.Name)" }
+        }
+    }
 }
 Add-PSProfileTrace -Section 'Public functions'
 
-#- Dot Source Private Functions (assets\private\<windows|macos|linux>\*.ps1)
-# history.ps1 is PSReadLine key-handler setup, not functions - it's loaded in the PSReadLine
-# section below, only for interactive shells.
-$functions = Get-ChildItem -Path "$PSScriptRoot\assets\private\$OSFolder\*.ps1" -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -ne 'history.ps1' }
-Foreach ($function in $functions) {
+#- Dot Source Private Functions (assets\private\<shared|windows|macos|linux>\*.ps1)
+# An OS folder's file replaces a shared one of the same name. history.ps1 is PSReadLine
+# key-handler setup, not functions - it's loaded in the PSReadLine section below, only for
+# interactive shells.
+$privateFiles = [ordered]@{}
+foreach ($folder in Get-PSProfileFunctionFolders -Root $PSScriptRoot -Kind private -OSFolder $OSFolder) {
+    foreach ($function in Get-ChildItem -Path $folder.Path -Filter '*.ps1') { $privateFiles[$function.Name] = $function }
+}
+$privateFiles.Remove('history.ps1')
+Foreach ($function in $privateFiles.Values) {
     try { . $function.FullName }
     Catch { Write-Error -Message "Failed to import $($function.Name)" }
 }
@@ -703,6 +971,13 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
 #---------------------------------------------------------------
 # Start deferred startup work
 #---------------------------------------------------------------
+# Swap the public function placeholders for the real functions while the prompt is idle, so
+# nothing waits on loading a file later. Only when deferring: a shell that runs one command and
+# exits is better off loading just the functions it calls.
+if ($PSProfileDeferStartupWork -and $Global:PSProfileLazyFunctionFiles.Count -gt 0) {
+    Add-PSProfileDeferredTask -Name 'Preload functions' -Action ${function:Import-PSProfileLazyFunctionBatch}
+}
+
 if ($Global:PSProfileDeferredTasks.Count -gt 0) {
     if ($PSProfileDeferStartupWork) {
         # -SupportEvent keeps this out of Get-EventSubscriber/Get-Job; the subscription removes

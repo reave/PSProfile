@@ -88,6 +88,7 @@ If `config.json` is missing for any reason, the profile falls back to `sample-co
 | `EnableChocolateyIntegration` | — | **Removed.** Windows package management is winget-only; see [Packages](#packages). |
 | `DefaultParameterValues` | object | Merged directly into `$PSDefaultParameterValues` — arbitrary `"Cmdlet:Parameter": value` entries, e.g. an API key for a function's parameter (see [Secrets in config](#secrets-in-config)). |
 | `PSReadLine` | object | See below. |
+| `LazyLoadFunctions` | bool | Default `true`. Load each public function's file the first time it's called instead of dot-sourcing them all on every start — see [Lazy-loaded functions](#lazy-loaded-functions). Set `false` to load everything up front. |
 
 All of the above except `PoshTheme`'s theming behavior and the `Modules`/`Packages`/`Aliases` arrays are optional — anything unset just doesn't run.
 
@@ -168,6 +169,20 @@ If you installed oh-my-posh via Homebrew and *also* can't run `brew` itself from
 ## Homebrew on macOS/Linux
 
 Homebrew's installer adds its `PATH` setup to `.zprofile`/`.bash_profile`, which `pwsh` never sources. If you launch PowerShell directly (not from a zsh/bash login shell that already ran that setup), `brew` — and anything installed through it — is invisible to the whole session. This profile detects the standard Homebrew install locations (`/opt/homebrew`, `/usr/local` on macOS; `/home/linuxbrew/.linuxbrew`, `~/.linuxbrew` on Linux) and fixes `$env:PATH` automatically on load, so `brew` works at the prompt afterward too, not just internally for the `Packages` config.
+
+## Lazy-loaded functions
+
+Dot-sourcing a script file has a fixed cost (6–9 ms on Windows, mostly antivirus scanning) no matter how small the file, so dot-sourcing all ~120 function files took about a second on every shell start. Instead, the profile loads one generated **function index** that defines a lightweight placeholder for each public function. A placeholder carries the real function's help and parameters — `Get-Help`, syntax and tab completion all work before anything is loaded — and the first time it's called it loads the real file and hands the call over, arguments and pipeline input included. In an interactive shell, the real files are also loaded a few at a time while the prompt is idle (see [Deferred startup work](#deferred-startup-work)), so within a few seconds every function is the real one.
+
+- The index is built by parsing the function files (nothing in them runs) and covers `assets/public/<os>` plus `assets/public/shared` if that folder exists; when both define a function, the OS folder's wins.
+- `[Alias()]` attributes on a function, and top-level `Remove-Item alias:\…`/`New-Alias`/`Set-Alias` lines in a function file, are applied at load just like before, so aliases work before the function's first call.
+- A file with any other top-level code is dot-sourced at load as before.
+- The index records a fingerprint of every function file (name, size, modification time). If a file is added, removed or changed — a `git pull`, an edit, an update that replaced the install directory — the next shell rebuilds it automatically. If it can't be used for any reason, the profile falls back to dot-sourcing every file, so functions always load.
+- Set `settings.LazyLoadFunctions` to `false` in `config.json` to always dot-source everything up front.
+
+### Caches
+
+Generated files live outside the install directory, so an update that replaces it can't leave a mismatched cache behind: `%LOCALAPPDATA%\PSProfile\cache` on Windows, `$XDG_CACHE_HOME/PSProfile` (default `~/.cache/PSProfile`) on macOS/Linux. File names include a key derived from the install path, so two installs on one machine don't collide. Every cache is checked on load and rebuilt when out of date; `Update-PSProfileCache` rebuilds them all on demand (`Update-Profile` runs it after updating). Deleting the folder is always safe.
 
 ## Deferred startup work
 
@@ -277,7 +292,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ### File / data utilities (cross-platform)
 
-`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` · `Resolve-Error` · `Update-Profile` (updates a git or zip install with validation and rollback — see [Updating](#updating)) · `Update-Completions` (regenerates cached [`NativeCompletions`](#nativecompletions) for whichever configured tools are installed)
+`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` · `Resolve-Error` · `Update-Profile` (updates a git or zip install with validation and rollback — see [Updating](#updating)) · `Update-Completions` (regenerates cached [`NativeCompletions`](#nativecompletions) for whichever configured tools are installed) · `Update-PSProfileCache` (rebuilds the profile's [startup caches](#caches))
 
 ### File utilities (Windows-only)
 
@@ -300,6 +315,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 3. If the function name might collide with a built-in alias (e.g. `gc`/`Get-Content`, `cd`/`Set-Location`), remove the alias first: `Remove-Item -Path "alias:\<name>" -Force -ErrorAction Ignore`. PowerShell resolves aliases *before* functions of the same name, so without this the function would silently never run. Use `-ErrorAction Ignore` rather than `SilentlyContinue` for checks like this that are expected to fail - `SilentlyContinue` still records every failure in `$Error`, so a fresh shell would start with a pile of meaningless errors in it.
 4. If it's cross-platform, copy the identical file into all three `windows`/`macos`/`linux` folders — `profile2.0.ps1` only loads the one matching the running OS, so there's no runtime cost to the duplication.
 5. Run `./tests/Invoke-Tests.ps1` (needs Pester 5.5+: `Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser`). CI runs the same suites on Windows, macOS, and Ubuntu, so a function that parses or loads on one OS but not another fails the PR. The suites check that every file parses, that each public file defines a function named after the file and has a `.SYNOPSIS`, that copies of a cross-platform file stay identical across OS folders, and that the profile loads with no errors and exposes every public function. Pure functions (IP math, encoders, generators) also get behavior tests in `tests/Functions.Tests.ps1`; add a case there when a new function can be tested without network or admin rights.
+6. Nothing to register: the [function index](#lazy-loaded-functions) notices the new file and rebuilds itself on the next shell start. Keep files to function definitions (plus alias lines, if needed) so the function can be lazy-loaded — any other top-level code makes the file load eagerly on every start.
 
 ## Credits
 
