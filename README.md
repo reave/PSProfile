@@ -182,7 +182,7 @@ Dot-sourcing a script file has a fixed cost (6–9 ms on Windows, mostly antivir
 
 ### Caches
 
-Generated files live outside the install directory, so an update that replaces it can't leave a mismatched cache behind: `%LOCALAPPDATA%\PSProfile\cache` on Windows, `$XDG_CACHE_HOME/PSProfile` (default `~/.cache/PSProfile`) on macOS/Linux. File names include a key derived from the install path, so two installs on one machine don't collide. Every cache is checked on load and rebuilt when out of date; `Update-PSProfileCache` rebuilds them all on demand, e.g. right after an update so the next shell doesn't have to. Deleting the cache files is always safe.
+Generated files live outside the install directory, so an update that replaces it can't leave a mismatched cache behind: `%LOCALAPPDATA%\PSProfile\cache` on Windows, `$XDG_CACHE_HOME/PSProfile` (default `~/.cache/PSProfile`) on macOS/Linux. File names include a key derived from the install path, so two installs on one machine don't collide. Every cache is checked on load and rebuilt when out of date; `Update-PSProfileCache` rebuilds them all on demand; `setup.ps1` and `Update-Profile` run it after an install or update, so the next shell doesn't have to. Deleting the cache files is always safe.
 
 ## Deferred startup work
 

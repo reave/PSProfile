@@ -9,8 +9,8 @@
     two installs on one machine don't share caches.
 
     Every cache is checked on each load and rebuilt automatically when out of date, so this
-    rarely needs running by hand - run it after an install or update so the first shell
-    doesn't pay for the rebuild. It works without the profile loaded (e.g. from setup.ps1).
+    rarely needs running by hand; setup.ps1 and Update-Profile run it after an install or
+    update so the first shell doesn't pay for the rebuild. It works without the profile loaded.
 
     Functions
         Dot-sourcing a file costs a fixed 6-9 ms on Windows whatever is in it (script-file
