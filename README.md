@@ -199,12 +199,12 @@ An explicit parameter (`Get-Weather -APIKey ...`) still wins. If you had a key i
 
 `PoshTheme` accepts either a bare theme name (resolved under `$env:POSH_THEMES_PATH`) or a full path to a `.omp.json` file. `$env:POSH_THEMES_PATH` is set automatically by oh-my-posh's winget/scoop packages on Windows, but **not** by its Homebrew package on macOS/Linux — if you installed via Homebrew and want a specific theme, either set `$env:POSH_THEMES_PATH` yourself or put a full path directly in `PoshTheme`. If the theme can't be resolved, the profile falls back to oh-my-posh's built-in default theme with a warning instead of erroring.
 
-`PoshThemeOverrides` sets oh-my-posh general settings without editing or copying the theme: the profile writes a copy of the theme with them applied to its cache folder, rewrites it only when the theme or the overrides change, and starts oh-my-posh with that copy. Only JSON themes can be overridden. The sample config turns on:
+`PoshThemeOverrides` sets oh-my-posh general settings without editing or copying the theme: the profile writes a copy of the theme with them applied to its cache folder, rewrites it only when the theme or the overrides change, and starts oh-my-posh with that copy. Only JSON themes can be overridden. The sample config turns on `shell_integration`: OSC 133 command marks. In Windows Terminal that gives scrollbar marks, Ctrl+Up/Down between commands, selecting a command's output and exit-code marks; VS Code, WezTerm and iTerm2 read the same marks.
 
-- `shell_integration`: OSC 133 command marks. In Windows Terminal that gives scrollbar marks, Ctrl+Up/Down between commands, selecting a command's output and exit-code marks; VS Code, WezTerm and iTerm2 read the same marks.
-- `streaming` (ms): segments still computing after the timeout (git in a large repo, for example) show a placeholder and fill in when ready. oh-my-posh calls this beta. It's turned off automatically in the VS Code PowerShell extension, which doesn't support it.
+Two other settings are left off because of what they cost at startup:
 
-`async: true` is left off: it shows a plain `PS>` for the first prompt of every shell and the themed prompt only after the first command, which saves ~100 ms but looks like a broken theme.
+- `streaming` (ms): segments still computing after the timeout (git in a large repo, for example) show a placeholder and fill in when ready. It starts a background `oh-my-posh serve` process in every shell, which measured ~90 ms per start on Windows (oh-my-posh 162 ms without it, 253 ms with it). Worth turning on only if slow git segments bother you more than startup time. oh-my-posh calls it beta, and the profile turns it off automatically in the VS Code PowerShell extension, which doesn't support it.
+- `async: true`: it shows a plain `PS>` for the first prompt of every shell and the themed prompt only after the first command, which saves ~100 ms but looks like a broken theme.
 
 Terminal-Icons is no longer used. On PowerShell 7.2+ `Get-ChildItem` output is already colored by `$PSStyle.FileInfo`. If your own `config.json` still lists Terminal-Icons under `Modules`, remove that entry.
 

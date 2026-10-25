@@ -7,8 +7,7 @@
         "OneDrivePath": "",
         "PoshTheme": "M365Princess",
         "PoshThemeOverrides": {
-            "shell_integration": true,
-            "streaming": 100
+            "shell_integration": true
         },
         "ShowWindowTitle": true,
         "ShowSplashScreen": true,
