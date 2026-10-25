@@ -736,7 +736,7 @@ function Import-PSProfileModule {
 # Modules that only matter once someone is at the prompt, imported after it appears (see
 # "Deferred startup work" above). A config.json Modules entry can override this either way
 # with "DeferImport": true/false.
-$modulesDeferredByDefault = @('Microsoft.WinGet.CommandNotFound')
+$modulesDeferredByDefault = @('Microsoft.WinGet.CommandNotFound', 'PSFzf', 'CompletionPredictor')
 $PSProfileMissingModules = [System.Collections.Generic.List[string]]::new()
 foreach ($module in $PSProfileConfig.Modules) {
     if (-not (Test-PSProfileOSMatch -OSField $module.OS)) { continue }
@@ -746,10 +746,24 @@ foreach ($module in $PSProfileConfig.Modules) {
     if (Test-PSProfileModuleAvailable -Name $module.Name) {
         $deferImport = if ($null -ne $module.DeferImport) { [System.Convert]::ToBoolean($module.DeferImport) }
         else { $modulesDeferredByDefault -contains $module.Name }
-        if ($deferImport -and -not (Get-Module -Name $module.Name)) {
-            Add-PSProfileDeferredTask -Name "Import $($module.Name)" -Action ${function:Import-PSProfileModule} -Argument $module.Name
+
+        $importAction = ${function:Import-PSProfileModule}
+        $importArgument = $module.Name
+        if ($module.RequiresCommand) {
+            # e.g. PSFzf throws on import when fzf isn't on PATH. Checked when the import runs,
+            # so a deferred import doesn't pay for the PATH search before the prompt appears.
+            $importAction = {
+                param($Module)
+                if (Get-Command -Name $Module.RequiresCommand -CommandType Application -ErrorAction Ignore) { Import-PSProfileModule -Name $Module.Name }
+                else { Write-Verbose "Skipping $($Module.Name): $($Module.RequiresCommand) isn't on PATH." }
+            }
+            $importArgument = $module
         }
-        else { Import-PSProfileModule -Name $module.Name }
+
+        if ($deferImport -and -not (Get-Module -Name $module.Name)) {
+            Add-PSProfileDeferredTask -Name "Import $($module.Name)" -Action $importAction -Argument $importArgument
+        }
+        else { & $importAction $importArgument }
     }
     else {
         # Installing is setup.ps1's / Update-Profile's job; startup only reports it (see the
@@ -788,7 +802,15 @@ Add-PSProfileTrace -Section 'Elevation check, packages and aliases'
 # Key handlers. Loaded only here, not with the other private files: every Set-PSReadLine* call
 # in it imports PSReadLine (~150 ms), which scripts, CI runners and editor hosts that dot-source
 # this profile never use. Loaded before the config-driven options below so config.json wins.
+$readlineConfig = $PSProfileSettings.PSReadLine
 if ($hasPSReadLine) {
+    # Setting EditMode resets every key binding to that mode's defaults, even when the mode
+    # doesn't change, so it has to come before any custom key handler.
+    if ($readlineConfig.EditMode) {
+        try { Set-PSReadLineOption -EditMode $readlineConfig.EditMode -ErrorAction Stop }
+        catch { Write-Verbose "Skipping PSReadLine EditMode: $_" }
+    }
+
     # An OS folder's history.ps1, if one exists, replaces the shared one.
     $historyFile = Get-PSProfileFunctionFolders -Root $PSScriptRoot -Kind private -OSFolder $OSFolder |
         ForEach-Object { Join-Path $_.Path 'history.ps1' } | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -Last 1
@@ -796,14 +818,20 @@ if ($hasPSReadLine) {
     catch { Write-Error -Message "Failed to import history.ps1: $_" }
 }
 
-$readlineConfig = $PSProfileSettings.PSReadLine
 if ($hasPSReadLine -and $readlineConfig) {
     # Wrapped in try/catch: PredictionSource/PredictionViewStyle throw when the host
     # doesn't support virtual terminal processing (redirected output, some remote/CI shells).
     try {
-        if ($readlineConfig.PredictionSource) { Set-PSReadLineOption -PredictionSource $readlineConfig.PredictionSource -ErrorAction Stop }
+        if ($readlineConfig.PredictionSource) {
+            # Plugin sources (CompletionPredictor) need PowerShell 7.2+. Fall back to plain History
+            # rather than throwing here and skipping every option after this one.
+            $predictionSource = $readlineConfig.PredictionSource
+            if ($predictionSource -match 'Plugin' -and $PSVersionTable.PSVersion -lt [version]'7.2') {
+                $predictionSource = if ($predictionSource -eq 'Plugin') { 'None' } else { 'History' }
+            }
+            Set-PSReadLineOption -PredictionSource $predictionSource -ErrorAction Stop
+        }
         if ($readlineConfig.PredictionViewStyle) { Set-PSReadLineOption -PredictionViewStyle $readlineConfig.PredictionViewStyle -ErrorAction Stop }
-        if ($readlineConfig.EditMode) { Set-PSReadLineOption -EditMode $readlineConfig.EditMode -ErrorAction Stop }
         if ($readlineConfig.HistorySearchArrowKeys) {
             Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward -ErrorAction Stop
             Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward -ErrorAction Stop
@@ -823,6 +851,17 @@ if ($hasPSReadLine -and $readlineConfig) {
         }
     }
     catch { Write-Verbose "Skipping PSReadLine configuration: $_" }
+}
+
+# PSFzf (a Modules entry, imported as deferred startup work) only takes a key on import if
+# nothing has it yet, and PSReadLine already binds Ctrl+r. Claim the three keys explicitly once
+# it's loaded; queued after the import, so it runs after it. Alt+a and Tab stay as they are.
+if ($hasPSReadLine -and ($PSProfileConfig.Modules | Where-Object { $_.Name -eq 'PSFzf' })) {
+    Add-PSProfileDeferredTask -Name 'Bind fzf keys' -Action {
+        if (Get-Module -Name PSFzf) {
+            Set-PsFzfOption -PSReadlineChordReverseHistory 'Ctrl+r' -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordSetLocation 'Alt+c'
+        }
+    }
 }
 Add-PSProfileTrace -Section 'PSReadLine'
 
@@ -1056,6 +1095,203 @@ function Get-PSProfileOhMyPoshInit {
 }
 
 #---------------------------------------------------------------
+# Shell tool init scripts (zoxide, Atuin)
+#---------------------------------------------------------------
+<#
+.SYNOPSIS
+    Finds an executable on PATH without Get-Command.
+.DESCRIPTION
+    Get-Command -CommandType Application costs 7-10 ms per lookup; checking each PATH folder
+    for the file directly is well under 1 ms. Only looks for <Name>.exe on Windows, which is
+    all the tools it's used for ship as.
+.PARAMETER Name
+    The executable's name, without an extension.
+.EXAMPLE
+    Find-PSProfileExecutable -Name zoxide
+.OUTPUTS
+    System.String, or $null if it isn't on PATH.
+#>
+function Find-PSProfileExecutable {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][string]$Name
+    )
+
+    $fileName = if ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') { "$Name.exe" } else { $Name }
+    foreach ($folder in $env:PATH -split [System.IO.Path]::PathSeparator) {
+        if (-not $folder) { continue }
+        try { $candidate = [System.IO.Path]::Combine($folder, $fileName) } catch { continue }
+        if ([System.IO.File]::Exists($candidate)) { return $candidate }
+    }
+    return $null
+}
+
+<#
+.SYNOPSIS
+    Returns the `<tool> init powershell` arguments the profile uses for zoxide or Atuin.
+.DESCRIPTION
+    One place for them, shared by the profile and Update-PSProfileCache, so a cache built by
+    either matches what the other looks for. Returns nothing when the tool is turned off in
+    settings: zoxide is on unless settings.Zoxide.Enabled is false, Atuin is off unless
+    settings.Atuin.Enabled is true.
+.PARAMETER Tool
+    'zoxide' or 'atuin'.
+.PARAMETER Settings
+    The config's settings object.
+.EXAMPLE
+    Get-PSProfileInitArguments -Tool zoxide -Settings $PSProfileSettings
+.OUTPUTS
+    System.String[]
+#>
+function Get-PSProfileInitArguments {
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param(
+        [Parameter(Mandatory)][ValidateSet('zoxide', 'atuin')][string]$Tool,
+        [object]$Settings
+    )
+
+    switch ($Tool) {
+        'zoxide' {
+            if ($Settings.Zoxide.Enabled -eq $false) { return }
+            $command = if ($Settings.Zoxide.Command) { "$($Settings.Zoxide.Command)" } else { 'z' }
+            return , [string[]]@('init', 'powershell', '--cmd', $command)
+        }
+        'atuin' {
+            if ($Settings.Atuin.Enabled -ne $true) { return }
+            # Atuin records and syncs history; PSFzf keeps Ctrl+r and HistorySearchArrowKeys keeps
+            # the arrows. `atuin search -i` still opens Atuin's own search.
+            return , [string[]]@('init', 'powershell', '--disable-ctrl-r', '--disable-up-arrow')
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Returns the first line of a zoxide/Atuin init cache: what its contents depend on.
+.DESCRIPTION
+    The executable's path and modification time (which changes when it's updated), and the
+    arguments it was run with. A cache whose first line differs is out of date.
+.PARAMETER Executable
+    The tool's path.
+.PARAMETER Arguments
+    The init arguments.
+.EXAMPLE
+    Get-PSProfileInitCacheHeader -Executable (Get-Command zoxide).Source -Arguments 'init', 'powershell'
+.OUTPUTS
+    System.String
+#>
+function Get-PSProfileInitCacheHeader {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][string]$Executable,
+        [Parameter(Mandatory)][string[]]$Arguments
+    )
+
+    "# PSProfile init cache: $Executable|$([System.IO.File]::GetLastWriteTimeUtc($Executable).Ticks)|$($Arguments -join ' ')"
+}
+
+<#
+.SYNOPSIS
+    Runs `<tool> init ...` and caches the script it prints.
+.DESCRIPTION
+    zoxide and Atuin print the same init script every time for a given version and arguments,
+    so a later shell can dot-source the cached copy instead of starting the tool. The first
+    line is Get-PSProfileInitCacheHeader's, which Get-PSProfileInitScript compares against. Returns the cache path, or
+    $null if the tool failed or the file couldn't be written.
+.PARAMETER Root
+    The install directory (for the cache path).
+.PARAMETER Name
+    Cache name, e.g. 'zoxide'.
+.PARAMETER Executable
+    The tool's path.
+.PARAMETER Arguments
+    Arguments that make it print its PowerShell init script.
+.EXAMPLE
+    Update-PSProfileInitCache -Root $Global:PSProfileRoot -Name zoxide -Executable (Get-Command zoxide).Source -Arguments 'init', 'powershell'
+.OUTPUTS
+    System.String
+#>
+function Update-PSProfileInitCache {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$Executable,
+        [Parameter(Mandatory)][string[]]$Arguments
+    )
+
+    $init = (& $Executable @Arguments) -join "`n"
+    if ($LASTEXITCODE -ne 0 -or -not $init) {
+        Write-Warning "$Name init exited with code $LASTEXITCODE; skipping it."
+        return $null
+    }
+
+    $cachePath = Get-PSProfileCachePath -Root $Root -Name $Name -Extension '.ps1'
+    $header = Get-PSProfileInitCacheHeader -Executable $Executable -Arguments $Arguments
+    $tempPath = "$cachePath.$PID.tmp"
+    try {
+        $cacheDir = Split-Path -Path $cachePath -Parent
+        if (-not (Test-Path -Path $cacheDir)) { $null = New-Item -ItemType Directory -Path $cacheDir -Force -ErrorAction Stop }
+        # BOM so Windows PowerShell 5.1 reads it as UTF-8. Written aside and moved into place so a
+        # shell starting at the same moment never dot-sources half a file.
+        [System.IO.File]::WriteAllText($tempPath, "$header`n$init`n", [System.Text.UTF8Encoding]::new($true))
+        Move-Item -LiteralPath $tempPath -Destination $cachePath -Force -ErrorAction Stop
+        return $cachePath
+    }
+    catch {
+        Write-Verbose "Could not write the $Name init cache: $_"
+        Remove-Item -LiteralPath $tempPath -ErrorAction Ignore
+        return $null
+    }
+}
+
+<#
+.SYNOPSIS
+    Returns the path of a current cached init script for zoxide or Atuin, rebuilding it if needed.
+.DESCRIPTION
+    Returns $null when the tool is turned off in settings or isn't on PATH. The caller
+    dot-sources the result at the profile's top level.
+.PARAMETER Tool
+    'zoxide' or 'atuin'.
+.PARAMETER Settings
+    The config's settings object.
+.EXAMPLE
+    $script = Get-PSProfileInitScript -Tool zoxide -Settings $PSProfileSettings; if ($script) { . $script }
+.OUTPUTS
+    System.String
+#>
+function Get-PSProfileInitScript {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][ValidateSet('zoxide', 'atuin')][string]$Tool,
+        [object]$Settings
+    )
+
+    $arguments = Get-PSProfileInitArguments -Tool $Tool -Settings $Settings
+    if (-not $arguments) { return $null }
+    $executable = Find-PSProfileExecutable -Name $Tool
+    if (-not $executable) { return $null }
+
+    $cachePath = Get-PSProfileCachePath -Root $Global:PSProfileRoot -Name $Tool -Extension '.ps1'
+    $header = Get-PSProfileInitCacheHeader -Executable $executable -Arguments $arguments
+    try {
+        if ([System.IO.File]::Exists($cachePath)) {
+            $reader = [System.IO.StreamReader]::new($cachePath)
+            try { $cachedHeader = $reader.ReadLine() } finally { $reader.Dispose() }
+            if ($cachedHeader -eq $header) { return $cachePath }
+        }
+    }
+    catch { Write-Verbose "Ignoring an unreadable $Tool init cache: $_" }
+
+    Update-PSProfileInitCache -Root $Global:PSProfileRoot -Name $Tool -Executable $executable -Arguments $arguments
+}
+
+#---------------------------------------------------------------
 # Splash screen
 #---------------------------------------------------------------
 <#
@@ -1185,6 +1421,30 @@ if ($IsInteractiveShell) {
         if ($poshInit) { Invoke-Expression $poshInit }
     }
     Add-PSProfileTrace -Section 'oh-my-posh'
+}
+
+#---------------------------------------------------------------
+# zoxide and Atuin
+#---------------------------------------------------------------
+# From cached init scripts (see Get-PSProfileInitScript). zoxide records directories by wrapping
+# the prompt function, so it has to start after oh-my-posh, which replaces it. Atuin replaces
+# PSReadLine's PSConsoleHostReadLine to record each command, so it needs PSReadLine.
+if ($IsInteractiveShell) {
+    try {
+        $zoxideInit = Get-PSProfileInitScript -Tool zoxide -Settings $PSProfileSettings
+        if ($zoxideInit) { . $zoxideInit }
+    }
+    catch { Write-Error "Failed to start zoxide: $_" }
+    Add-PSProfileTrace -Section 'zoxide'
+
+    if ($hasPSReadLine) {
+        try {
+            $atuinInit = Get-PSProfileInitScript -Tool atuin -Settings $PSProfileSettings
+            if ($atuinInit) { . $atuinInit }
+        }
+        catch { Write-Error "Failed to start Atuin: $_" }
+        Add-PSProfileTrace -Section 'Atuin'
+    }
 }
 
 #---------------------------------------------------------------

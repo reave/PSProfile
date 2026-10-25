@@ -44,6 +44,12 @@
     ExecutionPolicy
         The effective execution policy shown in the version banner. Looking it up costs
         50-70 ms per shell; the banner shows the cached value and refreshes it once idle.
+
+    Zoxide, Atuin
+        The script `zoxide init powershell` / `atuin init powershell` prints, dot-sourced at
+        startup instead of starting the tool. Keyed on the executable (path and modification
+        time) and the init arguments, so updating the tool or changing its settings rebuilds
+        it. Skipped when the tool isn't installed or is turned off in settings.
 .PARAMETER Cache
     Which caches to rebuild. Default: all of them.
 .EXAMPLE
@@ -56,8 +62,8 @@
 function Update-PSProfileCache {
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [ValidateSet('Functions', 'OhMyPosh', 'ExecutionPolicy')]
-        [string[]]$Cache = @('Functions', 'OhMyPosh', 'ExecutionPolicy')
+        [ValidateSet('Functions', 'OhMyPosh', 'ExecutionPolicy', 'Zoxide', 'Atuin')]
+        [string[]]$Cache = @('Functions', 'OhMyPosh', 'ExecutionPolicy', 'Zoxide', 'Atuin')
     )
 
     # This file lives in <install>/assets/public/<os|shared>/.
@@ -68,7 +74,8 @@ function Update-PSProfileCache {
     # helpers from profile2.0.ps1 rather than keeping a second copy here that could drift.
     $helpers = 'Get-PSProfileCachePath', 'Get-PSProfileFunctionSignature', 'Get-PSProfileFunctionFolders',
     'Get-PSProfileOhMyPoshKey', 'Update-PSProfileOhMyPoshCache', 'Update-PSProfileExecutionPolicyCache',
-    'Resolve-PSProfilePoshTheme'
+    'Resolve-PSProfilePoshTheme',
+    'Find-PSProfileExecutable', 'Get-PSProfileInitArguments', 'Get-PSProfileInitCacheHeader', 'Update-PSProfileInitCache'
     $missing = @($helpers | Where-Object { -not (Get-Command -Name $_ -CommandType Function -ErrorAction Ignore) })
     if ($missing) {
         $profileAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'profile2.0.ps1'), [ref]$null, [ref]$null)
@@ -83,8 +90,8 @@ function Update-PSProfileCache {
         $null = Update-PSProfileExecutionPolicyCache -Root $root
     }
 
-    if ($Cache -contains 'OhMyPosh' -and (Get-Command -Name oh-my-posh -CommandType Application -ErrorAction Ignore) -and
-        $PSCmdlet.ShouldProcess('oh-my-posh init', 'Rebuild cache')) {
+    $config = $null
+    if ($Cache -contains 'OhMyPosh' -or $Cache -contains 'Zoxide' -or $Cache -contains 'Atuin') {
         $config = if (Get-Command -Name Get-PSProfileConfig -CommandType Function -ErrorAction Ignore) { Get-PSProfileConfig }
         else {
             # Same lookup as the profile's Get-PSProfileConfig, which relies on its own location.
@@ -92,6 +99,20 @@ function Update-PSProfileCache {
             if (-not (Test-Path -Path $configPath)) { $configPath = Join-Path (Join-Path (Join-Path $root 'assets') 'config') 'sample-config.json' }
             if (Test-Path -Path $configPath) { Get-Content -Path $configPath -Raw | ConvertFrom-Json }
         }
+    }
+
+    foreach ($tool in 'zoxide', 'atuin') {
+        if ($Cache -notcontains $tool) { continue }
+        $arguments = Get-PSProfileInitArguments -Tool $tool -Settings $config.settings
+        # Found the way the profile finds it, so the path in the cache matches what it looks for.
+        $executable = Find-PSProfileExecutable -Name $tool
+        if ($arguments -and $executable -and $PSCmdlet.ShouldProcess("$tool init", 'Rebuild cache')) {
+            $null = Update-PSProfileInitCache -Root $root -Name $tool -Executable $executable -Arguments $arguments
+        }
+    }
+
+    if ($Cache -contains 'OhMyPosh' -and (Get-Command -Name oh-my-posh -CommandType Application -ErrorAction Ignore) -and
+        $PSCmdlet.ShouldProcess('oh-my-posh init', 'Rebuild cache')) {
         if ($config.settings.PoshTheme) {
             if (-not (Get-Command -Name Resolve-PoshTheme -CommandType Function -ErrorAction Ignore)) {
                 $resolver = Get-PSProfileFunctionFolders -Root $root -Kind private -OSFolder $osFolder |
