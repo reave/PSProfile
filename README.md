@@ -76,7 +76,7 @@ If `config.json` is missing for any reason, the profile falls back to `sample-co
 | Key | Type | Description |
 |---|---|---|
 | `MaximumHistoryCount` | number | PowerShell session command history size. Default `8192`. |
-| `OneDrivePath` | string | Explicit OneDrive path, used if it exists. Otherwise auto-detected (`$env:USERPROFILE\OneDrive` on Windows, `$HOME/OneDrive` elsewhere), falling back to "OneDrive is not configured". |
+| `OneDrivePath` | string | Explicit OneDrive path, used if it exists. Otherwise auto-detected (the OneDrive client's `$env:OneDriveConsumer` or `$env:OneDrive`, then `$env:USERPROFILE\OneDrive` on Windows, `$HOME/OneDrive` elsewhere), falling back to "OneDrive is not configured". |
 | `PoshTheme` | string | An oh-my-posh theme name or a full path to a `.omp.json` file. See [Theming](#theming). |
 | `ShowWindowTitle` | bool | Set the console window title to `PowerShell <version> [ADMIN]`/`[ROOT]` when elevated. Cross-platform. |
 | `ShowSplashScreen` | bool | Run a system-info splash command on load (see `SplashCommand` below). Only runs if the configured command is actually installed. |
