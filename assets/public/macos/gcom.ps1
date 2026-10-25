@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\gcom" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "alias:\gcom" -Force -ErrorAction Ignore
 
 <#
 .SYNOPSIS

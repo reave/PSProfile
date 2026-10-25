@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\gcl" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "alias:\gcl" -Force -ErrorAction Ignore
 
 <#
 .SYNOPSIS

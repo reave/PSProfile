@@ -1,5 +1,5 @@
 #- If called Swap the CD Alias to my custom function
-Remove-Item -Path alias:\cd -Force -ErrorAction SilentlyContinue
+Remove-Item -Path alias:\cd -Force -ErrorAction Ignore
 New-Alias -Name cd -Value Set-LocationAndList -Description "Change Directory and List" -Force
 
 function Set-LocationAndList {

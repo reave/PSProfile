@@ -329,7 +329,7 @@ if ($IsWindows -and $IsInteractiveShell) {
 
     if ($PSProfileSettings.ShowSplashScreen) {
         $splashCommand = $PSProfileSettings.SplashCommand.Windows
-        if ($splashCommand -and (Get-Command -Name ($splashCommand -split '\s+')[0] -ErrorAction SilentlyContinue)) {
+        if ($splashCommand -and (Get-Command -Name ($splashCommand -split '\s+')[0] -ErrorAction Ignore)) {
             Invoke-Expression $splashCommand
         }
     }
@@ -348,7 +348,7 @@ if ($IsWindows -and $IsInteractiveShell) {
         Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
     }
 
-    if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue)) {
+    if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
         $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
         if ($themePath) {
             oh-my-posh init pwsh --config $themePath | Invoke-Expression
@@ -368,7 +368,7 @@ ElseIf ($IsMacOS -and $IsInteractiveShell) {
 
     if ($PSProfileSettings.ShowSplashScreen) {
         $splashCommand = $PSProfileSettings.SplashCommand.MacOS
-        if ($splashCommand -and (Get-Command -Name ($splashCommand -split '\s+')[0] -ErrorAction SilentlyContinue)) {
+        if ($splashCommand -and (Get-Command -Name ($splashCommand -split '\s+')[0] -ErrorAction Ignore)) {
             Invoke-Expression $splashCommand
         }
     }
@@ -387,7 +387,7 @@ ElseIf ($IsMacOS -and $IsInteractiveShell) {
         Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
     }
 
-    if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue)) {
+    if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
         $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
         if ($themePath) {
             oh-my-posh init pwsh --config $themePath | Invoke-Expression
@@ -407,7 +407,7 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
 
     if ($PSProfileSettings.ShowSplashScreen) {
         $splashCommand = $PSProfileSettings.SplashCommand.Linux
-        if ($splashCommand -and (Get-Command -Name ($splashCommand -split '\s+')[0] -ErrorAction SilentlyContinue)) {
+        if ($splashCommand -and (Get-Command -Name ($splashCommand -split '\s+')[0] -ErrorAction Ignore)) {
             Invoke-Expression $splashCommand
         }
     }
@@ -426,7 +426,7 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
         Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
     }
 
-    if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue)) {
+    if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
         $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
         if ($themePath) {
             oh-my-posh init pwsh --config $themePath | Invoke-Expression

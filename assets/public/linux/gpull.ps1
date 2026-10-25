@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\gpull" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "alias:\gpull" -Force -ErrorAction Ignore
 
 <#
 .SYNOPSIS

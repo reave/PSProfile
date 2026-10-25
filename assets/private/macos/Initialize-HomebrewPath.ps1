@@ -19,7 +19,7 @@ function Initialize-HomebrewPath {
     [CmdletBinding()]
     param()
 
-    if (Get-Command -Name brew -ErrorAction SilentlyContinue) { return }
+    if (Get-Command -Name brew -ErrorAction Ignore) { return }
 
     $candidates = if ($IsMacOS) {
         '/opt/homebrew/bin/brew', '/usr/local/bin/brew'
