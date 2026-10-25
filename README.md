@@ -12,11 +12,13 @@ This is the only supported install path. It works on Windows PowerShell 5.1, Pow
 
 ### What it does
 
-1. Installs (or updates) this repo to `~/.config/powershell/PSProfile` — via `git clone`/`git pull` if git is available, otherwise a zip download from GitHub. Safe to re-run any time to update.
+1. Installs (or updates) this repo to `~/.config/powershell/PSProfile` — via `git clone`/`git pull` if git is available, otherwise a zip download from GitHub. A zip download is validated in a staging folder next to the install and swapped in whole, so files removed upstream don't linger. Safe to re-run any time to update.
 2. Creates a personal `assets/config/config.json` from `assets/config/sample-config.json`, but only if one doesn't already exist. Re-running never touches a config you've already customized.
 3. Points `$PROFILE.CurrentUserAllHosts` at the installed `profile2.0.ps1`. If you already have a profile, it's backed up (`<profile>.bak-<timestamp>`) and its original content is preserved, appended below the new dot-source line — nothing is discarded.
+4. Installs the [Modules](#modules) and [Packages](#packages) your config lists that are missing (`-SkipDependencies` to skip). `apt`/`dnf`/`yum`/`pacman` go through `sudo` when you're not root, so expect a password prompt on Linux.
+5. Loads the profile once in a separate PowerShell process to check it loads cleanly and to build its caches (including cached [`NativeCompletions`](#nativecompletions)).
 
-It does **not** install oh-my-posh, Terminal-Icons, or any packages itself. `profile2.0.ps1` handles that on its own the first time it loads, based on your config (see [Modules](#modules) and [Packages](#packages) below).
+The profile itself never installs anything at startup. If a configured module or package is missing, it prints one line saying so and pointing at `Update-Profile`.
 
 ### Custom install path or branch
 
@@ -24,7 +26,7 @@ It does **not** install oh-my-posh, Terminal-Icons, or any packages itself. `pro
 &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1))) -InstallPath 'C:\PSProfile' -Branch 'develop'
 ```
 
-Add `-SkipProfileLink` to just get the repo on disk without touching `$PROFILE` — useful if you'd rather dot-source `profile2.0.ps1` yourself from an existing profile.
+Add `-SkipProfileLink` to just get the repo on disk without touching `$PROFILE` — useful if you'd rather dot-source `profile2.0.ps1` yourself from an existing profile. Add `-SkipDependencies` to skip installing modules and packages.
 
 ### Manual install
 
@@ -37,15 +39,31 @@ cp ~/.config/powershell/PSProfile/assets/config/sample-config.json ~/.config/pow
 
 ### Updating
 
-From an already-loaded profile, run `Update-Profile` — it `git pull`s the install directory and reloads `$PROFILE` in place, no restart needed. Otherwise, re-run the install one-liner at the top of this file, or if you cloned manually, `git pull` inside the install directory. Either way, your `config.json` is untouched — it isn't part of the repo (it's gitignored), so nothing can overwrite it.
+Run `Update-Profile`. It works for both git and zip installs:
 
-`Update-Profile` only works for a git-based install (the default); a zip-installed copy (no git available at install time) needs the install one-liner re-run instead.
+- **git install:** `git pull --ff-only` in the install directory.
+- **zip install:** downloads the latest commit, validates it in a staging folder, and swaps it in. The previous tree is kept as `.PSProfile.previous` next to the install.
 
-`Update-Profile` also refreshes cached [`NativeCompletions`](#nativecompletions) (`Update-Completions`) after reloading — pass `-SkipCompletions` to skip that. Run `Update-Completions` on its own any time, e.g. right after installing a new CLI, to pick it up without a full profile update.
+Before an update is accepted, every `.ps1` must parse and `profile2.0.ps1` must load without throwing in a separate, profile-less PowerShell process. A git update that fails either check is reset to the previous commit automatically (`git reset --keep`, so local edits are never discarded); a zip update that fails is never swapped in. That same child process then rebuilds the profile's caches with the new code (`Update-PSProfileCache` and [`Update-Completions`](#nativecompletions)). Finally, any configured modules and packages that are missing get installed (`-SkipDependencies` to skip).
+
+The new version loads in new shells; run `. $PROFILE` to load it into the current one. Your `config.json` is never touched — it's gitignored, and zip updates carry it (and cached native completions) across.
+
+| Command | What it does |
+|---|---|
+| `Update-Profile` | Update, validate, rebuild caches, install missing dependencies. |
+| `Update-Profile -CheckOnly` | Just report whether an update is available and what's missing. |
+| `Update-Profile -Rollback` | Go back to the version before the last update. The update notice then stays quiet until something newer than the version you rolled away from is published. |
+| `Update-Profile -SkipValidation` | Skip the child-process load test (the parse check still runs). |
+
+**Update notice.** Once a day (`UpdateCheckIntervalHours`, `0` turns it off), the profile starts a check in a background runspace: `git fetch` for a git install, one GitHub API call for a zip install. It never blocks the prompt; the result shows as one yellow line on the next shell start, e.g. `PSProfile: 3 new commit(s) available; missing package(s) speedtest. Run Update-Profile.` State lives outside the install directory, in `$env:LOCALAPPDATA\PSProfile` on Windows and `$XDG_CACHE_HOME/PSProfile` (or `~/.cache/PSProfile`) elsewhere.
 
 ### Uninstalling
 
-Remove the dot-source line (and the `# Managed by PSProfile` comment block above it) from `$PROFILE.CurrentUserAllHosts`, then delete the install directory.
+```powershell
+&([ScriptBlock]::Create((irm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1))) -Uninstall
+```
+
+Restores `$PROFILE.CurrentUserAllHosts` to its pre-PSProfile content (or deletes it, if setup.ps1 created it), backs up `config.json` next to `$PROFILE`, then deletes the install directory and the state/cache folder. Asks first; add `-Force` to skip the prompt. Installed modules and packages are left alone.
 
 ## Configuration
 
@@ -66,6 +84,7 @@ If `config.json` is missing for any reason, the profile falls back to `sample-co
 | `ShowElevatedWarning` | bool | Print a red banner when running elevated (Administrator on Windows, root on macOS/Linux). |
 | `RunUpdateHelpOnElevated` | bool | When elevated, kick off `Update-Help` as a background job. |
 | `ShowPSVersionBanner` | bool | Print the PowerShell version and execution policy on load. |
+| `UpdateCheckIntervalHours` | number | How often the background update check runs. Default `24`; `0` turns the check and the update notice off. See [Updating](#updating). |
 | `EnableChocolateyIntegration` | — | **Removed.** Windows package management is winget-only; see [Packages](#packages). |
 | `DefaultParameterValues` | object | Merged directly into `$PSDefaultParameterValues` — arbitrary `"Cmdlet:Parameter": value` entries, e.g. an API key for a function's parameter (see [Secrets in config](#secrets-in-config)). |
 | `PSReadLine` | object | See below. |
@@ -104,7 +123,7 @@ Applied via `New-Alias -Force`. Keep in mind PowerShell resolves existing aliase
 }
 ```
 
-Each entry is installed (`Install-Module -Force`) and imported if not already present. `OS` is `"Windows"`, `"MacOS"`, `"Linux"`, `"All"`, or a comma-separated combination (e.g. `"Windows,MacOS"`). `PSVersionMajor` is a **minimum** PowerShell major version — the entry is skipped if `$PSVersionTable.PSVersion.Major` is lower. `PSVersionMajorMax` is the inverse — a **maximum** PowerShell major version, for a module that stops working on newer PowerShell (e.g. `TabExpansionPlusPlus`, which only supports Windows PowerShell 5.1 and doesn't install cleanly on PS7+/Core). The two can be combined to bound a module to a specific range.
+Each entry is imported at startup if it's installed. Missing ones are reported in one startup line and installed by `setup.ps1` or `Update-Profile` (`Install-Module -Scope CurrentUser`), never during shell start. `OS` is `"Windows"`, `"MacOS"`, `"Linux"`, `"All"`, or a comma-separated combination (e.g. `"Windows,MacOS"`). `PSVersionMajor` is a **minimum** PowerShell major version — the entry is skipped if `$PSVersionTable.PSVersion.Major` is lower. `PSVersionMajorMax` is the inverse — a **maximum** PowerShell major version, for a module that stops working on newer PowerShell (e.g. `TabExpansionPlusPlus`, which only supports Windows PowerShell 5.1 and doesn't install cleanly on PS7+/Core). The two can be combined to bound a module to a specific range.
 
 ### `Packages`
 
@@ -114,9 +133,7 @@ Each entry is installed (`Install-Module -Force`) and imported if not already pr
 
 Supports `winget`, `brew`, `apt`, `yum` (or `dnf`), and `pacman`. Unlike `Modules`, there's no `OS` field — each entry only acts if its package manager's command is actually present on the machine, so one config's `Packages` array can safely list an entry per manager and only the applicable ones fire. `Name` is the command used to check whether the package is already installed (`Get-Command`); `Id` is the identifier passed to the package manager.
 
-`apt`/`yum`/`pacman` require root. If not elevated, the entry is skipped with a warning instead of invoking `sudo` interactively — a password prompt there would hang profile load.
-
-The `winget` case imports `Microsoft.WinGet.Client` itself, lazily, right before calling `Install-WinGetPackage` — not eagerly in [Modules](#modules) — because once every configured package is already installed (the common case after first setup) this branch never runs, so there's no reason to pay that module's import cost on every session.
+Packages are installed by `setup.ps1` and `Update-Profile` only; the profile doesn't probe for them at startup. The daily background check detects missing ones and the next shell start mentions them. `apt`/`dnf`/`yum`/`pacman` run through `sudo` when you're not root (you'll get a password prompt, which is fine there since you started the install yourself). `winget` entries use the `winget` CLI directly.
 
 ### `NativeCompletions`
 
@@ -160,9 +177,12 @@ Homebrew's installer adds its `PATH` setup to `.zprofile`/`.bash_profile`, which
 
 ```
 profile2.0.ps1              The profile. Loads config, dot-sources functions, applies settings.
-setup.ps1                   The installer (see Install above).
+setup.ps1                   The installer and uninstaller (see Install above).
 powershell.config.json      PowerShell engine config (execution policy, experimental features).
 assets/
+  lib/
+    PSProfile.Lifecycle.ps1 Install/update/rollback/dependency logic. Not loaded at startup; used by
+                             setup.ps1, Update-Profile, and the background update check.
   config/
     sample-config.json      Checked-in template/example. Copy to config.json to customize.
     config.json              Your personal config. Gitignored, created by setup.ps1.
@@ -233,7 +253,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ### File / data utilities (cross-platform)
 
-`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` · `Resolve-Error` · `Update-Profile` (`git pull`s the install directory and reloads `$PROFILE` — see [Updating](#updating)) · `Update-Completions` (regenerates cached [`NativeCompletions`](#nativecompletions) for whichever configured tools are installed)
+`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` · `Resolve-Error` · `Update-Profile` (updates a git or zip install with validation and rollback — see [Updating](#updating)) · `Update-Completions` (regenerates cached [`NativeCompletions`](#nativecompletions) for whichever configured tools are installed)
 
 ### File utilities (Windows-only)
 
@@ -247,7 +267,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 - PowerShell 5.1+ (Windows) or PowerShell 7+ (Windows/macOS/Linux). Some modules/packages in `sample-config.json` are gated to PS5.1-only or require a minimum version — see `PSVersionMajor` in [Modules](#modules).
 - `git` is recommended (for `setup.ps1`'s clone/pull path and easy updates) but not required — the installer falls back to a zip download.
-- Everything else (oh-my-posh, Terminal-Icons, winget/brew/apt/yum/pacman packages) is optional and self-installs from your `config.json` on first load, on whichever platforms actually support it. PSReadLine is optional too; older versions that don't support `-PredictionSource`/`-Colors` degrade gracefully (the whole `PSReadLine` config block is wrapped in a try/catch) rather than erroring.
+- Everything else (oh-my-posh, Terminal-Icons, winget/brew/apt/yum/pacman packages) is optional and installed from your `config.json` by `setup.ps1`/`Update-Profile`, on whichever platforms actually support it. PSReadLine is optional too; older versions that don't support `-PredictionSource`/`-Colors` degrade gracefully (the whole `PSReadLine` config block is wrapped in a try/catch) rather than erroring.
 
 ## Adding functions
 
