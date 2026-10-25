@@ -15,6 +15,7 @@
         "ShowElevatedWarning": true,
         "RunUpdateHelpOnElevated": true,
         "ShowPSVersionBanner": true,
+        "UpdateCheckIntervalHours": 24,
         "DefaultParameterValues": {
             "Export-Csv:NoTypeInformation": true,
             "ConvertTo-Csv:NoTypeInformation": true,

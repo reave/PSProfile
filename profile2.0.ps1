@@ -225,6 +225,7 @@ else {
 # so two shells starting at once can read a half-written file ("Root element is missing").
 # A named mutex makes concurrent profile loads take turns importing.
 $moduleImportMutex = [System.Threading.Mutex]::new($false, 'PSProfile-ModuleImport')
+$PSProfileMissingModules = [System.Collections.Generic.List[string]]::new()
 foreach ($module in $PSProfileConfig.Modules) {
     if (-not (Test-PSProfileOSMatch -OSField $module.OS)) { continue }
     if ($module.PSVersionMajor -and $PSVersionTable.PSVersion.Major -lt [int]$module.PSVersionMajor) { continue }
@@ -258,11 +259,9 @@ foreach ($module in $PSProfileConfig.Modules) {
         finally { if ($hasImportMutex) { $moduleImportMutex.ReleaseMutex() } }
     }
     else {
-        try {
-            Install-Module -Name $module.Name -Force -ErrorAction Stop
-            Import-Module -Name $module.Name -ErrorAction Stop
-        }
-        catch { Write-Error "Unable to install $($module.Name) module" }
+        # Installing is setup.ps1's / Update-Profile's job; startup only reports it (see the
+        # update notice at the end of this file).
+        $PSProfileMissingModules.Add($module.Name)
     }
 }
 $moduleImportMutex.Dispose()
@@ -277,56 +276,9 @@ else {
 #---------------------------------------------------------------
 # Packages
 #---------------------------------------------------------------
-# Supported Source values: winget (Windows), brew (macOS/Linuxbrew), apt, yum, pacman (Linux).
-# Each entry only acts if its package manager's command is actually present, so a config can
-# safely list entries for every OS/manager and the ones that don't apply are silently skipped.
-# apt/yum/pacman require root and are skipped (with a warning) when not elevated, rather than
-# invoking sudo interactively and risking a password prompt hanging profile load.
-foreach ($package in $PSProfileConfig.Packages) {
-    if (Get-Command -Name $package.Name -ErrorAction SilentlyContinue) { continue }
-
-    switch ($package.Source) {
-        'winget' {
-            if (-not (Get-Command -Name winget -ErrorAction SilentlyContinue)) { continue }
-            try {
-                # Imported here rather than eagerly in the Modules loop above: once every
-                # configured package is already installed (the common case after first
-                # setup), this branch never runs, so the module's import cost is skipped too.
-                if (-not (Get-Command -Name Install-WinGetPackage -ErrorAction SilentlyContinue)) {
-                    Import-Module -Name Microsoft.WinGet.Client -ErrorAction Stop
-                }
-                Install-WinGetPackage -Id $package.Id -Mode Silent -ErrorAction Stop
-            }
-            catch { Write-Error "Unable to install $($package.Id) via winget" }
-        }
-        'brew' {
-            if (-not (Get-Command -Name brew -ErrorAction SilentlyContinue)) { continue }
-            try { & brew install $package.Id }
-            catch { Write-Error "Unable to install $($package.Id) via brew" }
-        }
-        'apt' {
-            $aptCmd = Get-Command -Name apt-get -ErrorAction SilentlyContinue
-            if (-not $aptCmd) { continue }
-            if (-not $IsElevated) { Write-Warning "Skipping apt install of $($package.Id): not running as root."; continue }
-            try { & apt-get install -y $package.Id }
-            catch { Write-Error "Unable to install $($package.Id) via apt" }
-        }
-        'yum' {
-            $yumCmd = Get-Command -Name dnf -ErrorAction SilentlyContinue
-            if (-not $yumCmd) { $yumCmd = Get-Command -Name yum -ErrorAction SilentlyContinue }
-            if (-not $yumCmd) { continue }
-            if (-not $IsElevated) { Write-Warning "Skipping $($yumCmd.Name) install of $($package.Id): not running as root."; continue }
-            try { & $yumCmd.Name install -y $package.Id }
-            catch { Write-Error "Unable to install $($package.Id) via $($yumCmd.Name)" }
-        }
-        'pacman' {
-            if (-not (Get-Command -Name pacman -ErrorAction SilentlyContinue)) { continue }
-            if (-not $IsElevated) { Write-Warning "Skipping pacman install of $($package.Id): not running as root."; continue }
-            try { & pacman -S --noconfirm $package.Id }
-            catch { Write-Error "Unable to install $($package.Id) via pacman" }
-        }
-    }
-}
+# config.json Packages are installed by setup.ps1 and Update-Profile, never at startup: probing
+# each one with Get-Command on every load cost time, and package managers can prompt or hang.
+# The background update check below detects missing packages instead.
 
 #---------------------------------------------------------------
 # Aliases
@@ -482,5 +434,41 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
         else {
             oh-my-posh init pwsh | Invoke-Expression
         }
+    }
+}
+
+#---------------------------------------------------------------
+# Update notice and background update check
+#---------------------------------------------------------------
+# Prints one line if the last background check found a newer version or missing dependencies.
+# If that check is older than UpdateCheckIntervalHours (default 24, 0 turns it off), a new one
+# starts in a background runspace: it never blocks the prompt, and its result shows on the next
+# shell start. The check writes its verdict as a ready-to-print line (update-notice.txt), so this
+# block parses nothing; the check itself lives in assets/lib/PSProfile.Lifecycle.ps1 and is only
+# loaded inside that runspace. State lives outside the install dir, next to the other caches.
+$updateCheckHours = if ($null -ne $PSProfileSettings.UpdateCheckIntervalHours) { [double]$PSProfileSettings.UpdateCheckIntervalHours } else { 24 }
+if ($IsInteractiveShell -and -not $env:PSPROFILE_NO_UPDATE_CHECK) {
+    # PSEdition Desktop = Windows PowerShell 5.1, which has no $IsWindows.
+    $stateBase = if ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') { $env:LOCALAPPDATA } elseif ($env:XDG_CACHE_HOME) { $env:XDG_CACHE_HOME } else { Join-Path $HOME '.cache' }
+    $stateDir = [System.IO.Path]::Combine($stateBase, 'PSProfile')
+
+    $updateNotices = [System.Collections.Generic.List[string]]::new()
+    $noticePath = [System.IO.Path]::Combine($stateDir, 'update-notice.txt')
+    if ($updateCheckHours -gt 0 -and [System.IO.File]::Exists($noticePath)) {
+        $updateNotices.Add([System.IO.File]::ReadAllText($noticePath).Trim())
+    }
+    if ($PSProfileMissingModules.Count) { $updateNotices.Add("missing module(s) $($PSProfileMissingModules -join ', ')") }
+    if ($updateNotices.Count) { Write-Host "PSProfile: $($updateNotices -join '; '). Run Update-Profile." -ForegroundColor Yellow }
+
+    # A missing file reports 1601-01-01, so the first shell after install runs a check.
+    $lastUpdateCheck = [System.IO.File]::GetLastWriteTimeUtc([System.IO.Path]::Combine($stateDir, 'update-state.json'))
+    if ($updateCheckHours -gt 0 -and ([datetime]::UtcNow - $lastUpdateCheck).TotalHours -ge $updateCheckHours) {
+        $updateCheck = [powershell]::Create()
+        [void]$updateCheck.AddScript({
+                param($Lifecycle, $InstallPath)
+                . $Lifecycle
+                $null = Test-PSProfileUpdate -InstallPath $InstallPath
+            }).AddArgument([System.IO.Path]::Combine($PSScriptRoot, 'assets', 'lib', 'PSProfile.Lifecycle.ps1')).AddArgument($PSScriptRoot)
+        $null = $updateCheck.BeginInvoke()
     }
 }
