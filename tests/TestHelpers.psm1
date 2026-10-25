@@ -189,10 +189,12 @@ try {
 catch { $loadErrors += "Terminating: $($_.Exception.Message)" }
 
 $names = @(Get-Content -Path $env:PSPROFILE_TEST_NAMES -Raw | ConvertFrom-Json)
-$missing = @($names | Where-Object { -not (Get-Command -Name $_ -CommandType Function -ErrorAction SilentlyContinue) })
+# [string[]] rather than @(): Windows PowerShell 5.1 serializes a pipeline-built array
+# as {"value": [...], "Count": n}, which would read back as one non-empty entry.
+[string[]]$missing = $names | Where-Object { -not (Get-Command -Name $_ -CommandType Function -ErrorAction SilentlyContinue) }
 if (-not (Get-Alias -Name 'pstest-alias' -ErrorAction SilentlyContinue)) { $loadErrors += 'Configured alias pstest-alias was not created.' }
 
-[ordered]@{ Errors = @($loadErrors); Warnings = @($loadWarnings); Missing = $missing } |
+[ordered]@{ Errors = [string[]]$loadErrors; Warnings = [string[]]$loadWarnings; Missing = $missing } |
     ConvertTo-Json -Depth 3 | Set-Content -Path $env:PSPROFILE_TEST_RESULT -Encoding UTF8
 '@
 
