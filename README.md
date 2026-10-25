@@ -90,6 +90,8 @@ If `config.json` is missing for any reason, the profile falls back to `sample-co
 | `EnableChocolateyIntegration` | — | **Removed.** Windows package management is winget-only; see [Packages](#packages). |
 | `DefaultParameterValues` | object | Merged directly into `$PSDefaultParameterValues` — arbitrary `"Cmdlet:Parameter": value` entries, e.g. an API key for a function's parameter (see [Secrets in config](#secrets-in-config)). |
 | `PSReadLine` | object | See below. |
+| `Zoxide` | object | `Enabled` (default `true`) starts [zoxide](https://github.com/ajeetdsouza/zoxide) when it's installed; `Command` (default `"z"`) names the jump command, with `<Command>i` for the interactive picker. See [History and navigation](#history-and-navigation). |
+| `Atuin` | object | `Enabled` (default `false`) starts [Atuin](https://atuin.sh) for synced history. Opt-in; see [History and navigation](#history-and-navigation). |
 | `LazyLoadFunctions` | bool | Default `true`. Load each public function's file the first time it's called instead of dot-sourcing them all on every start — see [Lazy-loaded functions](#lazy-loaded-functions). Set `false` to load everything up front. |
 
 All of the above except `PoshTheme`'s theming behavior and the `Modules`/`Packages`/`Aliases` arrays are optional — anything unset just doesn't run.
@@ -98,9 +100,9 @@ All of the above except `PoshTheme`'s theming behavior and the `Modules`/`Packag
 
 | Key | Type | Description |
 |---|---|---|
-| `PredictionSource` | string | e.g. `"History"`. |
+| `PredictionSource` | string | e.g. `"History"`. `sample-config.json` uses `"HistoryAndPlugin"` so the `CompletionPredictor` module adds tab-completion results to the suggestions; below PowerShell 7.2, which can't load predictor plugins, it falls back to `"History"`. |
 | `PredictionViewStyle` | string | e.g. `"ListView"`. |
-| `EditMode` | string | `"Windows"` or `"Emacs"`. |
+| `EditMode` | string | `"Windows"` or `"Emacs"`. Applied before any custom key binding, since setting it resets them all. |
 | `HistorySearchArrowKeys` | bool | Up/Down arrow search history by the text already typed. |
 | `FilterSecretsFromHistory` | bool | Excludes any line matching `(?i)(password\|secret\|token\|apikey\|connectionstring)` from PSReadLine's on-disk history file. Doesn't stop the command from running — just keeps it out of plaintext history. |
 | `Colors` | object | Arbitrary PSReadLine color table (`Command`, `String`, `Keyword`, etc. — any key `Set-PSReadLineOption -Colors` accepts). |
@@ -128,7 +130,9 @@ Applied via `New-Alias -Force`. Keep in mind PowerShell resolves existing aliase
 
 Each entry is imported at startup if it's installed. Missing ones are reported in one startup line and installed by `setup.ps1` or `Update-Profile` (`Install-Module -Scope CurrentUser`), never during shell start. `OS` is `"Windows"`, `"MacOS"`, `"Linux"`, `"All"`, or a comma-separated combination (e.g. `"Windows,MacOS"`). `PSVersionMajor` is a **minimum** PowerShell major version — the entry is skipped if `$PSVersionTable.PSVersion.Major` is lower. `PSVersionMajorMax` is the inverse — a **maximum** PowerShell major version, for a module that stops working on newer PowerShell (e.g. `TabExpansionPlusPlus`, which only supports Windows PowerShell 5.1 and doesn't install cleanly on PS7+/Core). The two can be combined to bound a module to a specific range.
 
-`DeferImport` (optional bool) imports the module just after the prompt appears instead of before it (see [Deferred startup work](#deferred-startup-work)). Modules that only matter once you're typing — `Microsoft.WinGet.CommandNotFound` — are deferred by default; set `"DeferImport": false` on an entry to import it before the prompt, or `true` to defer another module. Don't defer a module your prompt or the first command you type depends on.
+`DeferImport` (optional bool) imports the module just after the prompt appears instead of before it (see [Deferred startup work](#deferred-startup-work)). Modules that only matter once you're typing — `Microsoft.WinGet.CommandNotFound`, `PSFzf` and `CompletionPredictor` — are deferred by default; set `"DeferImport": false` on an entry to import it before the prompt, or `true` to defer another module. Don't defer a module your prompt or the first command you type depends on.
+
+`RequiresCommand` (optional string) skips the import, quietly, when that executable isn't on `PATH`. `PSFzf` uses it for `fzf`, since the module throws on import without it. The module is still installed, so installing the command later is enough.
 
 ### `Packages`
 
@@ -194,6 +198,23 @@ Dot-sourcing a script file has a fixed cost (6–9 ms on Windows, mostly antivir
 ### Caches
 
 Generated files live outside the install directory, so an update that replaces it can't leave a mismatched cache behind: `%LOCALAPPDATA%\PSProfile\cache` on Windows, `$XDG_CACHE_HOME/PSProfile` (default `~/.cache/PSProfile`) on macOS/Linux. File names include a key derived from the install path, so two installs on one machine don't collide. Every cache is checked on load and rebuilt when out of date; `Update-PSProfileCache` rebuilds them all on demand; `setup.ps1` and `Update-Profile` run it after an install or update, so the next shell doesn't have to. Deleting the cache files is always safe.
+
+## History and navigation
+
+| Key / command | What it does | Needs |
+|---|---|---|
+| `Ctrl+R` | Fuzzy-search history and put the pick on the command line. | `PSFzf` module + `fzf` |
+| `Ctrl+T` | Fuzzy-pick a file or folder under the current token's path and insert it. | `PSFzf` + `fzf` |
+| `Alt+C` | Fuzzy-pick a folder below the current one and `cd` to it. | `PSFzf` + `fzf` |
+| `F7` | History list filtered by what's typed: `Out-GridView` on Windows, `fzf` elsewhere (`Tab` selects several). | `fzf` on macOS/Linux |
+| `z <words>` / `zi` | Jump to a frequently used folder matching the words / pick one interactively. | `zoxide` (`zi` also needs `fzf`) |
+| Inline suggestions | History plus tab-completion results, shown as you type. | `CompletionPredictor`, PowerShell 7.2+ |
+
+`fzf` and `zoxide` are in `Packages`, and `PSFzf` and `CompletionPredictor` in `Modules`, so `setup.ps1`/`Update-Profile` install them. Anything missing just leaves its keys at PSReadLine's defaults; nothing errors. `PSFzf` and `CompletionPredictor` load right after the prompt appears, so the fzf keys take a moment to arrive in a new shell. `Alt+A` stays on the profile's argument selector rather than PSFzf's argument search. To drop a piece, remove its `Modules`/`Packages` entries, or set `Zoxide.Enabled` to `false`.
+
+zoxide starts from a cached copy of `zoxide init powershell`'s output (see [Caches](#caches)), so a shell doesn't run zoxide at startup. It learns folders from the prompt, so give it a few days of normal `cd` use before `z` gets good.
+
+**Atuin** is off by default. It's worth turning on only if you want history synced across machines: set `settings.Atuin.Enabled` to `true` and install it (`winget install Atuinsh.Atuin`, `brew install atuin`, `pacman -S atuin`; or add those as `Packages` entries named `atuin`). It records every command into its own database and syncs it, but it doesn't take over any keys: `Ctrl+R` stays with PSFzf and the arrow keys with `HistorySearchArrowKeys`. Run `atuin search -i` for its own search UI. Atuin replaces PSReadLine's `PSConsoleHostReadLine` to do the recording, so if another tool also does that, the one started last wins.
 
 ## Deferred startup work
 

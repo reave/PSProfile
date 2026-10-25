@@ -8,6 +8,8 @@
 # typed text is used as the substring pattern for filtering. A selected command
 # is inserted to the command line without invoking. Multiple command selection
 # is supported, e.g. selected by Ctrl + Click.
+# Out-GridView only exists on Windows. Elsewhere (or without it) the same list
+# opens in fzf instead: Tab selects several, Enter inserts them.
 Set-PSReadLineKeyHandler -Key F7 `
     -BriefDescription History `
     -LongDescription 'Show command history' `
@@ -46,7 +48,37 @@ Set-PSReadLineKeyHandler -Key F7 `
     )
     $history.Reverse()
 
-    $command = $history | Out-GridView -Title History -PassThru
+    $gridView = Get-Command -Name Out-GridView -CommandType Cmdlet -ErrorAction Ignore
+    $fzf = if (-not $gridView) { Get-Command -Name fzf -CommandType Application -ErrorAction Ignore | Select-Object -First 1 }
+    if ($gridView) {
+        $command = $history | Out-GridView -Title History -PassThru
+    }
+    elseif ($fzf) {
+        # Started directly rather than piped to, because a pipeline adds a newline after the
+        # last entry. Entries are NUL-separated so multi-line commands stay whole; fzf draws
+        # on the terminal itself while its stdin and stdout are redirected.
+        $startInfo = [System.Diagnostics.ProcessStartInfo]::new($fzf.Source)
+        $startInfo.Arguments = '--read0 --print0 --multi --no-sort --height=40% --layout=reverse --prompt="History> "'
+        $startInfo.UseShellExecute = $false
+        $startInfo.RedirectStandardInput = $true
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
+        if ($startInfo.PSObject.Properties['StandardInputEncoding']) { $startInfo.StandardInputEncoding = [System.Text.UTF8Encoding]::new($false) }
+        $process = [System.Diagnostics.Process]::Start($startInfo)
+        try {
+            $process.StandardInput.Write(($history -join "`0"))
+            $process.StandardInput.Close()
+            $command = $process.StandardOutput.ReadToEnd().Split([char]0, [System.StringSplitOptions]::RemoveEmptyEntries)
+            $process.WaitForExit()
+        }
+        finally { $process.Dispose() }
+        [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+    }
+    else {
+        [Microsoft.PowerShell.PSConsoleReadLine]::Ding()
+        return
+    }
+
     if ($command) {
         [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
         [Microsoft.PowerShell.PSConsoleReadLine]::Insert(($command -join "`n"))
@@ -583,10 +615,11 @@ Set-PSReadLineKeyHandler -Key Alt+a `
 
 # Wrapped in try/catch: PredictionSource/PredictionViewStyle throw when the host
 # doesn't support virtual terminal processing (redirected output, some remote/CI shells).
+# No EditMode here: setting it resets every key binding above. The profile sets it from
+# config.json before loading this file.
 try {
     Set-PSReadLineOption -PredictionSource History -ErrorAction Stop
     Set-PSReadLineOption -PredictionViewStyle ListView -ErrorAction Stop
-    Set-PSReadLineOption -EditMode Windows -ErrorAction Stop
 }
 catch { Write-Verbose "Skipping PSReadLine configuration: $_" }
 
