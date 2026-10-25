@@ -5,6 +5,14 @@ using namespace System.Management.Automation.Completion
 using namespace System.Management.Automation.Host
 using namespace System.Management.Automation.Runspaces
 
+#- Windows PowerShell 5.1 predates $IsWindows/$IsMacOS/$IsLinux, so every OS check below
+#- would read $null and no functions would load. 5.1 only runs on Windows; define them there.
+if ($PSVersionTable.PSEdition -eq 'Desktop') {
+    $IsWindows = $true
+    $IsMacOS = $false
+    $IsLinux = $false
+}
+
 #- Set Filters
 
 <#
