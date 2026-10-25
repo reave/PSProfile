@@ -125,7 +125,7 @@ Applied via `New-Alias -Force`. Keep in mind PowerShell resolves existing aliase
 
 Each entry is imported at startup if it's installed. Missing ones are reported in one startup line and installed by `setup.ps1` or `Update-Profile` (`Install-Module -Scope CurrentUser`), never during shell start. `OS` is `"Windows"`, `"MacOS"`, `"Linux"`, `"All"`, or a comma-separated combination (e.g. `"Windows,MacOS"`). `PSVersionMajor` is a **minimum** PowerShell major version — the entry is skipped if `$PSVersionTable.PSVersion.Major` is lower. `PSVersionMajorMax` is the inverse — a **maximum** PowerShell major version, for a module that stops working on newer PowerShell (e.g. `TabExpansionPlusPlus`, which only supports Windows PowerShell 5.1 and doesn't install cleanly on PS7+/Core). The two can be combined to bound a module to a specific range.
 
-`DeferImport` (optional bool) imports the module just after the prompt appears instead of before it (see [Deferred startup work](#deferred-startup-work)). Modules that only matter once you're typing — `Terminal-Icons` — are deferred by default; set `"DeferImport": false` on an entry to import it before the prompt, or `true` to defer another module. Don't defer a module your prompt or the first command you type depends on.
+`DeferImport` (optional bool) imports the module just after the prompt appears instead of before it (see [Deferred startup work](#deferred-startup-work)). Modules that only matter once you're typing — `Terminal-Icons` and `Microsoft.WinGet.CommandNotFound` — are deferred by default; set `"DeferImport": false` on an entry to import it before the prompt, or `true` to defer another module. Don't defer a module your prompt or the first command you type depends on.
 
 ### `Packages`
 

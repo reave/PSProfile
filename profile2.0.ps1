@@ -483,7 +483,7 @@ function Import-PSProfileModule {
 # Modules that only matter once someone is at the prompt, imported after it appears (see
 # "Deferred startup work" above). A config.json Modules entry can override this either way
 # with "DeferImport": true/false.
-$modulesDeferredByDefault = @('Terminal-Icons')
+$modulesDeferredByDefault = @('Terminal-Icons', 'Microsoft.WinGet.CommandNotFound')
 $PSProfileMissingModules = [System.Collections.Generic.List[string]]::new()
 foreach ($module in $PSProfileConfig.Modules) {
     if (-not (Test-PSProfileOSMatch -OSField $module.OS)) { continue }
