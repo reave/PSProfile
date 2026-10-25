@@ -253,29 +253,6 @@ Enable-Tls12
 Initialize-HomebrewPath
 $IsInteractiveShell = Test-InteractiveShell
 
-#---------------------------------------------------------------
-# Document Roots
-#---------------------------------------------------------------
-Set-Variable -Name MyDocs -Value ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) -Scope Global
-
-$configuredOneDrivePath = $PSProfileSettings.OneDrivePath
-if ($configuredOneDrivePath -and (Test-Path -Path $configuredOneDrivePath -ErrorAction SilentlyContinue)) {
-    [string]$OneDriveRoot = $configuredOneDrivePath
-}
-elseif ($IsWindows -and (Test-Path -Path $env:USERPROFILE\OneDrive -ErrorAction SilentlyContinue)) {
-    [string]$OneDriveRoot = "$env:USERPROFILE\OneDrive"
-}
-elseif (-not $IsWindows -and (Test-Path -Path "$env:HOME/OneDrive" -ErrorAction SilentlyContinue)) {
-    [string]$OneDriveRoot = "$env:HOME/OneDrive"
-}
-else {
-    [string]$OneDriveRoot = "OneDrive is not configured"
-}
-Add-PSProfileTrace -Section 'Environment and document roots'
-
-#---------------------------------------------------------------
-# Modules
-#---------------------------------------------------------------
 <#
 .SYNOPSIS
     Tests whether a module is installed, without a full Get-Module -ListAvailable scan.
@@ -306,10 +283,207 @@ function Test-PSProfileModuleAvailable {
     return [bool](Get-Module -Name $Name -ListAvailable -ErrorAction Ignore)
 }
 
-# Terminal-Icons re-exports its theme cache on every import with a non-atomic Export-Clixml,
-# so two shells starting at once can read a half-written file ("Root element is missing").
-# A named mutex makes concurrent profile loads take turns importing.
-$moduleImportMutex = [System.Threading.Mutex]::new($false, 'PSProfile-ModuleImport')
+# Whether PSReadLine is usable: needed for its key handlers and options below, and because it is
+# what raises the idle event that deferred startup work runs on.
+$hasPSReadLine = $IsInteractiveShell -and (Test-PSProfileModuleAvailable -Name PSReadLine)
+
+#---------------------------------------------------------------
+# Deferred startup work
+#---------------------------------------------------------------
+# Work that only matters once someone is at the prompt (e.g. Terminal-Icons' file formatting) is
+# queued with Add-PSProfileDeferredTask and run one task per PowerShell.OnIdle event, which
+# PSReadLine raises while it waits for input - so the prompt appears first. Without PSReadLine,
+# or when pwsh was started to run a command and exit (no prompt ever appears), the queue runs at
+# the end of this profile instead, the same as if nothing had been deferred.
+
+<#
+.SYNOPSIS
+    Tests whether this process was started only to run a command or script and exit.
+.DESCRIPTION
+    True when the process command line has -Command/-c, -CommandWithArgs/-cwa, -File/-f or
+    -EncodedCommand/-e/-ec (or an unambiguous prefix of one) without an earlier -NoExit. Such a
+    process never shows a prompt, so PSReadLine never goes idle to run deferred startup work.
+.EXAMPLE
+    Test-PSProfileCommandOnlyHost
+.OUTPUTS
+    System.Boolean
+#>
+function Test-PSProfileCommandOnlyHost {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+
+    # -NoExit has to come before -Command/-File, since those consume the rest of the line.
+    foreach ($arg in [Environment]::GetCommandLineArgs() | Select-Object -Skip 1) {
+        if ($arg -notmatch '^[-/](\w+)') { continue }
+        $name = $Matches[1].ToLowerInvariant()
+        if ($name.Length -ge 3 -and 'noexit'.StartsWith($name)) { return $false }
+        foreach ($option in 'command', 'commandwithargs', 'cwa', 'file', 'encodedcommand', 'ec') {
+            if ($option.StartsWith($name)) { return $true }
+        }
+    }
+    return $false
+}
+
+<#
+.SYNOPSIS
+    Queues profile work to run once the prompt is idle.
+.DESCRIPTION
+    See "Deferred startup work" in profile2.0.ps1. Tasks run in the order they were added, one
+    per idle event. A task's errors and warnings are written to the console when it runs.
+.PARAMETER Name
+    Label for the task, shown in $Global:PSProfileTrace and in any failure message.
+.PARAMETER Action
+    Script block to run. Runs in its own scope, so it should define anything meant to outlive it
+    globally (Import-Module -Global, Set-Item function:global:..., etc.).
+.PARAMETER Argument
+    Optional single argument passed to Action.
+.EXAMPLE
+    Add-PSProfileDeferredTask -Name 'Import Terminal-Icons' -Action ${function:Import-PSProfileModule} -Argument 'Terminal-Icons'
+.OUTPUTS
+    None
+#>
+function Add-PSProfileDeferredTask {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][scriptblock]$Action,
+        [object]$Argument
+    )
+
+    $Global:PSProfileDeferredTasks.Enqueue([PSCustomObject]@{ Name = $Name; Action = $Action; Argument = $Argument })
+}
+
+<#
+.SYNOPSIS
+    Runs the next queued deferred task.
+.DESCRIPTION
+    Called from the PowerShell.OnIdle event (Phase 'Deferred'), or in a loop at the end of the
+    profile when nothing can be deferred (Phase 'Load'). When deferred, the task's error and
+    warning streams are captured and written straight to the console - an event action's own
+    output never reaches it - and the prompt is redrawn below them.
+.PARAMETER Phase
+    'Deferred' when called from the idle event, 'Load' when called during profile load.
+.EXAMPLE
+    while (Invoke-PSProfileDeferredTask -Phase Load) { }
+.OUTPUTS
+    System.Boolean. True if more tasks remain queued.
+#>
+function Invoke-PSProfileDeferredTask {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [ValidateSet('Load', 'Deferred')][string]$Phase = 'Deferred'
+    )
+
+    if ($Global:PSProfileDeferredTasks.Count -eq 0) { return $false }
+    $task = $Global:PSProfileDeferredTasks.Dequeue()
+    $clock = [System.Diagnostics.Stopwatch]::StartNew()
+
+    if ($Phase -eq 'Load') {
+        try { $null = & $task.Action $task.Argument }
+        catch { Write-Error "Profile step '$($task.Name)' failed: $_" }
+    }
+    else {
+        $printed = $false
+        try {
+            foreach ($record in (& $task.Action $task.Argument 2>&1 3>&1)) {
+                if ($record -is [System.Management.Automation.ErrorRecord]) { $Host.UI.WriteErrorLine("$record"); $printed = $true }
+                elseif ($record -is [System.Management.Automation.WarningRecord]) { $Host.UI.WriteWarningLine("$record"); $printed = $true }
+            }
+        }
+        catch { $Host.UI.WriteErrorLine("Profile step '$($task.Name)' failed: $_"); $printed = $true }
+        if ($printed) {
+            try { [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() } catch { Write-Verbose "Could not redraw the prompt: $_" }
+        }
+    }
+
+    Add-PSProfileTrace -Section $task.Name -Phase $Phase -Milliseconds $clock.Elapsed.TotalMilliseconds
+    return $Global:PSProfileDeferredTasks.Count -gt 0
+}
+
+$Global:PSProfileDeferredTasks = [System.Collections.Generic.Queue[PSCustomObject]]::new()
+$PSProfileDeferStartupWork = $hasPSReadLine -and -not (Test-PSProfileCommandOnlyHost)
+
+#---------------------------------------------------------------
+# Document Roots
+#---------------------------------------------------------------
+Set-Variable -Name MyDocs -Value ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) -Scope Global
+
+$configuredOneDrivePath = $PSProfileSettings.OneDrivePath
+if ($configuredOneDrivePath -and (Test-Path -Path $configuredOneDrivePath -ErrorAction SilentlyContinue)) {
+    [string]$OneDriveRoot = $configuredOneDrivePath
+}
+elseif ($IsWindows -and (Test-Path -Path $env:USERPROFILE\OneDrive -ErrorAction SilentlyContinue)) {
+    [string]$OneDriveRoot = "$env:USERPROFILE\OneDrive"
+}
+elseif (-not $IsWindows -and (Test-Path -Path "$env:HOME/OneDrive" -ErrorAction SilentlyContinue)) {
+    [string]$OneDriveRoot = "$env:HOME/OneDrive"
+}
+else {
+    [string]$OneDriveRoot = "OneDrive is not configured"
+}
+Add-PSProfileTrace -Section 'Environment and document roots'
+
+#---------------------------------------------------------------
+# Modules
+#---------------------------------------------------------------
+<#
+.SYNOPSIS
+    Imports one installed module from config.json's Modules list.
+.DESCRIPTION
+    Terminal-Icons re-exports its theme cache on every import with a non-atomic Export-Clixml,
+    so two shells starting at once can read a half-written file ("Root element is missing").
+    A named mutex makes concurrent profile loads take turns importing. Imports with -Global so
+    the module lands in the session whether this runs during load or as deferred startup work.
+.PARAMETER Name
+    Name of the module to import.
+.EXAMPLE
+    Import-PSProfileModule -Name Terminal-Icons
+.OUTPUTS
+    None
+#>
+function Import-PSProfileModule {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Name
+    )
+
+    $hasImportMutex = $false
+    $importMutex = [System.Threading.Mutex]::new($false, 'PSProfile-ModuleImport')
+    try {
+        # A shell that died mid-import abandons the mutex; ownership still passes to us.
+        try { $hasImportMutex = $importMutex.WaitOne(10000) }
+        catch [System.Threading.AbandonedMutexException] { $hasImportMutex = $true }
+        try { Import-Module -Name $Name -Global -ErrorAction Stop }
+        catch {
+            if ($Name -ne 'Terminal-Icons') { throw }
+            # A shell closed mid-write still leaves a truncated theme file, and the module stops
+            # before rewriting it, so every later load fails too. Drop unreadable files and retry
+            # once; the module regenerates its built-in themes on import.
+            $themeCacheBase = if ($IsLinux -or $IsMacOS) {
+                if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { [IO.Path]::Combine($HOME, '.local', 'share') }
+            }
+            else { $env:APPDATA }
+            $themeCachePath = [IO.Path]::Combine($themeCacheBase, 'powershell', 'Community', 'Terminal-Icons')
+            foreach ($themeFile in Get-ChildItem -Path $themeCachePath -Filter '*.xml' -ErrorAction SilentlyContinue) {
+                try { $null = Import-Clixml -Path $themeFile.FullName -ErrorAction Stop }
+                catch { Remove-Item -LiteralPath $themeFile.FullName -Force }
+            }
+            Import-Module -Name $Name -Global -ErrorAction Stop
+        }
+    }
+    catch { Write-Error "Unable to import $Name module: $($_.Exception.Message)" }
+    finally {
+        if ($hasImportMutex) { $importMutex.ReleaseMutex() }
+        $importMutex.Dispose()
+    }
+}
+
+# Modules that only matter once someone is at the prompt, imported after it appears (see
+# "Deferred startup work" above). A config.json Modules entry can override this either way
+# with "DeferImport": true/false.
+$modulesDeferredByDefault = @('Terminal-Icons')
 $PSProfileMissingModules = [System.Collections.Generic.List[string]]::new()
 foreach ($module in $PSProfileConfig.Modules) {
     if (-not (Test-PSProfileOSMatch -OSField $module.OS)) { continue }
@@ -317,31 +491,12 @@ foreach ($module in $PSProfileConfig.Modules) {
     if ($module.PSVersionMajorMax -and $PSVersionTable.PSVersion.Major -gt [int]$module.PSVersionMajorMax) { continue }
 
     if (Test-PSProfileModuleAvailable -Name $module.Name) {
-        $hasImportMutex = $false
-        try {
-            # A shell that died mid-import abandons the mutex; ownership still passes to us.
-            try { $hasImportMutex = $moduleImportMutex.WaitOne(10000) }
-            catch [System.Threading.AbandonedMutexException] { $hasImportMutex = $true }
-            try { Import-Module -Name $module.Name -ErrorAction Stop }
-            catch {
-                if ($module.Name -ne 'Terminal-Icons') { throw }
-                # A shell closed mid-write still leaves a truncated theme file, and the module stops
-                # before rewriting it, so every later load fails too. Drop unreadable files and retry
-                # once; the module regenerates its built-in themes on import.
-                $themeCacheBase = if ($IsLinux -or $IsMacOS) {
-                    if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { [IO.Path]::Combine($HOME, '.local', 'share') }
-                }
-                else { $env:APPDATA }
-                $themeCachePath = [IO.Path]::Combine($themeCacheBase, 'powershell', 'Community', 'Terminal-Icons')
-                foreach ($themeFile in Get-ChildItem -Path $themeCachePath -Filter '*.xml' -ErrorAction SilentlyContinue) {
-                    try { $null = Import-Clixml -Path $themeFile.FullName -ErrorAction Stop }
-                    catch { Remove-Item -LiteralPath $themeFile.FullName -Force }
-                }
-                Import-Module -Name $module.Name -ErrorAction Stop
-            }
+        $deferImport = if ($null -ne $module.DeferImport) { [System.Convert]::ToBoolean($module.DeferImport) }
+        else { $modulesDeferredByDefault -contains $module.Name }
+        if ($deferImport -and -not (Get-Module -Name $module.Name)) {
+            Add-PSProfileDeferredTask -Name "Import $($module.Name)" -Action ${function:Import-PSProfileModule} -Argument $module.Name
         }
-        catch { Write-Error "Unable to import $($module.Name) module: $($_.Exception.Message)" }
-        finally { if ($hasImportMutex) { $moduleImportMutex.ReleaseMutex() } }
+        else { Import-PSProfileModule -Name $module.Name }
     }
     else {
         # Installing is setup.ps1's / Update-Profile's job; startup only reports it (see the
@@ -349,7 +504,6 @@ foreach ($module in $PSProfileConfig.Modules) {
         $PSProfileMissingModules.Add($module.Name)
     }
 }
-$moduleImportMutex.Dispose()
 Add-PSProfileTrace -Section 'Modules'
 
 $IsElevated = if ($IsWindows) {
@@ -377,7 +531,6 @@ Add-PSProfileTrace -Section 'Elevation check, packages and aliases'
 #---------------------------------------------------------------
 # PSReadLine
 #---------------------------------------------------------------
-$hasPSReadLine = $IsInteractiveShell -and (Test-PSProfileModuleAvailable -Name PSReadLine)
 
 # Key handlers. Loaded only here, not with the other private files: every Set-PSReadLine* call
 # in it imports PSReadLine (~150 ms), which scripts, CI runners and editor hosts that dot-source
@@ -545,6 +698,24 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
         }
     }
     Add-PSProfileTrace -Section 'oh-my-posh'
+}
+
+#---------------------------------------------------------------
+# Start deferred startup work
+#---------------------------------------------------------------
+if ($Global:PSProfileDeferredTasks.Count -gt 0) {
+    if ($PSProfileDeferStartupWork) {
+        # -SupportEvent keeps this out of Get-EventSubscriber/Get-Job; the subscription removes
+        # itself once the queue is empty.
+        $null = Register-EngineEvent -SourceIdentifier PowerShell.OnIdle -SupportEvent -Action {
+            if (-not (Invoke-PSProfileDeferredTask -Phase Deferred)) {
+                Unregister-Event -SubscriptionId $EventSubscriber.SubscriptionId -Force
+            }
+        }
+    }
+    else {
+        while (Invoke-PSProfileDeferredTask -Phase Load) { }
+    }
 }
 
 if ($Global:PSProfileTrace) {
