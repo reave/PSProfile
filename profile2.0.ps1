@@ -850,6 +850,73 @@ if ($hasPSReadLine -and $readlineConfig) {
 Add-PSProfileTrace -Section 'PSReadLine'
 
 #---------------------------------------------------------------
+# Execution policy (for the version banner)
+#---------------------------------------------------------------
+<#
+.SYNOPSIS
+    Looks up the effective execution policy and caches it.
+.PARAMETER Root
+    The install directory (for the cache path).
+.EXAMPLE
+    Update-PSProfileExecutionPolicyCache -Root $Global:PSProfileRoot
+.OUTPUTS
+    System.String
+#>
+function Update-PSProfileExecutionPolicyCache {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][string]$Root
+    )
+
+    $policy = "$(Get-ExecutionPolicy)"
+    $cachePath = Get-PSProfileCachePath -Root $Root -Name "executionpolicy.$($PSVersionTable.PSEdition)" -Extension '.txt'
+    try {
+        $cacheDir = Split-Path -Path $cachePath -Parent
+        if (-not (Test-Path -Path $cacheDir)) { $null = New-Item -ItemType Directory -Path $cacheDir -Force -ErrorAction Stop }
+        [System.IO.File]::WriteAllText($cachePath, $policy)
+    }
+    catch { Write-Verbose "Could not write the execution policy cache: $_" }
+    $policy
+}
+
+<#
+.SYNOPSIS
+    Returns the execution policy for the version banner, without slowing down startup.
+.DESCRIPTION
+    Get-ExecutionPolicy's first call in a session costs 50-70 ms (it loads the
+    Microsoft.PowerShell.Security module) - a lot for one word in a banner. This returns the
+    value the previous shell cached and re-checks it once the prompt is idle, so after a policy
+    change the banner catches up one shell later. It asks directly when there's no cache yet,
+    when nothing can be deferred, or when this process has its own policy (pwsh
+    -ExecutionPolicy ..., which sets $env:PSExecutionPolicyPreference) that a cache can't know.
+.EXAMPLE
+    Get-PSProfileExecutionPolicy
+.OUTPUTS
+    System.String
+#>
+function Get-PSProfileExecutionPolicy {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+
+    if (-not $env:PSExecutionPolicyPreference -and $PSProfileDeferStartupWork) {
+        $cachePath = Get-PSProfileCachePath -Root $Global:PSProfileRoot -Name "executionpolicy.$($PSVersionTable.PSEdition)" -Extension '.txt'
+        $cached = $null
+        try { if ([System.IO.File]::Exists($cachePath)) { $cached = [System.IO.File]::ReadAllText($cachePath).Trim() } }
+        catch { Write-Verbose "Ignoring an unreadable execution policy cache: $_" }
+        if ($cached) {
+            Add-PSProfileDeferredTask -Name 'Refresh execution policy cache' -Argument $Global:PSProfileRoot -Action {
+                param($Root)
+                $null = Update-PSProfileExecutionPolicyCache -Root $Root
+            }
+            return $cached
+        }
+    }
+    Update-PSProfileExecutionPolicyCache -Root $Global:PSProfileRoot
+}
+
+#---------------------------------------------------------------
 # oh-my-posh
 #---------------------------------------------------------------
 <#
@@ -1018,7 +1085,7 @@ if ($PSProfileIsWindows -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {
-        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
+        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-PSProfileExecutionPolicy)" -ForegroundColor Yellow
     }
     Add-PSProfileTrace -Section 'Banners'
 
@@ -1055,7 +1122,7 @@ ElseIf ($IsMacOS -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {
-        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
+        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-PSProfileExecutionPolicy)" -ForegroundColor Yellow
     }
     Add-PSProfileTrace -Section 'Banners'
 
@@ -1092,7 +1159,7 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {
-        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
+        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-PSProfileExecutionPolicy)" -ForegroundColor Yellow
     }
     Add-PSProfileTrace -Section 'Banners'
 
