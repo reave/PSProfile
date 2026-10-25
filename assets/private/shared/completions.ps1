@@ -1,7 +1,8 @@
 ##- Registering Auto-Completion for Windows Terminal
 #
-# Each tool's completer lives in its own file under .\completions\ (named after the tool), plus
-# config.json's NativeCompletions cached under .\completions\native\ by Update-Completions.
+# Each tool's completer lives in its own file under completions\ (named after the tool) in
+# assets\private\shared or assets\private\<os>, plus config.json's NativeCompletions cached under
+# assets\private\<os>\completions\native\ by Update-Completions.
 #
 # None of them is loaded here. Loading them all cost ~400 ms per shell (op.ps1 alone is ~200 ms),
 # and even checking which tools were installed cost a Get-Command per tool. Instead each tool
@@ -86,15 +87,20 @@ function Invoke-PSProfileLazyCompleter {
 
 $Global:PSProfileLoadedCompleters = @{}
 $Global:PSProfileLazyCompleterFiles = @{}
-foreach ($__completerFile in Get-ChildItem -Path (Join-Path $PSScriptRoot 'completions') -Filter '*.ps1' -File) {
-    $Global:PSProfileLazyCompleterFiles[$__completerFile.BaseName] = $__completerFile.FullName
+# Completer files live in assets/private/shared/completions, plus OS-only ones (e.g. wsl) in
+# assets/private/<os>/completions; folders come lowest precedence first, so an OS file wins.
+$__completerFolders = @(Get-PSProfileFunctionFolders -Root $Global:PSProfileRoot -Kind private -OSFolder $OSFolder)
+foreach ($__folder in $__completerFolders) {
+    foreach ($__completerFile in Get-ChildItem -Path (Join-Path $__folder.Path 'completions') -Filter '*.ps1' -File -ErrorAction Ignore) {
+        $Global:PSProfileLazyCompleterFiles[$__completerFile.BaseName] = $__completerFile.FullName
+    }
 }
 # config.json's NativeCompletions: tools with their own `completion powershell`-style generator,
 # whose output Update-Completions caches (running the generators here would mean shelling out to
 # each tool, e.g. a daemon-backed docker, on every load). A tool with no cache yet is skipped
 # until Update-Completions has run.
 foreach ($__nc in $PSProfileConfig.NativeCompletions) {
-    $__ncCache = Join-Path (Join-Path (Join-Path $PSScriptRoot 'completions') 'native') "$($__nc.Name).ps1"
+    $__ncCache = [IO.Path]::Combine($Global:PSProfileRoot, 'assets', 'private', $OSFolder, 'completions', 'native', "$($__nc.Name).ps1")
     if (Test-Path -Path $__ncCache) { $Global:PSProfileLazyCompleterFiles[$__nc.Name] = $__ncCache }
 }
 foreach ($__completerName in $Global:PSProfileLazyCompleterFiles.Keys) {
@@ -102,4 +108,4 @@ foreach ($__completerName in $Global:PSProfileLazyCompleterFiles.Keys) {
     Microsoft.PowerShell.Core\Register-ArgumentCompleter -Native -CommandName $__completerName -ScriptBlock ([scriptblock]::Create(
             "param(`$wordToComplete, `$commandAst, `$cursorPosition) Invoke-PSProfileLazyCompleter -CommandName $__quotedName -WordToComplete `$wordToComplete -CommandAst `$commandAst -CursorPosition `$cursorPosition"))
 }
-Remove-Variable -Name __completerFile, __nc, __ncCache, __completerName, __quotedName -ErrorAction Ignore
+Remove-Variable -Name __completerFolders, __folder, __completerFile, __nc, __ncCache, __completerName, __quotedName -ErrorAction Ignore

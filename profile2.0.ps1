@@ -818,7 +818,10 @@ Add-PSProfileTrace -Section 'Elevation check, packages and aliases'
 # in it imports PSReadLine (~150 ms), which scripts, CI runners and editor hosts that dot-source
 # this profile never use. Loaded before the config-driven options below so config.json wins.
 if ($hasPSReadLine) {
-    try { . "$PSScriptRoot\assets\private\$OSFolder\history.ps1" }
+    # An OS folder's history.ps1, if one exists, replaces the shared one.
+    $historyFile = Get-PSProfileFunctionFolders -Root $PSScriptRoot -Kind private -OSFolder $OSFolder |
+        ForEach-Object { Join-Path $_.Path 'history.ps1' } | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -Last 1
+    try { if ($historyFile) { . $historyFile } }
     catch { Write-Error -Message "Failed to import history.ps1: $_" }
 }
 
