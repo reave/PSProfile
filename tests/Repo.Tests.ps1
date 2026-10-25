@@ -9,13 +9,13 @@ BeforeDiscovery {
         Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' } |
         ForEach-Object { @{ Path = $_.FullName; Name = $_.FullName.Substring($repoRoot.Length + 1) } }
 
-    $publicCases = foreach ($os in 'windows', 'macos', 'linux') {
-        Get-PSProfileFunctionFile -Kind public -OS $os | ForEach-Object {
-            @{ Path = $_.FullName; Name = "$os/$($_.Name)"; BaseName = $_.BaseName }
+    $publicCases = Get-ChildItem -Path (Join-Path $repoRoot 'assets/public') -Directory | ForEach-Object {
+        $folder = $_.Name
+        Get-ChildItem -Path $_.FullName -Filter '*.ps1' -File | ForEach-Object {
+            @{ Path = $_.FullName; Name = "$folder/$($_.Name)"; BaseName = $_.BaseName }
         }
     }
     $osCases = 'windows', 'macos', 'linux' | ForEach-Object { @{ OS = $_ } }
-    $hasSharedLayout = Test-Path -Path (Join-Path $repoRoot 'assets/public/shared')
 }
 
 BeforeAll {
@@ -59,26 +59,21 @@ Describe 'Public function files' {
     }
 }
 
-Describe 'Per-OS copies' -Skip:$hasSharedLayout {
-    # Until the per-OS folders are consolidated into assets/public/shared, a function that
-    # exists in more than one OS folder has to be the same file in each, or a fix made in one
-    # copy silently misses the others.
-    It 'public files shared between OS folders are identical' {
-        $byName = Get-PSProfileOSFolder -Kind public | ForEach-Object {
-            Get-ChildItem -Path (Join-Path $repoRoot "assets/public/$_") -Filter '*.ps1' -File
-        } | Group-Object -Property Name | Where-Object Count -gt 1
-
-        $drifted = foreach ($group in $byName) {
-            $hashes = $group.Group | ForEach-Object { (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash } | Select-Object -Unique
-            if (@($hashes).Count -gt 1) { $group.Name }
+Describe 'Shared and OS folders' {
+    # Cross-platform functions live once in assets/<kind>/shared. An OS folder may override a
+    # shared file on purpose, but a byte-identical copy is just a duplicate that will drift.
+    It '<Kind> OS folders hold no identical copies of shared files' -ForEach @(@{ Kind = 'public' }, @{ Kind = 'private' }) {
+        $sharedPath = Join-Path $repoRoot "assets/$Kind/shared"
+        $duplicates = foreach ($os in Get-PSProfileOSFolder -Kind $Kind) {
+            $osPath = Join-Path $repoRoot "assets/$Kind/$os"
+            Get-ChildItem -Path $osPath -Filter '*.ps1' -File -Recurse | ForEach-Object {
+                $relative = $_.FullName.Substring($osPath.Length + 1)
+                $sharedFile = Join-Path $sharedPath $relative
+                if ((Test-Path -LiteralPath $sharedFile) -and
+                    (Get-FileHash -LiteralPath $sharedFile).Hash -eq (Get-FileHash -LiteralPath $_.FullName).Hash) { "$os/$relative" }
+            }
         }
-        $drifted | Should -BeNullOrEmpty
-    }
-
-    It 'every macOS and Linux public function also exists on the other' {
-        $mac = Get-PSProfileFunctionFile -Kind public -OS macos | ForEach-Object Name
-        $linux = Get-PSProfileFunctionFile -Kind public -OS linux | ForEach-Object Name
-        Compare-Object -ReferenceObject $mac -DifferenceObject $linux | ForEach-Object { "$($_.InputObject) $($_.SideIndicator)" } | Should -BeNullOrEmpty
+        $duplicates | Should -BeNullOrEmpty
     }
 }
 

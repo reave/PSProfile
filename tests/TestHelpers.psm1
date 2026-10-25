@@ -1,7 +1,6 @@
 #- Shared helpers for the Pester suites in this folder.
-#- Function discovery is layout-aware so the tests keep working through the folder
-#- consolidation: assets\<kind>\<os> today, or assets\<kind>\shared plus
-#- assets\<kind>\<os> once a shared folder exists (OS files win on a name clash).
+#- Function discovery follows the profile's folder layout: assets\<kind>\shared plus
+#- assets\<kind>\<os> (OS files win on a name clash).
 
 $script:RepoRoot = Split-Path -Path $PSScriptRoot -Parent
 
