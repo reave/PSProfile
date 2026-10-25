@@ -179,6 +179,8 @@ Homebrew's installer adds its `PATH` setup to `.zprofile`/`.bash_profile`, which
 profile2.0.ps1              The profile. Loads config, dot-sources functions, applies settings.
 setup.ps1                   The installer and uninstaller (see Install above).
 powershell.config.json      PowerShell engine config (execution policy, experimental features).
+PSScriptAnalyzerSettings.psd1  Lint rules CI enforces (Error severity only).
+tests/                      Pester suites, run by .github/workflows/tests.yml on every push/PR.
 assets/
   lib/
     PSProfile.Lifecycle.ps1 Install/update/rollback/dependency logic. Not loaded at startup; used by
@@ -229,17 +231,21 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 `Convert-IPv4Address` · `Convert-Subnetmask` · `Get-IPv4Subnet` · `Split-IPv4Subnet` · `Invoke-IPv4NetworkScan` · `Invoke-IPv4PortScan` · `Get-MACVendor` · `Send-WakeOnLan` · `Send-MagicPacket` · `Test-DHCPPxe` · `Test-WebSiteStatus` · `Resolve-ShortURL` · `Update-GoogleDNS`
 
+### Diagnostics (cross-platform)
+
+`Test-Port` (fast TCP reachability check with a timeout) · `Get-ProcessByPort` (which process owns a local TCP/UDP port) · `Test-TlsCertificate` (remote cert expiry, SANs, issuer, chain status) · `ConvertFrom-Jwt` (decode a JWT offline and show its expiry; does not verify the signature) · `Get-PathReport` (PATH entries in order, flagging missing and duplicate dirs) · `Invoke-Retry` (run a script block with retries and exponential backoff) · `Get-LastBootTime`
+
 ### Networking (Windows-only — WMI/registry/Windows-formatted CLI output)
 
 `Get-ARPCache` · `Clear-ARPCache` · `Get-MACAddress` · `Get-Netstat` · `Get-WLANProfile` · `Invoke-DNSCacheFlush` · `Enable-PSRemotingRemote` · `Add-TrustedHost`/`Get-TrustedHost`/`Set-TrustedHost`/`Remove-TrustedHost` · `Enable-RemoteDesktop`/`Disable-RemoteDesktop`
 
 ### System info (Windows-only)
 
-`Get-DeviceInfo` · `Get-OSInfo` · `Get-Uptime` · `Get-LastBootTime` · `Get-PendingReboot` · `Get-DiskInfo`/`Get-DiskSize`/`Get-DriveInfo`/`Get-DriveSpace` · `Get-FolderSizes` · `Get-BatteryStatus` · `Get-InstalledSoftware` · `Get-NetFramework` · `Get-WindowsProductKey` · `Show-Sysinfo` · `Get-UserSession`/`Get-LoggedOnUsers`/`Get-LastLogon`
+`Get-DeviceInfo` · `Get-OSInfo` · `Get-Uptime` · `Get-PendingReboot` · `Get-DiskInfo`/`Get-DiskSize`/`Get-DriveInfo`/`Get-DriveSpace` · `Get-FolderSizes` · `Get-BatteryStatus` · `Get-InstalledSoftware` · `Get-NetFramework` · `Get-WindowsProductKey` · `Show-Sysinfo` · `Get-UserSession`/`Get-LoggedOnUsers`/`Get-LastLogon`
 
 ### Active Directory (Windows-only)
 
-`Get-ADCertificateInformation` · `Get-ADComputersNoDesc` · `Get-InactiveADComputers` · `Get-LocalAdministrator`/`Get-LocalGroup`/`Get-LocalGroupMember`/`Get-LocalUser`
+`Get-ADCertificateInformation` · `Get-ADComputersNoDesc` · `Get-InactiveADComputers` · `Get-LocalAdministratorBuiltin`/`Get-LocalGroup`/`Get-LocalGroupMember`/`Get-LocalUser`
 
 ### Security / credentials (Windows-only)
 
@@ -275,6 +281,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 2. Write comment-based help (`.SYNOPSIS`/`.DESCRIPTION`/`.PARAMETER`/`.EXAMPLE`/`.OUTPUTS`) directly above the `function` keyword, with **no other comment line directly above it** (a `#---` banner immediately above a help block breaks PowerShell's association between the two — always leave a blank line between them).
 3. If the function name might collide with a built-in alias (e.g. `gc`/`Get-Content`, `cd`/`Set-Location`), remove the alias first: `Remove-Item -Path "alias:\<name>" -Force -ErrorAction SilentlyContinue`. PowerShell resolves aliases *before* functions of the same name, so without this the function would silently never run.
 4. If it's cross-platform, copy the identical file into all three `windows`/`macos`/`linux` folders — `profile2.0.ps1` only loads the one matching the running OS, so there's no runtime cost to the duplication.
+5. Run `./tests/Invoke-Tests.ps1` (needs Pester 5.5+: `Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser`). CI runs the same suites on Windows, macOS, and Ubuntu, so a function that parses or loads on one OS but not another fails the PR. The suites check that every file parses, that each public file defines a function named after the file and has a `.SYNOPSIS`, that copies of a cross-platform file stay identical across OS folders, and that the profile loads with no errors and exposes every public function. Pure functions (IP math, encoders, generators) also get behavior tests in `tests/Functions.Tests.ps1`; add a case there when a new function can be tested without network or admin rights.
 
 ## Credits
 

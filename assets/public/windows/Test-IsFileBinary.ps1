@@ -64,7 +64,14 @@ function Test-IsFileBinary
         # Get the first 1024 bytes from the file
         $ByteCount = 1024
         		
-		$ByteArray = Get-Content -Path $FilePath -Encoding Byte -TotalCount $ByteCount
+		# Read through a FileStream rather than Get-Content -Encoding Byte, which PowerShell 7 removed.
+		$Stream = [System.IO.File]::OpenRead((Convert-Path -LiteralPath $FilePath))
+		try {
+			$Buffer = New-Object -TypeName byte[] -ArgumentList $ByteCount
+			$BytesRead = $Stream.Read($Buffer, 0, $ByteCount)
+		}
+		finally { $Stream.Dispose() }
+		$ByteArray = if ($BytesRead -gt 0) { $Buffer[0..($BytesRead - 1)] } else { @() }
 
         if($ByteArray.Count -ge $ByteCount)
         {
