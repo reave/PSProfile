@@ -162,6 +162,8 @@ Homebrew's installer adds its `PATH` setup to `.zprofile`/`.bash_profile`, which
 profile2.0.ps1              The profile. Loads config, dot-sources functions, applies settings.
 setup.ps1                   The installer (see Install above).
 powershell.config.json      PowerShell engine config (execution policy, experimental features).
+PSScriptAnalyzerSettings.psd1  Lint rules CI enforces (Error severity only).
+tests/                      Pester suites, run by .github/workflows/tests.yml on every push/PR.
 assets/
   config/
     sample-config.json      Checked-in template/example. Copy to config.json to customize.
@@ -255,6 +257,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 2. Write comment-based help (`.SYNOPSIS`/`.DESCRIPTION`/`.PARAMETER`/`.EXAMPLE`/`.OUTPUTS`) directly above the `function` keyword, with **no other comment line directly above it** (a `#---` banner immediately above a help block breaks PowerShell's association between the two — always leave a blank line between them).
 3. If the function name might collide with a built-in alias (e.g. `gc`/`Get-Content`, `cd`/`Set-Location`), remove the alias first: `Remove-Item -Path "alias:\<name>" -Force -ErrorAction SilentlyContinue`. PowerShell resolves aliases *before* functions of the same name, so without this the function would silently never run.
 4. If it's cross-platform, copy the identical file into all three `windows`/`macos`/`linux` folders — `profile2.0.ps1` only loads the one matching the running OS, so there's no runtime cost to the duplication.
+5. Run `./tests/Invoke-Tests.ps1` (needs Pester 5.5+: `Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser`). CI runs the same suites on Windows, macOS, and Ubuntu, so a function that parses or loads on one OS but not another fails the PR. The suites check that every file parses, that each public file defines a function named after the file and has a `.SYNOPSIS`, that copies of a cross-platform file stay identical across OS folders, and that the profile loads with no errors and exposes every public function. Pure functions (IP math, encoders, generators) also get behavior tests in `tests/Functions.Tests.ps1`; add a case there when a new function can be tested without network or admin rights.
 
 ## Credits
 
