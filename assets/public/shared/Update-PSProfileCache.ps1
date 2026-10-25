@@ -35,7 +35,11 @@
     OhMyPosh
         What `oh-my-posh init pwsh` prints for the configured theme, so a shell can start the
         prompt without running oh-my-posh (~80 ms). Keyed on the oh-my-posh executable and
-        theme file, and re-checked once a day.
+        theme file, and re-checked once a day. Also rewrites the theme copy that has
+        PoshThemeOverrides applied, if those changed.
+
+    The splash screen cache is not rebuilt here: it has to be captured in a console, so the
+    profile refreshes it itself (see SplashCacheHours).
 
     ExecutionPolicy
         The effective execution policy shown in the version banner. Looking it up costs
@@ -63,7 +67,8 @@ function Update-PSProfileCache {
     # Standalone (e.g. from setup.ps1, without the profile loaded), borrow the profile's own
     # helpers from profile2.0.ps1 rather than keeping a second copy here that could drift.
     $helpers = 'Get-PSProfileCachePath', 'Get-PSProfileFunctionSignature', 'Get-PSProfileFunctionFolders',
-    'Get-PSProfileOhMyPoshKey', 'Update-PSProfileOhMyPoshCache', 'Update-PSProfileExecutionPolicyCache'
+    'Get-PSProfileOhMyPoshKey', 'Update-PSProfileOhMyPoshCache', 'Update-PSProfileExecutionPolicyCache',
+    'Resolve-PSProfilePoshTheme'
     $missing = @($helpers | Where-Object { -not (Get-Command -Name $_ -CommandType Function -ErrorAction Ignore) })
     if ($missing) {
         $profileAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'profile2.0.ps1'), [ref]$null, [ref]$null)
@@ -93,7 +98,7 @@ function Update-PSProfileCache {
                     ForEach-Object { Join-Path $_.Path 'Resolve-PoshTheme.ps1' } | Where-Object { Test-Path -Path $_ } | Select-Object -Last 1
                 if ($resolver) { . $resolver }
             }
-            $null = Update-PSProfileOhMyPoshCache -Root $root -ThemePath (Resolve-PoshTheme -PoshTheme $config.settings.PoshTheme)
+            $null = Update-PSProfileOhMyPoshCache -Root $root -ThemePath (Resolve-PSProfilePoshTheme -Root $root -Settings $config.settings)
         }
     }
 

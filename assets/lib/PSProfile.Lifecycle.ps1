@@ -260,6 +260,31 @@ function Test-PSProfileUpdate {
     return [PSCustomObject]$result
 }
 
+function Update-PSProfileHelp {
+    <#
+        Runs Update-Help at most once every $IntervalDays days per PowerShell edition (5.1 and 7
+        keep separate help), recording when in the state file. Called from the background update
+        check when the shell is elevated and RunUpdateHelpOnElevated is set: Windows PowerShell
+        5.1 can only install help for all users, which needs elevation.
+    #>
+    [CmdletBinding()]
+    param([double]$IntervalDays = 7)
+
+    $stateKey = "LastHelpUpdate$($PSVersionTable.PSEdition)"
+    $last = (Get-PSProfileState).$stateKey
+    if ($last) {
+        # PowerShell 7's ConvertFrom-Json already turns an ISO 8601 string into a DateTime.
+        try {
+            if ($last -isnot [datetime]) { $last = [datetime]::Parse("$last", [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind) }
+            if (([datetime]::UtcNow - $last.ToUniversalTime()).TotalDays -lt $IntervalDays) { return }
+        }
+        catch { Write-Verbose "Ignoring an unreadable $stateKey value: $_" }
+    }
+
+    Update-Help -Force -ErrorAction SilentlyContinue
+    Set-PSProfileState -Values @{ $stateKey = (Get-Date).ToUniversalTime().ToString('o') }
+}
+
 #---------------------------------------------------------------
 # Dependencies (config.json Modules / Packages)
 #---------------------------------------------------------------

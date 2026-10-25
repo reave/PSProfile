@@ -78,11 +78,13 @@ If `config.json` is missing for any reason, the profile falls back to `sample-co
 | `MaximumHistoryCount` | number | PowerShell session command history size. Default `8192`. |
 | `OneDrivePath` | string | Explicit OneDrive path, used if it exists. Otherwise auto-detected (the OneDrive client's `$env:OneDriveConsumer` or `$env:OneDrive`, then `$env:USERPROFILE\OneDrive` on Windows, `$HOME/OneDrive` elsewhere), falling back to "OneDrive is not configured". |
 | `PoshTheme` | string | An oh-my-posh theme name or a full path to a `.omp.json` file. See [Theming](#theming). |
+| `PoshThemeOverrides` | object | oh-my-posh [general settings](https://ohmyposh.dev/docs/configuration/general) applied on top of `PoshTheme`, e.g. `{ "shell_integration": true, "streaming": 100 }`. See [Theming](#theming). |
 | `ShowWindowTitle` | bool | Set the console window title to `PowerShell <version> [ADMIN]`/`[ROOT]` when elevated. Cross-platform. |
 | `ShowSplashScreen` | bool | Run a system-info splash command on load (see `SplashCommand` below). Only runs if the configured command is actually installed. |
-| `SplashCommand` | object | Per-OS splash command: `Windows`, `MacOS`, `Linux` keys, e.g. `"winfetch"` or `"screenfetch -E"`. |
+| `SplashCommand` | object | Per-OS splash command: `Windows`, `MacOS`, `Linux` keys, e.g. `"winfetch"`, `"fastfetch"` or `"screenfetch -E"`. |
+| `SplashCacheHours` | number | Default `24`. The splash output is cached and replayed until it's this old, the machine reboots, the console width changes or `SplashCommand` changes. Uptime and other live values in it are as of the cached run. `0` runs the command on every start. |
 | `ShowElevatedWarning` | bool | Print a red banner when running elevated (Administrator on Windows, root on macOS/Linux). |
-| `RunUpdateHelpOnElevated` | bool | When elevated, kick off `Update-Help` as a background job. |
+| `RunUpdateHelpOnElevated` | bool | When elevated, run `Update-Help` at most once a week, inside the background update check (so it never runs when `UpdateCheckIntervalHours` is `0`). |
 | `ShowPSVersionBanner` | bool | Print the PowerShell version and execution policy on load. |
 | `UpdateCheckIntervalHours` | number | How often the background update check runs. Default `24`; `0` turns the check and the update notice off. See [Updating](#updating). |
 | `EnableChocolateyIntegration` | — | **Removed.** Windows package management is winget-only; see [Packages](#packages). |
@@ -117,16 +119,16 @@ Applied via `New-Alias -Force`. Keep in mind PowerShell resolves existing aliase
 
 ```json
 {
-    "Name": "Terminal-Icons",
+    "Name": "Microsoft.WinGet.CommandNotFound",
     "Description": "...",
     "PSVersionMajor": "5",
-    "OS": "All"
+    "OS": "Windows"
 }
 ```
 
 Each entry is imported at startup if it's installed. Missing ones are reported in one startup line and installed by `setup.ps1` or `Update-Profile` (`Install-Module -Scope CurrentUser`), never during shell start. `OS` is `"Windows"`, `"MacOS"`, `"Linux"`, `"All"`, or a comma-separated combination (e.g. `"Windows,MacOS"`). `PSVersionMajor` is a **minimum** PowerShell major version — the entry is skipped if `$PSVersionTable.PSVersion.Major` is lower. `PSVersionMajorMax` is the inverse — a **maximum** PowerShell major version, for a module that stops working on newer PowerShell (e.g. `TabExpansionPlusPlus`, which only supports Windows PowerShell 5.1 and doesn't install cleanly on PS7+/Core). The two can be combined to bound a module to a specific range.
 
-`DeferImport` (optional bool) imports the module just after the prompt appears instead of before it (see [Deferred startup work](#deferred-startup-work)). Modules that only matter once you're typing — `Terminal-Icons` and `Microsoft.WinGet.CommandNotFound` — are deferred by default; set `"DeferImport": false` on an entry to import it before the prompt, or `true` to defer another module. Don't defer a module your prompt or the first command you type depends on.
+`DeferImport` (optional bool) imports the module just after the prompt appears instead of before it (see [Deferred startup work](#deferred-startup-work)). Modules that only matter once you're typing — `Microsoft.WinGet.CommandNotFound` — are deferred by default; set `"DeferImport": false` on an entry to import it before the prompt, or `true` to defer another module. Don't defer a module your prompt or the first command you type depends on.
 
 ### `Packages`
 
@@ -171,6 +173,15 @@ Some functions take API keys as parameters (e.g. `Get-Weather -APIKey`). Rather 
 ## Theming
 
 `PoshTheme` accepts either a bare theme name (resolved under `$env:POSH_THEMES_PATH`) or a full path to a `.omp.json` file. `$env:POSH_THEMES_PATH` is set automatically by oh-my-posh's winget/scoop packages on Windows, but **not** by its Homebrew package on macOS/Linux — if you installed via Homebrew and want a specific theme, either set `$env:POSH_THEMES_PATH` yourself or put a full path directly in `PoshTheme`. If the theme can't be resolved, the profile falls back to oh-my-posh's built-in default theme with a warning instead of erroring.
+
+`PoshThemeOverrides` sets oh-my-posh general settings without editing or copying the theme: the profile writes a copy of the theme with them applied to its cache folder, rewrites it only when the theme or the overrides change, and starts oh-my-posh with that copy. Only JSON themes can be overridden. The sample config turns on:
+
+- `shell_integration`: OSC 133 command marks. In Windows Terminal that gives scrollbar marks, Ctrl+Up/Down between commands, selecting a command's output and exit-code marks; VS Code, WezTerm and iTerm2 read the same marks.
+- `streaming` (ms): segments still computing after the timeout (git in a large repo, for example) show a placeholder and fill in when ready. oh-my-posh calls this beta. It's turned off automatically in the VS Code PowerShell extension, which doesn't support it.
+
+`async: true` is left off: it shows a plain `PS>` for the first prompt of every shell and the themed prompt only after the first command, which saves ~100 ms but looks like a broken theme.
+
+Terminal-Icons is no longer used. On PowerShell 7.2+ `Get-ChildItem` output is already colored by `$PSStyle.FileInfo`. If your own `config.json` still lists Terminal-Icons under `Modules`, remove that entry.
 
 If you installed oh-my-posh via Homebrew and *also* can't run `brew` itself from PowerShell, that's a separate, more common issue — see [Homebrew on macOS/Linux](#homebrew-on-macoslinux).
 
@@ -324,7 +335,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 - PowerShell 5.1+ (Windows) or PowerShell 7+ (Windows/macOS/Linux). Some modules/packages in `sample-config.json` are gated to PS5.1-only or require a minimum version — see `PSVersionMajor` in [Modules](#modules).
 - `git` is recommended (for `setup.ps1`'s clone/pull path and easy updates) but not required — the installer falls back to a zip download.
-- Everything else (oh-my-posh, Terminal-Icons, winget/brew/apt/yum/pacman packages) is optional and installed from your `config.json` by `setup.ps1`/`Update-Profile`, on whichever platforms actually support it. PSReadLine is optional too; older versions that don't support `-PredictionSource`/`-Colors` degrade gracefully (the whole `PSReadLine` config block is wrapped in a try/catch) rather than erroring.
+- Everything else (oh-my-posh, winget/brew/apt/yum/pacman packages) is optional and installed from your `config.json` by `setup.ps1`/`Update-Profile`, on whichever platforms actually support it. PSReadLine is optional too; older versions that don't support `-PredictionSource`/`-Colors` degrade gracefully (the whole `PSReadLine` config block is wrapped in a try/catch) rather than erroring.
 
 ## Adding functions
 
