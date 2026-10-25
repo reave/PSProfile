@@ -13,6 +13,11 @@ concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Pester 6 still runs on Windows PowerShell 5.1 (net462 build). Bump deliberately: check
+  # https://github.com/pester/Pester/releases for breaking changes first.
+  PESTER_VERSION: 6.2.0
+
 jobs:
   pester:
     name: Pester (${{ matrix.name }})
@@ -20,43 +25,90 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # pwsh pins a release line; .github/scripts/Install-PowerShell.ps1 installs its newest
+        # patch instead of using whatever pwsh the runner image ships. 7.4 LTS ends support on
+        # 2026-11-10: drop its rows then, and clean up powershell.config.json (README, X4).
+        # key names the job's entry in tests/startup-baseline.json.
         include:
-          - name: Windows, PowerShell 7
+          - name: Windows, PowerShell 7.6
             os: windows-latest
-            shell: pwsh
+            pwsh: '7.6'
+            key: windows-7.6
+          - name: Windows, PowerShell 7.4
+            os: windows-latest
+            pwsh: '7.4'
+            key: windows-7.4
           - name: Windows PowerShell 5.1
             os: windows-latest
             shell: powershell
-          - name: macOS, PowerShell 7
+            key: windows-5.1
+          - name: macOS, PowerShell 7.6
             os: macos-latest
-            shell: pwsh
-          - name: Ubuntu, PowerShell 7
+            pwsh: '7.6'
+            key: macos-7.6
+          - name: Ubuntu, PowerShell 7.6
             os: ubuntu-latest
-            shell: pwsh
+            pwsh: '7.6'
+            key: linux-7.6
+          - name: Ubuntu, PowerShell 7.4
+            os: ubuntu-latest
+            pwsh: '7.4'
+            key: linux-7.4
     defaults:
       run:
-        shell: ${{ matrix.shell }}
+        shell: ${{ matrix.shell || 'pwsh' }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install Pester 5
+      - name: Install PowerShell ${{ matrix.pwsh }}
+        if: matrix.pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./.github/scripts/Install-PowerShell.ps1 -Version ${{ matrix.pwsh }}
+
+      - name: Check PowerShell version
+        env:
+          EXPECTED_LINE: ${{ matrix.pwsh || '5.1' }}
+        run: |
+          $actual = "$($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor)"
+          Write-Host "PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition)) at $PSHOME"
+          if ($actual -ne $env:EXPECTED_LINE) { throw "Expected PowerShell $env:EXPECTED_LINE, running $actual" }
+
+      - name: Install Pester ${{ env.PESTER_VERSION }}
         run: |
           [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-          if (-not (Get-Module -Name Pester -ListAvailable | Where-Object Version -ge '5.5.0')) {
-            Install-Module -Name Pester -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
+          if (-not (Get-Module -Name Pester -ListAvailable | Where-Object Version -eq $env:PESTER_VERSION)) {
+            Install-Module -Name Pester -RequiredVersion $env:PESTER_VERSION -Scope CurrentUser -Force -SkipPublisherCheck
           }
-          $PSVersionTable.PSVersion.ToString()
-          (Get-Module -Name Pester -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1).Version.ToString()
+
+      # The same path setup.ps1 and Update-Profile take, with an empty config so only the
+      # profile's own required modules apply. On 5.1 that upgrades the inbox PSReadLine 2.0.0,
+      # so the suites below load the profile against the PSReadLine users get.
+      - name: Install required modules (lifecycle)
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'lifecycle'
+          $null = New-Item -Path (Join-Path $root 'assets/config') -ItemType Directory -Force
+          '{ "Modules": [], "Packages": [] }' | Set-Content -Path (Join-Path $root 'assets/config/config.json')
+          . ./assets/lib/PSProfile.Lifecycle.ps1
+          Install-PSProfileDependency -InstallPath $root
+          $missing = Get-PSProfileMissingDependency -Config ([PSCustomObject]@{ Modules = @(); Packages = @() })
+          if ($missing.Modules) { throw "Still missing after install: $($missing.Modules -join ', ')" }
+          Get-Module -Name PSReadLine -ListAvailable | Format-Table -Property Name, Version, ModuleBase -AutoSize
 
       - name: Run tests
         run: ./tests/Invoke-Tests.ps1 -OutputFile testResults.xml
 
-      - name: Upload test results
+      - name: Startup budget
+        run: ./tests/Measure-Startup.ps1 -Key ${{ matrix.key }} -OutputFile startup-${{ matrix.key }}.json
+
+      - name: Upload results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: test-results-${{ matrix.os }}-${{ matrix.shell }}
-          path: testResults.xml
+          name: results-${{ matrix.key }}
+          path: |
+            testResults.xml
+            startup-${{ matrix.key }}.json
           if-no-files-found: ignore
 
   lint:
