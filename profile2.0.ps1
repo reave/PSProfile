@@ -224,7 +224,9 @@ Add-PSProfileTrace -Section 'Config'
 # Update-Profile's git pull.
 Set-Variable -Name PSProfileRoot -Value $PSScriptRoot -Scope Global
 
-$OSFolder = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } elseif ($IsLinux) { 'linux' }
+# Windows PowerShell 5.1 (the Desktop edition) predates $IsWindows/$IsMacOS/$IsLinux, and only
+# ever runs on Windows.
+$OSFolder = if ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') { 'windows' } elseif ($IsMacOS) { 'macos' } elseif ($IsLinux) { 'linux' }
 
 <#
 .SYNOPSIS
