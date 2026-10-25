@@ -40,7 +40,7 @@ Describe 'Public function files' {
         # Files that had no comment-based help when this test was added. Remove a name once
         # its help is written; new functions are not exempt.
         $exempt = @(
-            'Get-DriveInfo', 'Get-EncodedFile', 'Get-FolderSizes', 'Get-LastBootTime',
+            'Get-DriveInfo', 'Get-EncodedFile', 'Get-FolderSizes',
             'Get-PublicDesktopShortcuts', 'Lock-Workstation', 'Resolve-ShortURL', 'Search-Google',
             'Send-MagicPacket', 'Set-LocationAndList', 'Set-LocationCustom', 'Set-PathVariable', 'Sudo'
         )
