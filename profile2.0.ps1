@@ -239,7 +239,10 @@ Foreach ($function in $functions) {
 Add-PSProfileTrace -Section 'Public functions'
 
 #- Dot Source Private Functions (assets\private\<windows|macos|linux>\*.ps1)
-$functions = Get-ChildItem -Path "$PSScriptRoot\assets\private\$OSFolder\*.ps1" -ErrorAction SilentlyContinue
+# history.ps1 is PSReadLine key-handler setup, not functions - it's loaded in the PSReadLine
+# section below, only for interactive shells.
+$functions = Get-ChildItem -Path "$PSScriptRoot\assets\private\$OSFolder\*.ps1" -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne 'history.ps1' }
 Foreach ($function in $functions) {
     try { . $function.FullName }
     Catch { Write-Error -Message "Failed to import $($function.Name)" }
@@ -344,8 +347,18 @@ Add-PSProfileTrace -Section 'Elevation check, packages and aliases'
 #---------------------------------------------------------------
 # PSReadLine
 #---------------------------------------------------------------
+$hasPSReadLine = $IsInteractiveShell -and (Get-Module -Name PSReadLine -ListAvailable -ErrorAction SilentlyContinue)
+
+# Key handlers. Loaded only here, not with the other private files: every Set-PSReadLine* call
+# in it imports PSReadLine (~150 ms), which scripts, CI runners and editor hosts that dot-source
+# this profile never use. Loaded before the config-driven options below so config.json wins.
+if ($hasPSReadLine) {
+    try { . "$PSScriptRoot\assets\private\$OSFolder\history.ps1" }
+    catch { Write-Error -Message "Failed to import history.ps1: $_" }
+}
+
 $readlineConfig = $PSProfileSettings.PSReadLine
-if ($IsInteractiveShell -and $readlineConfig -and (Get-Module -Name PSReadLine -ListAvailable -ErrorAction SilentlyContinue)) {
+if ($hasPSReadLine -and $readlineConfig) {
     # Wrapped in try/catch: PredictionSource/PredictionViewStyle throw when the host
     # doesn't support virtual terminal processing (redirected output, some remote/CI shells).
     try {
