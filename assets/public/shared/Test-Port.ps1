@@ -26,6 +26,7 @@ function Test-Port {
         System.Boolean
     #>
     [CmdletBinding()]
+    [OutputType([PSCustomObject], [bool])]
     param(
         [Parameter(Position = 0, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [Alias('Host', 'CN')]
