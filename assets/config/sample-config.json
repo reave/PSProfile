@@ -5,6 +5,10 @@
         "MaximumHistoryCount": 8192,
         "OneDrivePath": "C:\\Users\\josep\\OneDrive",
         "PoshTheme": "M365Princess",
+        "PoshThemeOverrides": {
+            "shell_integration": true,
+            "streaming": 100
+        },
         "ShowWindowTitle": true,
         "ShowSplashScreen": true,
         "SplashCommand": {
@@ -12,6 +16,7 @@
             "MacOS": "screenfetch -E",
             "Linux": "screenfetch -E"
         },
+        "SplashCacheHours": 24,
         "ShowElevatedWarning": true,
         "RunUpdateHelpOnElevated": true,
         "ShowPSVersionBanner": true,
@@ -51,12 +56,6 @@
         }
     ],
     "Modules": [
-        {
-            "Name": "Terminal-Icons",
-            "Description": "PowerShell module to add file icons to terminal based on file extension",
-            "PSVersionMajor": "5",
-            "OS": "All"
-        },
         {
             "Name": "TabExpansionPlusPlus",
             "Description": "An enhanced tab expansion module for Windows PowerShell 5.1 - doesn't support PowerShell 7+ (Core), superseded there by native/PSReadLine completion",
