@@ -29,7 +29,7 @@
             "Get-Weather:APIKey": ""
         },
         "PSReadLine": {
-            "PredictionSource": "History",
+            "PredictionSource": "HistoryAndPlugin",
             "PredictionViewStyle": "ListView",
             "EditMode": "Windows",
             "HistorySearchArrowKeys": true,
@@ -46,6 +46,13 @@
                 "Keyword": "#8367c7",
                 "Error": "#FF6347"
             }
+        },
+        "Zoxide": {
+            "Enabled": true,
+            "Command": "z"
+        },
+        "Atuin": {
+            "Enabled": false
         }
     },
     "Aliases": [
@@ -67,6 +74,19 @@
             "Description": "PowerToys CommandNotFound module - suggests winget packages for unrecognized commands",
             "PSVersionMajor": "5",
             "OS": "Windows"
+        },
+        {
+            "Name": "PSFzf",
+            "Description": "fzf key bindings: Ctrl+R history, Ctrl+T files, Alt+C directories. Needs the fzf package",
+            "PSVersionMajor": "5",
+            "OS": "All",
+            "RequiresCommand": "fzf"
+        },
+        {
+            "Name": "CompletionPredictor",
+            "Description": "Adds tab-completion results to PSReadLine's inline/list predictions (PredictionSource HistoryAndPlugin). Needs PowerShell 7.2+",
+            "PSVersionMajor": "7",
+            "OS": "All"
         }
     ],
     "Packages": [
@@ -93,6 +113,56 @@
         {
             "Name": "speedtest",
             "Id": "speedtest-cli",
+            "Source": "pacman"
+        },
+        {
+            "Name": "fzf",
+            "Id": "junegunn.fzf",
+            "Source": "winget"
+        },
+        {
+            "Name": "fzf",
+            "Id": "fzf",
+            "Source": "brew"
+        },
+        {
+            "Name": "fzf",
+            "Id": "fzf",
+            "Source": "apt"
+        },
+        {
+            "Name": "fzf",
+            "Id": "fzf",
+            "Source": "yum"
+        },
+        {
+            "Name": "fzf",
+            "Id": "fzf",
+            "Source": "pacman"
+        },
+        {
+            "Name": "zoxide",
+            "Id": "ajeetdsouza.zoxide",
+            "Source": "winget"
+        },
+        {
+            "Name": "zoxide",
+            "Id": "zoxide",
+            "Source": "brew"
+        },
+        {
+            "Name": "zoxide",
+            "Id": "zoxide",
+            "Source": "apt"
+        },
+        {
+            "Name": "zoxide",
+            "Id": "zoxide",
+            "Source": "yum"
+        },
+        {
+            "Name": "zoxide",
+            "Id": "zoxide",
             "Source": "pacman"
         }
     ],
