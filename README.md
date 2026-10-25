@@ -125,6 +125,8 @@ Applied via `New-Alias -Force`. Keep in mind PowerShell resolves existing aliase
 
 Each entry is imported at startup if it's installed. Missing ones are reported in one startup line and installed by `setup.ps1` or `Update-Profile` (`Install-Module -Scope CurrentUser`), never during shell start. `OS` is `"Windows"`, `"MacOS"`, `"Linux"`, `"All"`, or a comma-separated combination (e.g. `"Windows,MacOS"`). `PSVersionMajor` is a **minimum** PowerShell major version — the entry is skipped if `$PSVersionTable.PSVersion.Major` is lower. `PSVersionMajorMax` is the inverse — a **maximum** PowerShell major version, for a module that stops working on newer PowerShell (e.g. `TabExpansionPlusPlus`, which only supports Windows PowerShell 5.1 and doesn't install cleanly on PS7+/Core). The two can be combined to bound a module to a specific range.
 
+`DeferImport` (optional bool) imports the module just after the prompt appears instead of before it (see [Deferred startup work](#deferred-startup-work)). Modules that only matter once you're typing — `Terminal-Icons` — are deferred by default; set `"DeferImport": false` on an entry to import it before the prompt, or `true` to defer another module. Don't defer a module your prompt or the first command you type depends on.
+
 ### `Packages`
 
 ```json
@@ -166,6 +168,12 @@ If you installed oh-my-posh via Homebrew and *also* can't run `brew` itself from
 ## Homebrew on macOS/Linux
 
 Homebrew's installer adds its `PATH` setup to `.zprofile`/`.bash_profile`, which `pwsh` never sources. If you launch PowerShell directly (not from a zsh/bash login shell that already ran that setup), `brew` — and anything installed through it — is invisible to the whole session. This profile detects the standard Homebrew install locations (`/opt/homebrew`, `/usr/local` on macOS; `/home/linuxbrew/.linuxbrew`, `~/.linuxbrew` on Linux) and fixes `$env:PATH` automatically on load, so `brew` works at the prompt afterward too, not just internally for the `Packages` config.
+
+## Deferred startup work
+
+Some startup work only matters once you're at the prompt, so the profile queues it and runs it right after the prompt appears: one step each time PSReadLine reports it's idle waiting for input (the `PowerShell.OnIdle` event), so the prompt shows up first. Anything you type while a step runs is buffered, not lost. Errors and warnings from a deferred step are printed above the prompt.
+
+Nothing is deferred when there won't be a prompt to wait for — no PSReadLine, a non-interactive host, or `pwsh -Command`/`-File` without `-NoExit` — then the queued steps run at the end of the profile instead, so scripts and one-off commands behave exactly as before.
 
 ## Load time
 
