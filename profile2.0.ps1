@@ -533,7 +533,7 @@ $IsInteractiveShell = Test-InteractiveShell
 .PARAMETER Name
     Module name.
 .EXAMPLE
-    Test-PSProfileModuleAvailable -Name Terminal-Icons
+    Test-PSProfileModuleAvailable -Name PSReadLine
 .OUTPUTS
     System.Boolean
 #>
@@ -558,7 +558,7 @@ $hasPSReadLine = $IsInteractiveShell -and (Test-PSProfileModuleAvailable -Name P
 #---------------------------------------------------------------
 # Deferred startup work
 #---------------------------------------------------------------
-# Work that only matters once someone is at the prompt (e.g. Terminal-Icons' file formatting) is
+# Work that only matters once someone is at the prompt (e.g. WinGet's command-not-found hook) is
 # queued with Add-PSProfileDeferredTask and run one task per PowerShell.OnIdle event, which
 # PSReadLine raises while it waits for input - so the prompt appears first. Without PSReadLine,
 # or when pwsh was started to run a command and exit (no prompt ever appears), the queue runs at
@@ -607,7 +607,7 @@ function Test-PSProfileCommandOnlyHost {
 .PARAMETER Argument
     Optional single argument passed to Action.
 .EXAMPLE
-    Add-PSProfileDeferredTask -Name 'Import Terminal-Icons' -Action ${function:Import-PSProfileModule} -Argument 'Terminal-Icons'
+    Add-PSProfileDeferredTask -Name 'Import Microsoft.WinGet.CommandNotFound' -Action ${function:Import-PSProfileModule} -Argument 'Microsoft.WinGet.CommandNotFound'
 .OUTPUTS
     None
 #>
@@ -714,14 +714,12 @@ Add-PSProfileTrace -Section 'Environment and document roots'
 .SYNOPSIS
     Imports one installed module from config.json's Modules list.
 .DESCRIPTION
-    Terminal-Icons re-exports its theme cache on every import with a non-atomic Export-Clixml,
-    so two shells starting at once can read a half-written file ("Root element is missing").
-    A named mutex makes concurrent profile loads take turns importing. Imports with -Global so
-    the module lands in the session whether this runs during load or as deferred startup work.
+    Imports with -Global so the module lands in the session whether this runs during load or as
+    deferred startup work.
 .PARAMETER Name
     Name of the module to import.
 .EXAMPLE
-    Import-PSProfileModule -Name Terminal-Icons
+    Import-PSProfileModule -Name Microsoft.WinGet.CommandNotFound
 .OUTPUTS
     None
 #>
@@ -731,41 +729,14 @@ function Import-PSProfileModule {
         [Parameter(Mandatory)][string]$Name
     )
 
-    $hasImportMutex = $false
-    $importMutex = [System.Threading.Mutex]::new($false, 'PSProfile-ModuleImport')
-    try {
-        # A shell that died mid-import abandons the mutex; ownership still passes to us.
-        try { $hasImportMutex = $importMutex.WaitOne(10000) }
-        catch [System.Threading.AbandonedMutexException] { $hasImportMutex = $true }
-        try { Import-Module -Name $Name -Global -ErrorAction Stop }
-        catch {
-            if ($Name -ne 'Terminal-Icons') { throw }
-            # A shell closed mid-write still leaves a truncated theme file, and the module stops
-            # before rewriting it, so every later load fails too. Drop unreadable files and retry
-            # once; the module regenerates its built-in themes on import.
-            $themeCacheBase = if ($IsLinux -or $IsMacOS) {
-                if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { [IO.Path]::Combine($HOME, '.local', 'share') }
-            }
-            else { $env:APPDATA }
-            $themeCachePath = [IO.Path]::Combine($themeCacheBase, 'powershell', 'Community', 'Terminal-Icons')
-            foreach ($themeFile in Get-ChildItem -Path $themeCachePath -Filter '*.xml' -ErrorAction SilentlyContinue) {
-                try { $null = Import-Clixml -Path $themeFile.FullName -ErrorAction Stop }
-                catch { Remove-Item -LiteralPath $themeFile.FullName -Force }
-            }
-            Import-Module -Name $Name -Global -ErrorAction Stop
-        }
-    }
+    try { Import-Module -Name $Name -Global -ErrorAction Stop }
     catch { Write-Error "Unable to import $Name module: $($_.Exception.Message)" }
-    finally {
-        if ($hasImportMutex) { $importMutex.ReleaseMutex() }
-        $importMutex.Dispose()
-    }
 }
 
 # Modules that only matter once someone is at the prompt, imported after it appears (see
 # "Deferred startup work" above). A config.json Modules entry can override this either way
 # with "DeferImport": true/false.
-$modulesDeferredByDefault = @('Terminal-Icons', 'Microsoft.WinGet.CommandNotFound')
+$modulesDeferredByDefault = @('Microsoft.WinGet.CommandNotFound')
 $PSProfileMissingModules = [System.Collections.Generic.List[string]]::new()
 foreach ($module in $PSProfileConfig.Modules) {
     if (-not (Test-PSProfileOSMatch -OSField $module.OS)) { continue }
@@ -927,6 +898,34 @@ function Get-PSProfileExecutionPolicy {
 #---------------------------------------------------------------
 <#
 .SYNOPSIS
+    Resolves the configured oh-my-posh theme, with PoshThemeOverrides applied.
+.DESCRIPTION
+    Resolve-PoshTheme with the PoshTheme and PoshThemeOverrides settings, and the cache path
+    the overridden copy of the theme is written to. Shared by startup and Update-PSProfileCache
+    so both resolve to the same file, and so to the same init cache entry.
+.PARAMETER Root
+    The install directory (for the cache path).
+.PARAMETER Settings
+    The config.json settings object.
+.EXAMPLE
+    Resolve-PSProfilePoshTheme -Root $Global:PSProfileRoot -Settings $PSProfileSettings
+.OUTPUTS
+    System.String, or $null for oh-my-posh's default theme.
+#>
+function Resolve-PSProfilePoshTheme {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [object]$Settings
+    )
+
+    $overridePath = Get-PSProfileCachePath -Root $Root -Name 'oh-my-posh-theme' -Extension '.omp.json'
+    Resolve-PoshTheme -PoshTheme $Settings.PoshTheme -Override $Settings.PoshThemeOverrides -OverridePath $overridePath
+}
+
+<#
+.SYNOPSIS
     Fingerprints what `oh-my-posh init pwsh` output depends on, for the init cache.
 .DESCRIPTION
     The oh-my-posh executable (path and modification time, which changes when it's updated)
@@ -957,11 +956,11 @@ function Get-PSProfileOhMyPoshKey {
 .SYNOPSIS
     Runs `oh-my-posh init pwsh` and caches what it printed.
 .DESCRIPTION
-    oh-my-posh's init output is just two environment variables (a per-session id and the
-    config path) and a call to an init script oh-my-posh keeps on disk itself. Recording the
-    config path and that script's path lets later shells set the variables and call the script
-    directly, without starting oh-my-posh (~80 ms). Returns the record, including the full
-    init output in Init, even if the cache file couldn't be written.
+    oh-my-posh's init output is a few lines that set a per-session id and the config path and
+    call an init script oh-my-posh keeps on disk itself (directly, or from a prompt trampoline
+    when the theme sets "async"). Later shells replay that text with a fresh session id instead
+    of starting oh-my-posh (~80 ms). The executable's path is recorded too, so a cache hit
+    doesn't search PATH for it. Returns the record even if the cache file couldn't be written.
 .PARAMETER Root
     The install directory (for the cache path).
 .PARAMETER ThemePath
@@ -986,17 +985,9 @@ function Update-PSProfileOhMyPoshCache {
     $init = (& $executable.Source @initArguments) -join "`n"
 
     $record = [PSCustomObject]@{
-        Key    = Get-PSProfileOhMyPoshKey -Executable $executable.Source -ThemePath $ThemePath
-        Config = $null
-        Script = $null
-        Init   = $init
-    }
-    # e.g.  $env:POSH_SESSION_ID = "..."; $env:POSH_CONFIG = 'C:\...\theme.omp.json';& 'C:\...\init.123.ps1'
-    # Anything else (a format change in a future oh-my-posh) leaves Script empty, so the init
-    # output is run as before rather than guessed at.
-    if ($init -match "^\`$env:POSH_SESSION_ID = `"[^`"]*`"; \`$env:POSH_CONFIG = '([^']*)';\s*& '([^']+)'\s*$") {
-        $record.Config = $Matches[1]
-        $record.Script = $Matches[2]
+        Key        = Get-PSProfileOhMyPoshKey -Executable $executable.Source -ThemePath $ThemePath
+        Executable = $executable.Source
+        Init       = $init
     }
 
     try {
@@ -1016,78 +1007,169 @@ function Update-PSProfileOhMyPoshCache {
 
 <#
 .SYNOPSIS
-    Starts oh-my-posh's prompt, from the init cache when it's current.
+    Returns the script that starts oh-my-posh's prompt, from the init cache when it's current.
 .DESCRIPTION
-    With a current cache entry (same oh-my-posh executable and theme, and oh-my-posh's init
-    script still on disk), does what `oh-my-posh init pwsh` would print - a fresh session id,
-    the config path, then oh-my-posh's own init script - without starting oh-my-posh. The
-    entry is re-checked against `oh-my-posh init` once a day, after the prompt is idle.
-    Otherwise runs `oh-my-posh init pwsh` as before and caches the result.
-.PARAMETER PoshTheme
-    The PoshTheme setting: a bare theme name or a path to a .omp.json file.
+    With a current cache entry (same oh-my-posh executable and theme, and every init script it
+    calls still on disk), returns what `oh-my-posh init pwsh` printed with a fresh session id,
+    without starting oh-my-posh. The entry is re-checked against `oh-my-posh init` once a day,
+    after the prompt is idle. Otherwise runs `oh-my-posh init pwsh` and caches the result.
+
+    The caller runs the result with Invoke-Expression at the profile's top level: an async
+    theme's init defines the prompt function, which inside this function would be gone as soon
+    as it returned.
+.PARAMETER Settings
+    The config.json settings object (PoshTheme and PoshThemeOverrides).
 .EXAMPLE
-    Invoke-PSProfileOhMyPosh -PoshTheme 'M365Princess'
+    $poshInit = Get-PSProfileOhMyPoshInit -Settings $PSProfileSettings; if ($poshInit) { Invoke-Expression $poshInit }
 .OUTPUTS
-    None
+    System.String, or nothing when oh-my-posh isn't installed.
 #>
-function Invoke-PSProfileOhMyPosh {
+function Get-PSProfileOhMyPoshInit {
     [CmdletBinding()]
+    [OutputType([string])]
     param(
-        [string]$PoshTheme
+        [object]$Settings
     )
 
-    $themePath = Resolve-PoshTheme -PoshTheme $PoshTheme
-    $executable = Get-Command -Name oh-my-posh -CommandType Application -ErrorAction Ignore | Select-Object -First 1
-    if (-not $executable) { return }
-
+    $themePath = Resolve-PSProfilePoshTheme -Root $Global:PSProfileRoot -Settings $Settings
     $cachePath = Get-PSProfileCachePath -Root $Global:PSProfileRoot -Name 'oh-my-posh' -Extension '.json'
     $cached = $null
     try { if ([System.IO.File]::Exists($cachePath)) { $cached = [System.IO.File]::ReadAllText($cachePath) | ConvertFrom-Json } }
     catch { Write-Verbose "Ignoring an unreadable oh-my-posh cache: $_" }
 
-    if ($cached -and $cached.Script -and [System.IO.File]::Exists($cached.Script) -and
-        $cached.Key -eq (Get-PSProfileOhMyPoshKey -Executable $executable.Source -ThemePath $themePath)) {
-        $env:POSH_SESSION_ID = [guid]::NewGuid().ToString()
-        $env:POSH_CONFIG = $cached.Config
-        & $cached.Script
-        if ([System.IO.File]::GetLastWriteTimeUtc($cachePath) -lt [datetime]::UtcNow.AddDays(-1)) {
-            Add-PSProfileDeferredTask -Name 'Refresh oh-my-posh cache' -Argument @{ Root = $Global:PSProfileRoot; ThemePath = $themePath } -Action {
-                param($Arguments)
-                $null = Update-PSProfileOhMyPoshCache @Arguments
+    if ($cached -and $cached.Init -and $cached.Executable -and [System.IO.File]::Exists($cached.Executable) -and
+        $cached.Key -eq (Get-PSProfileOhMyPoshKey -Executable $cached.Executable -ThemePath $themePath)) {
+        $initScripts = @([regex]::Matches($cached.Init, "'([^']+\.ps1)'") | ForEach-Object { $_.Groups[1].Value })
+        if ($initScripts.Count -and -not @($initScripts | Where-Object { -not [System.IO.File]::Exists($_) }).Count) {
+            if ([System.IO.File]::GetLastWriteTimeUtc($cachePath) -lt [datetime]::UtcNow.AddDays(-1)) {
+                Add-PSProfileDeferredTask -Name 'Refresh oh-my-posh cache' -Argument @{ Root = $Global:PSProfileRoot; ThemePath = $themePath } -Action {
+                    param($Arguments)
+                    $null = Update-PSProfileOhMyPoshCache @Arguments
+                }
             }
+            return [regex]::Replace($cached.Init, '(?<=\$env:POSH_SESSION_ID = ")[^"]*', [guid]::NewGuid().ToString())
         }
-        return
     }
 
     $record = Update-PSProfileOhMyPoshCache -Root $Global:PSProfileRoot -ThemePath $themePath
-    if ($record) { Invoke-Expression $record.Init }
+    if ($record) { $record.Init }
 }
 
 #---------------------------------------------------------------
-# Windows Section
+# Splash screen
 #---------------------------------------------------------------
-if ($IsWindows -and $IsInteractiveShell) {
+<#
+.SYNOPSIS
+    Shows the splash screen, replaying a cached copy when one is current.
+.DESCRIPTION
+    A system-info splash (winfetch, fastfetch, screenfetch) takes 100-300 ms to gather what is
+    mostly static: OS, CPU, GPU, memory size. This shows the output the last run captured,
+    unless it's older than CacheHours, the machine rebooted since, the console width changed
+    or the command did. Otherwise it runs the command, shows its output and caches it.
+    Live values such as uptime and memory in use are as of the cached run.
+
+    Only pipeline output is cached. A splash that prints with Write-Host still shows when it
+    runs but leaves nothing to cache, so it runs live every time, as before. fastfetch turns
+    its colors and logo off when its output is captured, so --pipe false is added for it.
+.PARAMETER Command
+    The splash command line from SplashCommand in config.json.
+.PARAMETER Root
+    The install directory (for the cache path).
+.PARAMETER CacheHours
+    How long a cached splash stays current. 0 runs the command every time.
+.EXAMPLE
+    Show-PSProfileSplash -Command 'fastfetch' -Root $Global:PSProfileRoot
+.OUTPUTS
+    None
+#>
+function Show-PSProfileSplash {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Command,
+        [Parameter(Mandatory)][string]$Root,
+        [double]$CacheHours = 24
+    )
+
+    if ($Command -match '^\s*fastfetch(\.exe)?(\s|$)' -and $Command -notmatch '--pipe') { $Command += ' --pipe false' }
+    $cachePath = Get-PSProfileCachePath -Root $Root -Name 'splash' -Extension '.txt'
+
+    # Boot time from the uptime counter. Windows PowerShell 5.1 only has the 32-bit one, which
+    # wraps after 49.7 days; that costs one extra refresh.
+    $uptimeMs = if ($PSVersionTable.PSVersion.Major -ge 6) { [System.Environment]::TickCount64 }
+    else {
+        $ticks = [double][System.Environment]::TickCount
+        if ($ticks -lt 0) { $ticks += 4294967296 }
+        $ticks
+    }
+    $bootTicks = [datetime]::UtcNow.AddMilliseconds(-$uptimeMs).Ticks
+    $width = 0
+    try { $width = $Host.UI.RawUI.WindowSize.Width } catch { Write-Verbose "No console width: $_" }
+    $header = "# $width|$Command"
+
+    if ($CacheHours -gt 0 -and [System.IO.File]::Exists($cachePath) -and
+        [System.IO.File]::GetLastWriteTimeUtc($cachePath) -gt [datetime]::UtcNow.AddHours(-$CacheHours)) {
+        try {
+            $reader = [System.IO.StreamReader]::new($cachePath)
+            try {
+                $cachedBoot = $reader.ReadLine()
+                $cachedHeader = $reader.ReadLine()
+                # Two minutes of slack: the boot time computed from uptime drifts a little.
+                if ($cachedHeader -eq $header -and $cachedBoot -match '^# \d+$' -and
+                    [math]::Abs([double]$cachedBoot.Substring(2) - $bootTicks) -lt [timespan]::TicksPerMinute * 2) {
+                    $Host.UI.WriteLine($reader.ReadToEnd().TrimEnd("`r", "`n"))
+                    return
+                }
+            }
+            finally { $reader.Dispose() }
+        }
+        catch { Write-Verbose "Ignoring an unreadable splash cache: $_" }
+    }
+
+    if (-not (Get-Command -Name ($Command.Trim() -split '\s+')[0] -ErrorAction Ignore)) { return }
+    $text = (@(Invoke-Expression $Command) | ForEach-Object { "$_" }) -join [System.Environment]::NewLine
+    if (-not $text) { return }
+    $Host.UI.WriteLine($text)
+    if ($CacheHours -le 0) { return }
+
+    try {
+        $cacheDir = Split-Path -Path $cachePath -Parent
+        if (-not (Test-Path -Path $cacheDir)) { $null = New-Item -ItemType Directory -Path $cacheDir -Force -ErrorAction Stop }
+        $tempPath = "$cachePath.$PID.tmp"
+        [System.IO.File]::WriteAllText($tempPath, "# $bootTicks`n$header`n$text", [System.Text.UTF8Encoding]::new($false))
+        Move-Item -LiteralPath $tempPath -Destination $cachePath -Force -ErrorAction Stop
+    }
+    catch {
+        Write-Verbose "Could not write the splash cache: $_"
+        Remove-Item -LiteralPath "$cachePath.$PID.tmp" -ErrorAction Ignore
+    }
+}
+
+#---------------------------------------------------------------
+# Interactive startup: window title, splash, banners, prompt
+#---------------------------------------------------------------
+if ($IsInteractiveShell) {
     if ($PSProfileSettings.ShowWindowTitle) {
         Set-ProfileWindowTitle
     }
     Add-PSProfileTrace -Section 'Window title'
 
     if ($PSProfileSettings.ShowSplashScreen) {
-        $splashCommand = $PSProfileSettings.SplashCommand.Windows
-        if ($splashCommand -and (Get-Command -Name ($splashCommand -split '\s+')[0] -ErrorAction Ignore)) {
-            Invoke-Expression $splashCommand
+        $splashCommand = if ($IsWindows) { $PSProfileSettings.SplashCommand.Windows }
+        elseif ($IsMacOS) { $PSProfileSettings.SplashCommand.MacOS }
+        else { $PSProfileSettings.SplashCommand.Linux }
+        $splashCacheHours = if ($null -ne $PSProfileSettings.SplashCacheHours) { [double]$PSProfileSettings.SplashCacheHours } else { 24 }
+        if ($splashCommand) {
+            try { Show-PSProfileSplash -Command $splashCommand -Root $PSScriptRoot -CacheHours $splashCacheHours }
+            catch { Write-Warning "Splash command '$splashCommand' failed: $_" }
         }
     }
     Add-PSProfileTrace -Section 'Splash screen'
 
     if ($PSProfileSettings.ShowElevatedWarning -and $IsElevated) {
+        $elevatedWarning = if ($IsWindows) { 'THIS CONSOLE IS AN ELEVATED CONSOLE.' } else { 'THIS SHELL IS RUNNING AS ROOT.' }
         Write-Host "--------------------------------------------" -ForegroundColor Red
-        Write-Host "  THIS CONSOLE IS AN ELEVATED CONSOLE.  " -ForegroundColor Red
+        Write-Host "  $elevatedWarning  " -ForegroundColor Red
         Write-Host "---------------------------------------------" -ForegroundColor Red
-    }
-
-    if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
-        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue | Out-Null
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {
@@ -1095,82 +1177,12 @@ if ($IsWindows -and $IsInteractiveShell) {
     }
     Add-PSProfileTrace -Section 'Banners'
 
-    if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
-        Invoke-PSProfileOhMyPosh -PoshTheme $PSProfileSettings.PoshTheme
-    }
-    Add-PSProfileTrace -Section 'oh-my-posh'
-}
-#---------------------------------------------------------------
-# macOS Section
-#---------------------------------------------------------------
-ElseIf ($IsMacOS -and $IsInteractiveShell) {
-    if ($PSProfileSettings.ShowWindowTitle) {
-        Set-ProfileWindowTitle
-    }
-    Add-PSProfileTrace -Section 'Window title'
-
-    if ($PSProfileSettings.ShowSplashScreen) {
-        $splashCommand = $PSProfileSettings.SplashCommand.MacOS
-        if ($splashCommand -and (Get-Command -Name ($splashCommand -split '\s+')[0] -ErrorAction Ignore)) {
-            Invoke-Expression $splashCommand
-        }
-    }
-    Add-PSProfileTrace -Section 'Splash screen'
-
-    if ($PSProfileSettings.ShowElevatedWarning -and $IsElevated) {
-        Write-Host "--------------------------------------------" -ForegroundColor Red
-        Write-Host "  THIS SHELL IS RUNNING AS ROOT.  " -ForegroundColor Red
-        Write-Host "---------------------------------------------" -ForegroundColor Red
-    }
-
-    if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
-        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue | Out-Null
-    }
-
-    if ($PSProfileSettings.ShowPSVersionBanner) {
-        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-PSProfileExecutionPolicy)" -ForegroundColor Yellow
-    }
-    Add-PSProfileTrace -Section 'Banners'
-
-    if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
-        Invoke-PSProfileOhMyPosh -PoshTheme $PSProfileSettings.PoshTheme
-    }
-    Add-PSProfileTrace -Section 'oh-my-posh'
-}
-#---------------------------------------------------------------
-# Linux Section
-#---------------------------------------------------------------
-ElseIf ($IsLinux -and $IsInteractiveShell) {
-    if ($PSProfileSettings.ShowWindowTitle) {
-        Set-ProfileWindowTitle
-    }
-    Add-PSProfileTrace -Section 'Window title'
-
-    if ($PSProfileSettings.ShowSplashScreen) {
-        $splashCommand = $PSProfileSettings.SplashCommand.Linux
-        if ($splashCommand -and (Get-Command -Name ($splashCommand -split '\s+')[0] -ErrorAction Ignore)) {
-            Invoke-Expression $splashCommand
-        }
-    }
-    Add-PSProfileTrace -Section 'Splash screen'
-
-    if ($PSProfileSettings.ShowElevatedWarning -and $IsElevated) {
-        Write-Host "--------------------------------------------" -ForegroundColor Red
-        Write-Host "  THIS SHELL IS RUNNING AS ROOT.  " -ForegroundColor Red
-        Write-Host "---------------------------------------------" -ForegroundColor Red
-    }
-
-    if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
-        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue | Out-Null
-    }
-
-    if ($PSProfileSettings.ShowPSVersionBanner) {
-        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-PSProfileExecutionPolicy)" -ForegroundColor Yellow
-    }
-    Add-PSProfileTrace -Section 'Banners'
-
-    if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction Ignore)) {
-        Invoke-PSProfileOhMyPosh -PoshTheme $PSProfileSettings.PoshTheme
+    if ($PSProfileSettings.PoshTheme) {
+        # oh-my-posh's streaming mode doesn't work under PowerShell Editor Services (the VS Code
+        # extension), whose idle handling runs pipelines alongside it.
+        if ($Host.Name -eq 'Visual Studio Code Host' -and -not $env:POSH_DISABLE_STREAMING) { $env:POSH_DISABLE_STREAMING = '1' }
+        $poshInit = Get-PSProfileOhMyPoshInit -Settings $PSProfileSettings
+        if ($poshInit) { Invoke-Expression $poshInit }
     }
     Add-PSProfileTrace -Section 'oh-my-posh'
 }
@@ -1201,12 +1213,16 @@ if ($IsInteractiveShell -and -not $env:PSPROFILE_NO_UPDATE_CHECK) {
     # A missing file reports 1601-01-01, so the first shell after install runs a check.
     $lastUpdateCheck = [System.IO.File]::GetLastWriteTimeUtc([System.IO.Path]::Combine($stateDir, 'update-state.json'))
     if ($updateCheckHours -gt 0 -and ([datetime]::UtcNow - $lastUpdateCheck).TotalHours -ge $updateCheckHours) {
+        # Elevated, the same runspace also refreshes help (weekly), rather than every elevated
+        # shell starting a whole child process for it with Start-Job.
+        $updateHelp = [bool]($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated)
         $updateCheck = [powershell]::Create()
         [void]$updateCheck.AddScript({
-                param($Lifecycle, $InstallPath)
+                param($Lifecycle, $InstallPath, $UpdateHelp)
                 . $Lifecycle
                 $null = Test-PSProfileUpdate -InstallPath $InstallPath
-            }).AddArgument([System.IO.Path]::Combine($PSScriptRoot, 'assets', 'lib', 'PSProfile.Lifecycle.ps1')).AddArgument($PSScriptRoot)
+                if ($UpdateHelp) { Update-PSProfileHelp }
+            }).AddArgument([System.IO.Path]::Combine($PSScriptRoot, 'assets', 'lib', 'PSProfile.Lifecycle.ps1')).AddArgument($PSScriptRoot).AddArgument($updateHelp)
         $null = $updateCheck.BeginInvoke()
     }
 }
