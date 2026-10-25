@@ -30,7 +30,7 @@ function Get-PathReport {
         [switch]$Problems
     )
 
-    if ($Scope -ne 'Process' -and -not $IsWindows) {
+    if ($Scope -ne 'Process' -and -not ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop')) {
         Write-Error "Scope '$Scope' is only available on Windows; macOS and Linux have no persisted PATH store to read."
         return
     }
