@@ -177,8 +177,12 @@ Set-Variable -Name PSProfileRoot -Value $PSScriptRoot -Scope Global
 
 $OSFolder = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } elseif ($IsLinux) { 'linux' }
 
-#- Dot Source Public Functions (assets\public\<windows|macos|linux>\*.ps1)
-$functions = Get-ChildItem -Path "$PSScriptRoot\assets\public\$OSFolder\*.ps1" -ErrorAction SilentlyContinue
+#- Dot Source Public Functions (assets\public\shared\*.ps1, then assets\public\<windows|macos|linux>\*.ps1)
+#- The OS folder loads second so an OS-specific file wins over a shared one of the same name.
+$functions = @(
+    Get-ChildItem -Path "$PSScriptRoot\assets\public\shared\*.ps1" -ErrorAction SilentlyContinue
+    Get-ChildItem -Path "$PSScriptRoot\assets\public\$OSFolder\*.ps1" -ErrorAction SilentlyContinue
+)
 Foreach ($function in $functions) {
     try { . $function.FullName }
     Catch { Write-Error -Message "Failed to import $($function.Name)" }
