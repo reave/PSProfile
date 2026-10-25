@@ -66,7 +66,7 @@ function Test-TlsCertificate {
             # what the platform decided and then accepts so we can inspect the cert.
             $state = @{ Errors = $null; ChainStatus = @() }
             $callback = [System.Net.Security.RemoteCertificateValidationCallback] {
-                param($sender, $certificate, $chain, $sslPolicyErrors)
+                param($requestSender, $certificate, $chain, $sslPolicyErrors)
                 $state.Errors = $sslPolicyErrors
                 if ($chain) {
                     $state.ChainStatus = @($chain.ChainStatus | ForEach-Object { $_.Status.ToString() } | Where-Object { $_ -ne 'NoError' })
