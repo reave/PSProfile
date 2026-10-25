@@ -36,6 +36,10 @@
         What `oh-my-posh init pwsh` prints for the configured theme, so a shell can start the
         prompt without running oh-my-posh (~80 ms). Keyed on the oh-my-posh executable and
         theme file, and re-checked once a day.
+
+    ExecutionPolicy
+        The effective execution policy shown in the version banner. Looking it up costs
+        50-70 ms per shell; the banner shows the cached value and refreshes it once idle.
 .PARAMETER Cache
     Which caches to rebuild. Default: all of them.
 .EXAMPLE
@@ -48,8 +52,8 @@
 function Update-PSProfileCache {
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [ValidateSet('Functions', 'OhMyPosh')]
-        [string[]]$Cache = @('Functions', 'OhMyPosh')
+        [ValidateSet('Functions', 'OhMyPosh', 'ExecutionPolicy')]
+        [string[]]$Cache = @('Functions', 'OhMyPosh', 'ExecutionPolicy')
     )
 
     # This file lives in <install>/assets/public/<os|shared>/.
@@ -59,7 +63,7 @@ function Update-PSProfileCache {
     # Standalone (e.g. from setup.ps1, without the profile loaded), borrow the profile's own
     # helpers from profile2.0.ps1 rather than keeping a second copy here that could drift.
     $helpers = 'Get-PSProfileCachePath', 'Get-PSProfileFunctionSignature', 'Get-PSProfileFunctionFolders',
-    'Get-PSProfileOhMyPoshKey', 'Update-PSProfileOhMyPoshCache'
+    'Get-PSProfileOhMyPoshKey', 'Update-PSProfileOhMyPoshCache', 'Update-PSProfileExecutionPolicyCache'
     $missing = @($helpers | Where-Object { -not (Get-Command -Name $_ -CommandType Function -ErrorAction Ignore) })
     if ($missing) {
         $profileAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'profile2.0.ps1'), [ref]$null, [ref]$null)
@@ -68,6 +72,10 @@ function Update-PSProfileCache {
                 $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $missing -contains $node.Name
             }, $false)
         foreach ($definition in $definitions) { . ([scriptblock]::Create($definition.Extent.Text)) }
+    }
+
+    if ($Cache -contains 'ExecutionPolicy' -and $PSCmdlet.ShouldProcess('execution policy', 'Rebuild cache')) {
+        $null = Update-PSProfileExecutionPolicyCache -Root $root
     }
 
     if ($Cache -contains 'OhMyPosh' -and (Get-Command -Name oh-my-posh -CommandType Application -ErrorAction Ignore) -and
