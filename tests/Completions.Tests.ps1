@@ -51,7 +51,7 @@ Register-ArgumentCompleter -Native -CommandName handtool -ScriptBlock {
     }
 
     $lines = @(
-        'oh-my-posh ini', 'oh-my-posh init ', 'oh-my-posh init pwsh --', 'oh-my-posh config export ',
+        'oh-my-posh ini', 'oh-my-posh init ', 'oh-my-posh init pwsh --p', 'oh-my-posh config export ',
         'oh-my-posh config export --format ', 'oh-my-posh print primary --pwd ',
         'handtool x', 'faketool ch', 'faketool ', 'nocompletertool ', 'fkt ch'
     )
@@ -180,9 +180,11 @@ Describe 'oh-my-posh completer' {
     }
 
     It 'completes flags, including the global ones' {
-        $flags = Get-Completion 'oh-my-posh init pwsh --'
+        # '--p', not a bare '--': Windows PowerShell treats a lone '--' as end-of-parameters and
+        # never asks a native completer about it.
+        $flags = Get-Completion 'oh-my-posh init pwsh --p'
         $flags | Should -Contain '--print'
-        $flags | Should -Contain '--config'
+        $flags | Should -Contain '--plain'
     }
 
     It 'completes --format values' {
