@@ -98,7 +98,8 @@ function Get-Weather {
     Begin {
         if ([string]::IsNullOrWhiteSpace($APIKey)) { $APIKey = Get-PSProfileSecret -Name 'OpenWeatherMapApiKey' }
         if ([string]::IsNullOrWhiteSpace($APIKey)) {
-            throw "No OpenWeatherMap API key. Store one with Set-Secret -Name OpenWeatherMapApiKey (Microsoft.PowerShell.SecretManagement), map it in settings.Secrets, or pass -APIKey."
+            $setup = if (Get-Command -Name Set-Secret -ErrorAction Ignore) { '' } else { 'Run Update-Profile to install SecretManagement, then ' }
+            throw "No OpenWeatherMap API key. $($setup)Set-Secret -Name OpenWeatherMapApiKey, map it in settings.Secrets, or pass -APIKey."
         }
         $APIKey = [uri]::EscapeDataString($APIKey)
 

@@ -176,13 +176,13 @@ The profile calls carapace the way carapace's own `carapace _carapace powershell
 
 ### Secrets
 
-Functions that need an API key (e.g. `Get-Weather`) look it up at call time with `Get-PSProfileSecret`, never at shell startup and never from a config file. Store the key once with [Microsoft.PowerShell.SecretManagement](https://learn.microsoft.com/powershell/utility-modules/secretmanagement/overview) and a vault such as SecretStore (the profile won't install these for you):
+Functions that need an API key (e.g. `Get-Weather`) look it up at call time with `Get-PSProfileSecret`, never at shell startup and never from a config file. Keys live in [Microsoft.PowerShell.SecretManagement](https://learn.microsoft.com/powershell/utility-modules/secretmanagement/overview), which is where `Set-Secret` comes from. `setup.ps1` and `Update-Profile` install it and SecretStore, and register SecretStore as the default vault if you have no vault yet. The profile never imports either at startup; PowerShell autoloads them the first time `Set-Secret` or `Get-Secret` runs. Then store the key once:
 
 ```powershell
-Install-Module Microsoft.PowerShell.SecretManagement, Microsoft.PowerShell.SecretStore -Scope CurrentUser
-Register-SecretVault -Name SecretStore -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault
-Set-Secret -Name OpenWeatherMapApiKey -Secret 'your-key'
+Set-Secret -Name OpenWeatherMapApiKey   # prompts for the key; the first use also asks you to create a SecretStore password
 ```
+
+To do it by hand instead: `Install-Module Microsoft.PowerShell.SecretManagement, Microsoft.PowerShell.SecretStore -Scope CurrentUser`, then `Register-SecretVault -Name SecretStore -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault`.
 
 `settings.Secrets` can point a name somewhere else: another secret name, a specific vault, or a 1Password reference read with the `op` CLI.
 

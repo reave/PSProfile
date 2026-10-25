@@ -240,6 +240,48 @@ Describe 'Get-PSProfileSecret' {
     }
 }
 
+Describe 'SecretManagement setup' {
+    It 'is installed by setup and Update-Profile' {
+        $names = (Get-PSProfileRequiredModule).Name
+        $names | Should -Contain 'Microsoft.PowerShell.SecretManagement'
+        $names | Should -Contain 'Microsoft.PowerShell.SecretStore'
+    }
+
+    Context 'Register-PSProfileSecretVault' {
+        BeforeAll {
+            # Stand-ins so Mock has commands to replace when the real modules aren't installed.
+            function Get-SecretVault { }
+            function Register-SecretVault { param($Name, $ModuleName, [switch]$DefaultVault) }
+        }
+
+        It 'registers SecretStore as the default vault when none exists' {
+            Mock Get-Module { [PSCustomObject]@{ Name = $Name } } -ParameterFilter { $ListAvailable }
+            Mock Get-SecretVault { }
+            Mock Register-SecretVault { }
+            Mock Write-Host { }
+            Register-PSProfileSecretVault
+            Should -Invoke Register-SecretVault -Times 1 -ParameterFilter { $Name -eq 'SecretStore' -and $ModuleName -eq 'Microsoft.PowerShell.SecretStore' -and $DefaultVault }
+        }
+
+        It 'leaves an existing vault setup alone' {
+            Mock Get-Module { [PSCustomObject]@{ Name = $Name } } -ParameterFilter { $ListAvailable }
+            Mock Get-SecretVault { [PSCustomObject]@{ Name = 'Mine' } }
+            Mock Register-SecretVault { }
+            Register-PSProfileSecretVault
+            Should -Invoke Register-SecretVault -Times 0
+        }
+
+        It 'does nothing when the modules are not installed' {
+            Mock Get-Module { } -ParameterFilter { $ListAvailable }
+            Mock Get-SecretVault { }
+            Mock Register-SecretVault { }
+            Register-PSProfileSecretVault
+            Should -Invoke Get-SecretVault -Times 0
+            Should -Invoke Register-SecretVault -Times 0
+        }
+    }
+}
+
 Describe 'Get-Weather API key' {
     It 'fails clearly when no key is passed or stored' {
         Mock Get-PSProfileSecret { }
