@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\head" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "alias:\head" -Force -ErrorAction Ignore
 
 <#
 .SYNOPSIS

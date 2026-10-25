@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\pgrep" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "alias:\pgrep" -Force -ErrorAction Ignore
 
 <#
 .SYNOPSIS

@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\lazyg" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "alias:\lazyg" -Force -ErrorAction Ignore
 
 <#
 .SYNOPSIS

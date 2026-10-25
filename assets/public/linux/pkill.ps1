@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\pkill" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "alias:\pkill" -Force -ErrorAction Ignore
 
 <#
 .SYNOPSIS

@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\gs" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "alias:\gs" -Force -ErrorAction Ignore
 
 <#
 .SYNOPSIS
