@@ -136,7 +136,7 @@ filter __oh-my-posh_escapeStringWithSpecialChars {
       1. sample-config.json        Repo defaults. Checked in; updates change it.
       2. config.json               Your personal config. Gitignored.
       3. config.<MACHINE>.json     Per-machine overrides, named after
-                                   [Environment]::MachineName (e.g. config.ALFHEIM.json).
+                                   [Environment]::MachineName (e.g. config.WORKSTATION01.json).
                                    Not gitignored, so it can be committed and follow you.
       4. config.local.json         Last word for this one install. Gitignored.
     Only files that exist are returned.

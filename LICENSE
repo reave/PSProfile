@@ -12,22 +12,22 @@ This repository is dual-licensed:
    own header alongside the rest of that file's attribution. The full GPL-3.0
    text is at https://www.gnu.org/licenses/gpl-3.0.en.html.
 
-   assets/public/{windows,macos,linux}/Convert-IPv4Address.ps1
-   assets/public/{windows,macos,linux}/Convert-ROT13.ps1
-   assets/public/{windows,macos,linux}/Convert-ROT47.ps1
-   assets/public/{windows,macos,linux}/Convert-Subnetmask.ps1
-   assets/public/{windows,macos,linux}/Find-StringInFile.ps1
-   assets/public/{windows,macos,linux}/Get-ConsoleColor.ps1
-   assets/public/{windows,macos,linux}/Get-IPv4Subnet.ps1
-   assets/public/{windows,macos,linux}/Get-MACVendor.ps1
-   assets/public/{windows,macos,linux}/Get-RandomPassword.ps1
-   assets/public/{windows,macos,linux}/Get-RandomPIN.ps1
-   assets/public/{windows,macos,linux}/Invoke-IPv4NetworkScan.ps1
-   assets/public/{windows,macos,linux}/Invoke-IPv4PortScan.ps1
-   assets/public/{windows,macos,linux}/Send-WakeOnLan.ps1
-   assets/public/{windows,macos,linux}/Split-IPv4Subnet.ps1
-   assets/public/{windows,macos,linux}/Test-IsFileBinary.ps1
-   assets/public/{windows,macos,linux}/Update-StringInFile.ps1
+   assets/public/shared/Convert-IPv4Address.ps1
+   assets/public/shared/Convert-ROT13.ps1
+   assets/public/shared/Convert-ROT47.ps1
+   assets/public/shared/Convert-Subnetmask.ps1
+   assets/public/shared/Find-StringInFile.ps1
+   assets/public/shared/Get-ConsoleColor.ps1
+   assets/public/shared/Get-IPv4Subnet.ps1
+   assets/public/shared/Get-MACVendor.ps1
+   assets/public/shared/Get-RandomPassword.ps1
+   assets/public/shared/Get-RandomPIN.ps1
+   assets/public/shared/Invoke-IPv4NetworkScan.ps1
+   assets/public/shared/Invoke-IPv4PortScan.ps1
+   assets/public/shared/Send-WakeOnLan.ps1
+   assets/public/shared/Split-IPv4Subnet.ps1
+   assets/public/shared/Test-IsFileBinary.ps1
+   assets/public/shared/Update-StringInFile.ps1
    assets/public/windows/Add-TrustedHost.ps1
    assets/public/windows/Clear-ARPCache.ps1
    assets/public/windows/Get-ARPCache.ps1

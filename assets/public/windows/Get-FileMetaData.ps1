@@ -19,7 +19,7 @@ function Get-FileMetaData {
     the corresponding metadata values.
 
     .EXAMPLE
-    PS C:\> Get-FileMetaData -Path "C:\Users\josep\Documents\example.txt"
+    PS C:\> Get-FileMetaData -Path "C:\Users\user\Documents\example.txt"
 
     This command retrieves the metadata properties of the file `example.txt` and
     returns them as a hashtable.

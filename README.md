@@ -1,6 +1,22 @@
 # PSProfile
 
-A single, config-driven PowerShell profile that works the same way on Windows, macOS, and Linux — one `profile2.0.ps1`, one JSON config, and a library of 120+ helper functions organized by which OS they actually support.
+A cross-platform PowerShell profile for Windows, macOS and Linux. One script (`profile2.0.ps1`) reads a layered JSON config and sets up the prompt, PSReadLine, tab completion, history search, modules and aliases. It also adds 120+ helper functions for networking, diagnostics, files, git and Windows administration.
+
+It runs on Windows PowerShell 5.1 and PowerShell 7. Functions load on first use, and slow work is cached or deferred until the prompt is idle, so new shells open quickly.
+
+- [Install](#install)
+- [What a new shell shows](#what-a-new-shell-shows)
+- [Lifecycle: update, roll back, uninstall](#lifecycle-update-roll-back-uninstall)
+- [Configuration](#configuration)
+- [Prompt and theme](#prompt-and-theme)
+- [Tab completion](#tab-completion)
+- [History, navigation and key bindings](#history-navigation-and-key-bindings)
+- [Secrets](#secrets)
+- [Command reference](#command-reference)
+- [Troubleshooting](#troubleshooting)
+- [Requirements](#requirements)
+- [Contributing](#contributing)
+- [Credits](#credits) · [License](#license)
 
 ## Install
 
@@ -8,25 +24,47 @@ A single, config-driven PowerShell profile that works the same way on Windows, m
 irm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1 | iex
 ```
 
-This is the only supported install path. It works on Windows PowerShell 5.1, PowerShell 7+ on Windows, and PowerShell 7+ on macOS/Linux. Read `setup.ps1` before running it — it's short and does exactly what's described below, nothing more.
+Run it from Windows PowerShell 5.1 or PowerShell 7 on any OS. It's safe to re-run. Setup:
 
-### What it does
+1. Puts the repo in `~/.config/powershell/PSProfile`, with `git clone` if git is available or a zip download otherwise.
+2. Creates a near-empty `assets/config/config.json` for your settings, if you don't have one. Existing configs are never touched.
+3. Adds a line to `$PROFILE.CurrentUserAllHosts` that loads `profile2.0.ps1`. An existing profile is backed up to `<profile>.bak-<timestamp>`, and its content is kept below the new line.
+4. On Windows, sets the current user's execution policy to `RemoteSigned` if the effective policy is `Restricted` (Windows PowerShell 5.1's default, which blocks profiles).
+5. Installs missing [Modules](#modules) and [Packages](#packages) from your config, plus the modules the profile always needs: PSReadLine 2.4.5+ on Windows PowerShell 5.1, and `Microsoft.PowerShell.SecretManagement` and `Microsoft.PowerShell.SecretStore` everywhere. When it installs anything, it also registers SecretStore as the default secret vault if you have none. On Linux, `apt`/`dnf`/`yum`/`pacman` run through `sudo`, so expect a password prompt.
+6. Loads the profile once in a separate process to check it and build its caches.
 
-1. Installs (or updates) this repo to `~/.config/powershell/PSProfile` — via `git clone`/`git pull` if git is available, otherwise a zip download from GitHub. A zip download is validated in a staging folder next to the install and swapped in whole, so files removed upstream don't linger. Safe to re-run any time to update.
-2. Creates a near-empty personal `assets/config/config.json` (just a `$schema` line and an empty `settings`), but only if one doesn't already exist. The repo defaults in `sample-config.json` load underneath it, so it only needs what you change. Re-running never touches a config you've already customized. See [Configuration](#configuration).
-3. Points `$PROFILE.CurrentUserAllHosts` at the installed `profile2.0.ps1`. If you already have a profile, it's backed up (`<profile>.bak-<timestamp>`) and its original content is preserved, appended below the new dot-source line — nothing is discarded.
-4. Installs the [Modules](#modules) and [Packages](#packages) your config lists that are missing (`-SkipDependencies` to skip). `apt`/`dnf`/`yum`/`pacman` go through `sudo` when you're not root, so expect a password prompt on Linux.
-5. Loads the profile once in a separate PowerShell process to check it loads cleanly and to build its caches (including cached [`NativeCompletions`](#nativecompletions)).
+Example output:
 
-The profile itself never installs anything at startup. If a configured module or package is missing, it prints one line saying so and pointing at `Update-Profile`.
+```text
+==> Cloning https://github.com/reave/PSProfile to /home/user/.config/powershell/PSProfile
+==> Creating personal config at .../assets/config/config.json (add only the settings you want to change)
+==> Linking /home/user/.config/powershell/profile.ps1 to .../profile2.0.ps1
+==> Installing configured modules and packages that are missing
+Installed module PSFzf
+Installed package fzf via brew
+Registered SecretStore as the default secret vault. Store API keys with Set-Secret.
+==> Loading the profile once to check it and build its caches
 
-### Custom install path or branch
+PSProfile installed at /home/user/.config/powershell/PSProfile
+Restart your shell (or run ". $PROFILE") to load it.
+```
+
+### Setup options
+
+Pass parameters by running the script as a script block:
 
 ```powershell
 &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1))) -InstallPath 'C:\PSProfile' -Branch 'develop'
 ```
 
-Add `-SkipProfileLink` to just get the repo on disk without touching `$PROFILE` — useful if you'd rather dot-source `profile2.0.ps1` yourself from an existing profile. Add `-SkipDependencies` to skip installing modules and packages.
+| Parameter | Effect |
+|---|---|
+| `-InstallPath <path>` | Install somewhere other than `~/.config/powershell/PSProfile`. |
+| `-Branch <name>` | Install another branch. Applies to a fresh clone or a zip install; re-running over a git install pulls whatever branch is checked out. |
+| `-SkipProfileLink` | Don't touch `$PROFILE`. Dot-source `profile2.0.ps1` yourself. |
+| `-SkipDependencies` | Don't install modules or packages. |
+| `-Uninstall` | Remove PSProfile. See [Uninstall](#uninstall). |
+| `-Force` | With `-Uninstall`, skip the confirmation prompt. |
 
 ### Manual install
 
@@ -36,155 +74,336 @@ git clone https://github.com/reave/PSProfile.git ~/.config/powershell/PSProfile
 . "$HOME/.config/powershell/PSProfile/profile2.0.ps1"
 ```
 
-### Updating
+Then run `Update-Profile` once to install dependencies.
 
-Run `Update-Profile`. It works for both git and zip installs:
+## What a new shell shows
 
-- **git install:** `git pull --ff-only` in the install directory.
-- **zip install:** downloads the latest commit, validates it in a staging folder, and swaps it in. The previous tree is kept as `.PSProfile.previous` next to the install.
+In an interactive terminal, depending on [settings](#settings):
 
-Before an update is accepted, every `.ps1` must parse and `profile2.0.ps1` must load without throwing in a separate, profile-less PowerShell process. A git update that fails either check is reset to the previous commit automatically (`git reset --keep`, so local edits are never discarded); a zip update that fails is never swapped in. That same child process then rebuilds the profile's caches with the new code (`Update-PSProfileCache` and [`Update-Completions`](#nativecompletions)). Finally, any configured modules and packages that are missing get installed (`-SkipDependencies` to skip).
+```text
+<splash screen from winfetch / fastfetch / screenfetch>
+--------------------------------------------
+  THIS CONSOLE IS AN ELEVATED CONSOLE.
+---------------------------------------------
+PowerShell Version: 7.6.1 - ExecutionPolicy: RemoteSigned
+PSProfile: 3 new commit(s) available; missing package(s) speedtest. Run Update-Profile.
+<oh-my-posh prompt>
+```
 
-The new version loads in new shells; run `. $PROFILE` to load it into the current one. Your `config.json` and `config.local.json` are never touched — they're gitignored, and zip updates carry them (plus any uncommitted `config.<MACHINE>.json` and cached native completions) across.
+- The splash runs only if its command is installed. Its output is cached (see `SplashCacheHours`).
+- The elevated banner shows only when running as Administrator or root. On macOS/Linux it reads `THIS SHELL IS RUNNING AS ROOT.`
+- The yellow `PSProfile:` line appears only when there's something to act on: an update, a missing package, or a missing module.
+- The window title becomes `PowerShell <version>`, with `[ADMIN]` or `[ROOT]` when elevated.
+
+Scripts, CI runners, `pwsh -Command`, and editor-hosted shells (the VS Code extension) get none of the above, and no zoxide, Atuin or update check. They still get config, functions, modules, aliases, completion, and `DefaultParameterValues`, so functions behave the same in scripts. A shell counts as interactive when the host is `ConsoleHost` and neither stdin nor stdout is redirected.
+
+## Lifecycle: update, roll back, uninstall
+
+### Update notice
+
+Once every `UpdateCheckIntervalHours` (default 24), a new shell starts a background check: `git fetch` for a git install, one GitHub API call for a zip install. It also looks for missing modules and packages. It never delays the prompt. The result appears as the yellow `PSProfile:` line in the next shell. Set the interval to `0` to turn it off.
+
+### Update-Profile
 
 | Command | What it does |
 |---|---|
 | `Update-Profile` | Update, validate, rebuild caches, install missing dependencies. |
-| `Update-Profile -CheckOnly` | Just report whether an update is available and what's missing. |
-| `Update-Profile -Rollback` | Go back to the version before the last update. The update notice then stays quiet until something newer than the version you rolled away from is published. |
-| `Update-Profile -SkipValidation` | Skip the child-process load test (the parse check still runs). |
+| `Update-Profile -CheckOnly` | Report whether an update is available and what's missing. Changes nothing. |
+| `Update-Profile -Rollback` | Return to the version before the last update. |
+| `Update-Profile -SkipDependencies` | Update without installing modules or packages. |
+| `Update-Profile -SkipValidation` | Skip the test load (files are still parse-checked). |
 
-**Update notice.** Once a day (`UpdateCheckIntervalHours`, `0` turns it off), the profile starts a check in a background runspace: `git fetch` for a git install, one GitHub API call for a zip install. It never blocks the prompt; the result shows as one yellow line on the next shell start, e.g. `PSProfile: 3 new commit(s) available; missing package(s) speedtest. Run Update-Profile.` State lives outside the install directory, in `$env:LOCALAPPDATA\PSProfile` on Windows and `$XDG_CACHE_HOME/PSProfile` (or `~/.cache/PSProfile`) elsewhere.
+`Update-Profile` also supports `-WhatIf`. An update:
 
-### Uninstalling
+1. Pulls the new version: `git pull --ff-only` for a git install, or a download into a staging folder next to the install for a zip install.
+2. Checks that every `.ps1` parses and that `profile2.0.ps1` loads without error in a separate, profile-less PowerShell process.
+3. If that check fails, resets a git install to the previous commit (`git reset --keep`, which never discards local edits) or leaves the zip download unused, and reports what failed.
+4. Rebuilds caches with the new code in that same process (`Update-PSProfileCache`, `Update-Completions`).
+5. Installs missing modules and packages.
+
+Your `config.json`, `config.local.json`, uncommitted `config.<MACHINE>.json`, and cached completions are kept across updates. A zip install keeps the previous version as `.PSProfile.previous` next to the install, for `-Rollback`.
+
+Example output:
+
+```text
+PS> Update-Profile -CheckOnly
+PSProfile update available: 3 new commit(s). Run Update-Profile to install it.
+Missing dependencies: speedtest. Run Update-Profile to install them.
+
+PS> Update-Profile
+Updating 613a736..9f2c1d0
+Fast-forward
+...
+PSProfile updated 613a736 -> 9f2c1d0.
+Installed package ookla.speedtest.cli via winget
+Open a new shell, or run `. $PROFILE`, to load the new version. Undo with Update-Profile -Rollback.
+
+PS> Update-Profile -Rollback
+Rolled back to the previous PSProfile version. Open a new shell to load it.
+```
+
+After a rollback, the update notice stays quiet until something newer than the version you rolled away from is published.
+
+### Updating PowerShell itself
+
+`Update-PowerShell` upgrades PowerShell 7 to the newest patch of the 7.6 LTS line, using winget on Windows, brew or the signed `.pkg` on macOS, and apt or dnf/yum on Linux. Run from Windows PowerShell 5.1, it checks the `pwsh` on PATH and installs PowerShell 7 if there's none.
+
+```text
+PS> Update-PowerShell -CheckOnly
+PowerShell 7.6.0 can be updated to 7.6.1.
+```
+
+`-TargetVersion 7.7` tracks another line. brew, apt and dnf install whatever their repository calls latest; only winget is pinned to the exact target.
+
+### Caches
+
+Generated files live outside the install folder: `%LOCALAPPDATA%\PSProfile\cache` on Windows, `$XDG_CACHE_HOME/PSProfile` (default `~/.cache/PSProfile`) elsewhere. They hold the function index, oh-my-posh init, zoxide and Atuin init, splash output, and the execution policy. Update state (`update-state.json`, `update-notice.txt`) lives in the `PSProfile` folder itself.
+
+Every cache is checked on load and rebuilt when stale. Deleting them is always safe.
+
+| Command | What it does |
+|---|---|
+| `Update-PSProfileCache` | Rebuild all startup caches now. |
+| `Update-Completions` | Regenerate `NativeCompletions` scripts and carapace's tool lists. Run it after installing a new CLI. |
+
+### Uninstall
 
 ```powershell
 &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1))) -Uninstall
 ```
 
-Restores `$PROFILE.CurrentUserAllHosts` to its pre-PSProfile content (or deletes it, if setup.ps1 created it), backs up `config.json`, `config.local.json` and any `config.<MACHINE>.json` next to `$PROFILE`, then deletes the install directory and the state/cache folder. Asks first; add `-Force` to skip the prompt. Installed modules and packages are left alone.
+It asks first (add `-Force` to skip), then:
+
+- Restores `$PROFILE.CurrentUserAllHosts` to its pre-PSProfile content, or deletes it if setup created it.
+- Backs up your `config*.json` files next to `$PROFILE` as `PSProfile-<name>.bak-<timestamp>.json`.
+- Deletes the install folder, its `.PSProfile.*` side folders, and the cache and state folder.
+
+Installed modules and packages are left alone.
 
 ## Configuration
 
-Config is layered. The profile reads up to four files from `assets/config/` and merges them in this order, later files winning:
+Settings come from up to four files in `assets/config/`, merged in order, later files winning:
 
 | Layer | File | In git? | Use it for |
 |---|---|---|---|
-| Default | `sample-config.json` | Yes | Repo defaults. Updates change it, so don't edit it for personal settings. |
-| User | `config.json` | Ignored | Your settings on this install. setup.ps1 creates a near-empty one. |
-| Machine | `config.<MACHINE>.json` | Not ignored | Settings for one computer, named after `[Environment]::MachineName` (e.g. `config.ALFHEIM.json`). Commit it to share it with every install of that machine. |
-| Local | `config.local.json` | Ignored | The last word on this install, e.g. a quick experiment. |
+| Default | `sample-config.json` | Yes | Repo defaults. Don't edit; updates replace it. |
+| User | `config.json` | Ignored | Your settings. |
+| Machine | `config.<MACHINE>.json` | Committable | One computer's settings, named after `[Environment]::MachineName` (e.g. `config.WORKSTATION01.json`). |
+| Local | `config.local.json` | Ignored | Temporary overrides on one install. |
 
-Objects merge key by key, so a layer only needs the keys it changes: `{"settings": {"PoshTheme": "atomic"}}` changes the theme and keeps every other default. Arrays (`Aliases`, `Modules`, `Packages`, `NativeCompletions`) are replaced whole, so a layer that sets `Modules` owns the full list. Missing files are skipped, and a file with a JSON error is skipped with a warning naming it, so the profile never fails to load outright.
-
-`Get-PSProfileConfig` returns the merged result; `Get-PSProfileConfig -ListLayers` shows which files were found. An older `config.json` that is a full copy of the sample still works: it just overrides every default, including ones a later update changes. Trimming it down to the keys you've changed lets new defaults through (and merges a little faster at startup).
-
-`assets/config/psprofile.schema.json` is a JSON Schema for all of these files. Every checked-in config has `"$schema": "./psprofile.schema.json"` at the top, which gives VS Code completion and type checks; add the same line to your own layers. CI validates the checked-in files against it.
-
-### `settings`
-
-| Key | Type | Description |
-|---|---|---|
-| `MaximumHistoryCount` | number | PowerShell session command history size. Default `8192`. |
-| `OneDrivePath` | string | Explicit OneDrive path, used if it exists. Otherwise auto-detected (the OneDrive client's `$env:OneDriveConsumer` or `$env:OneDrive`, then `$env:USERPROFILE\OneDrive` on Windows, `$HOME/OneDrive` elsewhere), falling back to "OneDrive is not configured". |
-| `PoshTheme` | string | An oh-my-posh theme name or a full path to a `.omp.json` file. See [Theming](#theming). |
-| `PoshThemeOverrides` | object | oh-my-posh [general settings](https://ohmyposh.dev/docs/configuration/general) applied on top of `PoshTheme`, e.g. `{ "shell_integration": true, "streaming": 100 }`. See [Theming](#theming). |
-| `ShowWindowTitle` | bool | Set the console window title to `PowerShell <version> [ADMIN]`/`[ROOT]` when elevated. Cross-platform. |
-| `ShowSplashScreen` | bool | Run a system-info splash command on load (see `SplashCommand` below). Only runs if the configured command is actually installed. |
-| `SplashCommand` | object | Per-OS splash command: `Windows`, `MacOS`, `Linux` keys, e.g. `"winfetch"`, `"fastfetch"` or `"screenfetch -E"`. |
-| `SplashCacheHours` | number | Default `24`. The splash output is cached and replayed until it's this old, the machine reboots, the console width changes or `SplashCommand` changes. Uptime and other live values in it are as of the cached run. `0` runs the command on every start. |
-| `ShowElevatedWarning` | bool | Print a red banner when running elevated (Administrator on Windows, root on macOS/Linux). |
-| `RunUpdateHelpOnElevated` | bool | When elevated, run `Update-Help` at most once a week, inside the background update check (so it never runs when `UpdateCheckIntervalHours` is `0`). |
-| `ShowPSVersionBanner` | bool | Print the PowerShell version and execution policy on load. |
-| `UpdateCheckIntervalHours` | number | How often the background update check runs. Default `24`; `0` turns the check and the update notice off. See [Updating](#updating). |
-| `EnableChocolateyIntegration` | — | **Removed.** Windows package management is winget-only; see [Packages](#packages). |
-| `DefaultParameterValues` | object | Merged directly into `$PSDefaultParameterValues` — arbitrary `"Cmdlet:Parameter": value` entries. Don't put API keys here: a `*:APIKey` entry with a value prints a startup warning. Use [Secrets](#secrets) instead. |
-| `Secrets` | object | Where [`Get-PSProfileSecret`](#secrets) finds each named secret. |
-| `SecretVault` | string | Default SecretManagement vault for `Get-PSProfileSecret`. Unset uses your registered default vault. |
-| `PSReadLine` | object | See below. |
-| `Zoxide` | object | `Enabled` (default `true`) starts [zoxide](https://github.com/ajeetdsouza/zoxide) when it's installed; `Command` (default `"z"`) names the jump command, with `<Command>i` for the interactive picker. See [History and navigation](#history-and-navigation). |
-| `Atuin` | object | `Enabled` (default `false`) starts [Atuin](https://atuin.sh) for synced history. Opt-in; see [History and navigation](#history-and-navigation). |
-| `LazyLoadFunctions` | bool | Default `true`. Load each public function's file the first time it's called instead of dot-sourcing them all on every start — see [Lazy-loaded functions](#lazy-loaded-functions). Set `false` to load everything up front. |
-
-All of the above except `PoshTheme`'s theming behavior and the `Modules`/`Packages`/`Aliases` arrays are optional — anything unset just doesn't run.
-
-#### `PSReadLine`
-
-| Key | Type | Description |
-|---|---|---|
-| `PredictionSource` | string | e.g. `"History"`. `sample-config.json` uses `"HistoryAndPlugin"` so the `CompletionPredictor` module adds tab-completion results to the suggestions; below PowerShell 7.2, which can't load predictor plugins, it falls back to `"History"`. |
-| `PredictionViewStyle` | string | e.g. `"ListView"`. |
-| `EditMode` | string | `"Windows"` or `"Emacs"`. Applied before any custom key binding, since setting it resets them all. |
-| `HistorySearchArrowKeys` | bool | Up/Down arrow search history by the text already typed. |
-| `FilterSecretsFromHistory` | bool | Excludes any line matching `(?i)(password\|secret\|token\|apikey\|connectionstring)` from PSReadLine's on-disk history file. Doesn't stop the command from running — just keeps it out of plaintext history. |
-| `Colors` | object | Arbitrary PSReadLine color table (`Command`, `String`, `Keyword`, etc. — any key `Set-PSReadLineOption -Colors` accepts). |
-
-All of `PSReadLine` is wrapped in a single try/catch: `PredictionSource`/`PredictionViewStyle` throw on hosts without virtual-terminal support (some remote sessions, redirected output), and the whole block is skipped in non-interactive sessions in the first place (see [Interactive-only behavior](#interactive-only-behavior)).
-
-### `Aliases`
-
-```json
-{ "Name": "edit", "Value": "Edit-File", "Description": "Edit a file" }
-```
-
-Applied via `New-Alias -Force`. Keep in mind PowerShell resolves existing aliases before functions of the same name — if you're aliasing over something with a built-in alias, remove it first (see [Adding functions](#adding-functions) for the pattern this repo uses).
-
-### `Modules`
+Objects merge key by key, so a layer only needs the keys it changes:
 
 ```json
 {
-    "Name": "Microsoft.WinGet.CommandNotFound",
-    "Description": "...",
-    "PSVersionMajor": "5",
-    "OS": "Windows"
+    "$schema": "./psprofile.schema.json",
+    "settings": { "PoshTheme": "atomic" }
 }
 ```
 
-Each entry is imported at startup if it's installed. Missing ones are reported in one startup line and installed by `setup.ps1` or `Update-Profile` (`Install-Module -Scope CurrentUser`), never during shell start. `OS` is `"Windows"`, `"MacOS"`, `"Linux"`, `"All"`, or a comma-separated combination (e.g. `"Windows,MacOS"`). `PSVersionMajor` is a **minimum** PowerShell major version — the entry is skipped if `$PSVersionTable.PSVersion.Major` is lower. `PSVersionMajorMax` is the inverse — a **maximum** PowerShell major version, for a module that stops working on newer PowerShell (e.g. `TabExpansionPlusPlus`, which only supports Windows PowerShell 5.1 and doesn't install cleanly on PS7+/Core). The two can be combined to bound a module to a specific range.
+Arrays (`Aliases`, `Modules`, `Packages`, `NativeCompletions`) are replaced whole: a layer that sets `Modules` owns the full list. A file with a JSON error is skipped with a warning naming it. Changes apply to new shells.
 
-`DeferImport` (optional bool) imports the module just after the prompt appears instead of before it (see [Deferred startup work](#deferred-startup-work)). Modules that only matter once you're typing — `Microsoft.WinGet.CommandNotFound`, `PSFzf` and `CompletionPredictor` — are deferred by default; set `"DeferImport": false` on an entry to import it before the prompt, or `true` to defer another module. Don't defer a module your prompt or the first command you type depends on.
+```text
+PS> Get-PSProfileConfig -ListLayers
 
-`RequiresCommand` (optional string) skips the import, quietly, when that executable isn't on `PATH`. `PSFzf` uses it for `fzf`, since the module throws on import without it. The module is still installed, so installing the command later is enough.
+Layer   Path
+-----   ----
+Default C:\Users\user\.config\powershell\PSProfile\assets\config\sample-config.json
+User    C:\Users\user\.config\powershell\PSProfile\assets\config\config.json
+Machine C:\Users\user\.config\powershell\PSProfile\assets\config\config.WORKSTATION01.json
 
-### `Packages`
-
-```json
-{ "Name": "speedtest", "Id": "ookla.speedtest.cli", "Source": "winget" }
+PS> (Get-PSProfileConfig).settings.PoshTheme
+M365Princess
 ```
 
-Supports `winget`, `brew`, `apt`, `yum` (or `dnf`), and `pacman`. Unlike `Modules`, there's no `OS` field — each entry only acts if its package manager's command is actually present on the machine, so one config's `Packages` array can safely list an entry per manager and only the applicable ones fire. `Name` is the command used to check whether the package is already installed (`Get-Command`); `Id` is the identifier passed to the package manager.
+`assets/config/psprofile.schema.json` describes every key. With `"$schema": "./psprofile.schema.json"` at the top of a file, VS Code offers completion and type checks.
 
-Packages are installed by `setup.ps1` and `Update-Profile` only; the profile doesn't probe for them at startup. The daily background check detects missing ones and the next shell start mentions them. `apt`/`dnf`/`yum`/`pacman` run through `sudo` when you're not root (you'll get a password prompt, which is fine there since you started the install yourself). `winget` entries use the `winget` CLI directly.
+### settings
 
-### `NativeCompletions`
+| Key | Type | Sample default | Description |
+|---|---|---|---|
+| `MaximumHistoryCount` | number | `8192` | Session command history size. |
+| `OneDrivePath` | string | auto | OneDrive folder, exposed as `$OneDriveRoot`. If unset or missing, the profile tries `$env:OneDriveConsumer`, `$env:OneDrive`, then `~/OneDrive`. |
+| `PoshTheme` | string | `M365Princess` | oh-my-posh theme name or path to a `.omp.json`. See [Prompt and theme](#prompt-and-theme). |
+| `PoshThemeOverrides` | object | `{ "shell_integration": true }` | oh-my-posh [general settings](https://ohmyposh.dev/docs/configuration/general) applied on top of the theme. |
+| `ShowWindowTitle` | bool | `true` | Set the window title to the PowerShell version, plus `[ADMIN]`/`[ROOT]`. |
+| `ShowSplashScreen` | bool | `true` | Show a system-info splash at startup. |
+| `SplashCommand` | object | `winfetch` / `screenfetch -E` | Splash command per OS: `Windows`, `MacOS`, `Linux` keys. Skipped if the command isn't installed. |
+| `SplashCacheHours` | number | `24` | Replay the cached splash until it's this old, the machine reboots, the window width changes, or the command changes. `0` runs it every time. |
+| `ShowElevatedWarning` | bool | `true` | Red banner when running elevated. |
+| `ShowPSVersionBanner` | bool | `true` | Print the PowerShell version and execution policy. |
+| `RunUpdateHelpOnElevated` | bool | `true` | In elevated shells, run `Update-Help` at most weekly, inside the background update check. |
+| `UpdateCheckIntervalHours` | number | `24` | Hours between background update checks. `0` turns the check and notice off. |
+| `LazyLoadFunctions` | bool | `true` | Load each function's file on first use. `false` loads every file at startup. |
+| `DefaultParameterValues` | object | CSV and help defaults | Merged into `$PSDefaultParameterValues`, e.g. `"Export-Csv:NoTypeInformation": true`. Don't put API keys here; use [Secrets](#secrets). |
+| `PSReadLine` | object | see below | PSReadLine options. |
+| `Zoxide` | object | `Enabled: true`, `Command: "z"` | Start zoxide if installed. `Command` names the jump command; `<Command>i` is the picker. |
+| `Atuin` | object | `Enabled: false` | Start Atuin for synced history. |
+| `Secrets` | object | `{}` | Where each named secret comes from. See [Secrets](#secrets). |
+| `SecretVault` | string | unset | Vault for secret lookups. Unset uses your default vault. |
+
+Every setting is optional. A setting missing from every layer is skipped, or uses the default shown where the profile has one built in (`MaximumHistoryCount`, `SplashCacheHours`, `UpdateCheckIntervalHours`, `LazyLoadFunctions`, `Zoxide`, `Atuin`).
+
+#### settings.PSReadLine
+
+| Key | Type | Description |
+|---|---|---|
+| `PredictionSource` | string | `History`, `Plugin`, `HistoryAndPlugin` (sample default) or `None`. Plugin sources need PowerShell 7.2+; older versions fall back to `History`. |
+| `PredictionViewStyle` | string | `ListView` (sample default) or `InlineView`. |
+| `EditMode` | string | `Windows` (sample default), `Emacs` or `Vi`. |
+| `HistorySearchArrowKeys` | bool | Up/Down search history for lines starting with what you've typed. |
+| `FilterSecretsFromHistory` | bool | Keep lines matching `password`, `secret`, `token`, `apikey` or `connectionstring` out of the on-disk history file. The command still runs. |
+| `Colors` | object | Any keys `Set-PSReadLineOption -Colors` accepts, e.g. `"Command": "#87CEEB"`. |
+
+These apply only in interactive shells. If the host can't apply one (for example, no virtual terminal support), the remaining options are skipped quietly.
+
+### Aliases
 
 ```json
-{ "Name": "docker", "GenerateCommand": "docker completion powershell" }
+"Aliases": [
+    { "Name": "edit", "Value": "Edit-File", "Description": "Edit a file" }
+]
 ```
 
-For tools that generate their own PowerShell completion script (Cobra-based CLIs mostly — `docker`, `kubectl`, `helm`, `gh` with its `-s powershell` flag, and others that support `<tool> completion powershell`). `Name` is checked with `Get-Command` the same way as everywhere else in this config; `GenerateCommand` is the exact command that prints the completion script to stdout.
+Created with `New-Alias -Force`.
 
-This is deliberately **not** run on every profile load — shelling out to each configured tool every time you open a shell would be slow, and painfully so for anything backed by a daemon (`docker` in particular, if Docker Desktop isn't running). Instead, [`Update-Completions`](#update-completions) runs each `GenerateCommand` once and caches the output under `assets/private/<os>/completions/native/<Name>.ps1` (gitignored — machine/version-specific, never committed); `completions.ps1` registers whichever of those cache files exist, and loads one only the first time you press Tab after that tool. Run `Update-Completions` after installing a new tool, or let [`Update-Profile`](#update-profile) do it for you (see below) — a `NativeCompletions` entry for a tool with no cache yet is silently skipped, not an error, so it's safe to list tools you don't have installed everywhere.
+### Modules
 
-### carapace
+```json
+"Modules": [
+    { "Name": "PSFzf", "OS": "All", "PSVersionMajor": "5", "RequiresCommand": "fzf" }
+]
+```
 
-[carapace](https://carapace.sh) is one binary with completers for hundreds of CLIs on every OS. It's optional: install it (`winget install rsteube.Carapace`, `brew install carapace`, or your distro's package; add it to `Packages` to have setup install it) and run `Update-Completions`. It only answers for tools that have no completer file here and aren't in `NativeCompletions`, and only when you press Tab, so it adds nothing to startup.
+Each entry that applies to this machine is imported at startup if it's installed. Missing ones are listed in the startup notice and installed by `setup.ps1` or `Update-Profile` (`Install-Module -Scope CurrentUser`), never at startup.
 
-`Update-Completions` writes the tools carapace knows to `carapace.names.txt` and the ones installed on this machine to `carapace.installed.txt`, next to the `NativeCompletions` caches. 7.6+ uses the first, so a CLI you install later completes right away. 5.1 and 7.4/7.5 register the second at startup, so run `Update-Completions` again after installing a CLI there. Set `"Carapace": false` at the top level of `config.json` to leave carapace out even when it's installed (for example, if you only use it from another shell).
+| Field | Description |
+|---|---|
+| `Name` | Module name. |
+| `Description` | Free text. |
+| `OS` | `Windows`, `MacOS`, `Linux`, `All`, or a comma-separated list. |
+| `PSVersionMajor` | Minimum PowerShell major version. |
+| `PSVersionMajorMax` | Maximum PowerShell major version (e.g. `5` for a 5.1-only module). |
+| `DeferImport` | `true` imports just after the prompt appears. `Microsoft.WinGet.CommandNotFound`, `PSFzf` and `CompletionPredictor` default to `true`. Don't defer a module your prompt depends on. |
+| `RequiresCommand` | Skip the import when this executable isn't on PATH. |
 
-The profile calls carapace the way carapace's own `carapace _carapace powershell` snippet does, minus the snippet's per-Tab dump of every alias, cmdlet, function and variable into environment variables. That dump costs hundreds of milliseconds per Tab in a loaded session and only feeds completion of shell builtins.
+The sample config imports `TabExpansionPlusPlus` (5.1 only), `Microsoft.WinGet.CommandNotFound` (Windows), `PSFzf`, and `CompletionPredictor` (7.2+).
 
-### Secrets
+### Packages
 
-Functions that need an API key (e.g. `Get-Weather`) look it up at call time with `Get-PSProfileSecret`, never at shell startup and never from a config file. Keys live in [Microsoft.PowerShell.SecretManagement](https://learn.microsoft.com/powershell/utility-modules/secretmanagement/overview), which is where `Set-Secret` comes from. `setup.ps1` and `Update-Profile` install it and SecretStore, and register SecretStore as the default vault if you have no vault yet. The profile never imports either at startup; PowerShell autoloads them the first time `Set-Secret` or `Get-Secret` runs. Then store the key once:
+```json
+"Packages": [
+    { "Name": "fzf", "Id": "junegunn.fzf", "Source": "winget" },
+    { "Name": "fzf", "Id": "fzf",          "Source": "brew" }
+]
+```
+
+| Field | Description |
+|---|---|
+| `Name` | Command used to check whether it's installed. |
+| `Id` | Package identifier for the package manager. |
+| `Source` | `winget`, `brew`, `apt`, `yum` (uses `dnf` when present) or `pacman`. |
+
+An entry only applies where its package manager exists, so one list can hold an entry per manager. Packages are installed by `setup.ps1` and `Update-Profile` only. The sample config installs `speedtest`, `fzf` and `zoxide`.
+
+### NativeCompletions
+
+```json
+"NativeCompletions": [
+    { "Name": "docker", "GenerateCommand": "docker completion powershell" }
+]
+```
+
+For CLIs that print their own PowerShell completion script. `Update-Completions` runs each `GenerateCommand` for installed tools and caches the output; tools that aren't installed are skipped. The sample lists `docker`, `kubectl`, `gh` and `helm`.
+
+```text
+PS> Update-Completions
+Updated completion: docker
+Updated completion: gh
+Updated carapace completions: 41 installed tools of 702
+```
+
+### Carapace
+
+A top-level `"Carapace": false` stops the profile from using [carapace](https://carapace.sh) even when it's installed. Default `true`.
+
+## Prompt and theme
+
+oh-my-posh draws the prompt when it's installed and `PoshTheme` is set. `PoshTheme` takes a theme name (looked up under `$env:POSH_THEMES_PATH`) or a path to a `.omp.json` file. If the theme can't be found, oh-my-posh's default theme is used, with a warning. The Homebrew package doesn't set `POSH_THEMES_PATH`, so on macOS/Linux use a full path or set the variable yourself.
+
+`PoshThemeOverrides` changes oh-my-posh general settings without editing the theme; the profile writes an overridden copy of the theme to its cache folder. Only JSON themes can be overridden. The sample turns on `shell_integration`, which gives Windows Terminal, VS Code, WezTerm and iTerm2 command marks: jump between commands, select a command's output, and see exit-code marks in the scrollbar.
+
+Two oh-my-posh settings slow startup and are off by default:
+
+- `"streaming": <ms>` fills slow segments (git in a large repo) in after the prompt appears, but starts a background `oh-my-posh serve` process in every shell.
+- `"async": true` shows a plain `PS>` for the first prompt of each shell.
+
+## Tab completion
+
+Pressing Tab after a native command is answered by the first of these that applies:
+
+1. A hand-written completer: `dotnet`, `ffmpeg`, `npx`, `oh-my-posh`, `op`, `pwsh`, `sqlite3`, `ssh-keygen`, `winget`, `yt-dlp`, and `wsl` on Windows.
+2. A cached [NativeCompletions](#nativecompletions) script.
+3. carapace, if it's installed and knows the tool.
+4. PowerShell's normal file path completion.
+
+Completers load on the first Tab for that tool, so they add nothing to startup. A completer registered by a module, or by you, takes priority.
+
+On PowerShell 7.6+, one catch-all handles every native command, including aliases (`k` aliased to `kubectl` completes as `kubectl`) and CLIs installed after the shell started. On 5.1 and 7.4/7.5 the profile registers each known tool by name at startup, so run `Update-Completions` after installing a new CLI there.
+
+To add carapace: `winget install rsteube.Carapace`, `brew install carapace`, or your distro's package (or add it to `Packages`), then run `Update-Completions`.
+
+## History, navigation and key bindings
+
+| Key / command | What it does | Needs |
+|---|---|---|
+| `Ctrl+R` | Fuzzy-search history; the pick goes on the command line. | `PSFzf` + `fzf` |
+| `Ctrl+T` | Fuzzy-pick a file or folder and insert it. | `PSFzf` + `fzf` |
+| `Alt+C` | Fuzzy-pick a subfolder and `cd` to it. | `PSFzf` + `fzf` |
+| `F7` | History list filtered by what's typed: `Out-GridView` on Windows, `fzf` elsewhere (`Tab` selects several). | `fzf` on macOS/Linux |
+| `z <words>` / `zi` | Jump to a frequent folder matching the words / pick one interactively. | `zoxide` (`zi` also needs `fzf`) |
+| Inline suggestions | History and tab-completion results as you type. | `CompletionPredictor`, PowerShell 7.2+ |
+
+The sample config installs all of these. Anything missing leaves PSReadLine's default for that key. The fzf keys arrive a moment after the prompt appears. zoxide learns folders as you `cd`, so `z` gets useful after a few days of use.
+
+**Atuin** records history into its own database and syncs it between machines. Turn it on with `settings.Atuin.Enabled: true` and install it (`winget install Atuinsh.Atuin`, `brew install atuin`). It doesn't take any keys: `Ctrl+R` stays with PSFzf and the arrows with `HistorySearchArrowKeys`. Use `atuin search -i` for its search UI.
+
+### Other key bindings
+
+| Key | What it does |
+|---|---|
+| `F1` | Help for the command under the cursor. |
+| `RightArrow` | At the end of the line, accept the next word of the suggestion. |
+| `Alt+a` | Select the next argument on the line (repeat to cycle). |
+| `Alt+w` | Save the line to history without running it. |
+| `Ctrl+Shift+v` | Paste the clipboard as a here-string. |
+| `Alt+(` | Wrap the selection, or the whole line, in parentheses. |
+| `Alt+'` | Toggle quotes on the argument under the cursor. |
+| `Alt+%` | Expand aliases on the line to full command names. |
+| `Ctrl+Shift+j`, then a key | Mark the current folder under that key. |
+| `Ctrl+j`, then the key | Jump to the marked folder. |
+| `Alt+j` | List folder marks. |
+| Quotes and brackets | Typed and deleted in pairs. |
+| `Alt+d`, `Alt+Backspace`, `Alt+b`, `Alt+f` | Shell-style word delete and move (`Alt+B`/`Alt+F` select). |
+| `Ctrl+d, Ctrl+c` | Select lines of screen output and copy them. |
+| `Ctrl+Shift+b` / `Ctrl+Shift+t` | Run `dotnet build` / `dotnet test`. |
+
+`git cmt` is corrected to `git commit` when you press Enter. `Get-PSReadLineKeyHandler -Bound` lists every binding in a live shell.
+
+## Secrets
+
+Functions that need an API key read it when called, through `Get-PSProfileSecret`, never at startup and never from a config file. By default it reads [SecretManagement](https://learn.microsoft.com/powershell/utility-modules/secretmanagement/overview) under the same name. Store a key once:
 
 ```powershell
-Set-Secret -Name OpenWeatherMapApiKey   # prompts for the key; the first use also asks you to create a SecretStore password
+Set-Secret -Name OpenWeatherMapApiKey   # prompts for the value; the first use creates a SecretStore password
 ```
 
-To do it by hand instead: `Install-Module Microsoft.PowerShell.SecretManagement, Microsoft.PowerShell.SecretStore -Scope CurrentUser`, then `Register-SecretVault -Name SecretStore -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault`.
+If no vault is registered (`Get-SecretVault` shows nothing), register one:
 
-`settings.Secrets` can point a name somewhere else: another secret name, a specific vault, or a 1Password reference read with the `op` CLI.
+```powershell
+Register-SecretVault -Name SecretStore -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault
+```
+
+`settings.Secrets` can point a name elsewhere:
 
 ```json
 "Secrets": {
@@ -193,230 +412,311 @@ To do it by hand instead: `Install-Module Microsoft.PowerShell.SecretManagement,
 }
 ```
 
-An explicit parameter (`Get-Weather -APIKey ...`) still wins. If you had a key in `DefaultParameterValues` (`"Get-Weather:APIKey"`), move it with `Set-Secret` and delete that entry; until you do, it keeps working and the profile warns at startup.
+| Value | Read from |
+|---|---|
+| `"op://vault/item/field"` | 1Password, via `op read`. |
+| `"SomeName"` | That secret in SecretManagement. |
+| `{ "Name": ..., "Vault": ... }` | That secret in that vault. |
 
-## Theming
+`Get-PSProfileSecret -Name <name>` returns the value as a string, or nothing if it can't be found (add `-Verbose` to see why). A parameter passed directly (`Get-Weather -APIKey ...`) always wins. A `*:APIKey` entry in `DefaultParameterValues` still works but prints a startup warning explaining how to move it.
 
-`PoshTheme` accepts either a bare theme name (resolved under `$env:POSH_THEMES_PATH`) or a full path to a `.omp.json` file. `$env:POSH_THEMES_PATH` is set automatically by oh-my-posh's winget/scoop packages on Windows, but **not** by its Homebrew package on macOS/Linux — if you installed via Homebrew and want a specific theme, either set `$env:POSH_THEMES_PATH` yourself or put a full path directly in `PoshTheme`. If the theme can't be resolved, the profile falls back to oh-my-posh's built-in default theme with a warning instead of erroring.
+## Command reference
 
-`PoshThemeOverrides` sets oh-my-posh general settings without editing or copying the theme: the profile writes a copy of the theme with them applied to its cache folder, rewrites it only when the theme or the overrides change, and starts oh-my-posh with that copy. Only JSON themes can be overridden. The sample config turns on `shell_integration`: OSC 133 command marks. In Windows Terminal that gives scrollbar marks, Ctrl+Up/Down between commands, selecting a command's output and exit-code marks; VS Code, WezTerm and iTerm2 read the same marks.
+Every function has `Get-Help <name> -Full` for parameters and examples. Functions load on first call; `Get-Help` and tab completion work before that. Example outputs below are illustrative; values vary.
 
-Two other settings are left off because of what they cost at startup:
+### Built into the profile
 
-- `streaming` (ms): segments still computing after the timeout (git in a large repo, for example) show a placeholder and fill in when ready. It starts a background `oh-my-posh serve` process in every shell, which measured ~90 ms per start on Windows (oh-my-posh 162 ms without it, 253 ms with it). Worth turning on only if slow git segments bother you more than startup time. oh-my-posh calls it beta, and the profile turns it off automatically in the VS Code PowerShell extension, which doesn't support it.
-- `async: true`: it shows a plain `PS>` for the first prompt of every shell and the themed prompt only after the first command, which saves ~100 ms but looks like a broken theme.
+| Name | Description |
+|---|---|
+| `Get-PSProfileConfig` | The merged config object. `-ListLayers` lists the files it came from. |
+| `FileSizeBelow` / `FileSizeAbove` / `FileSizeBetween` | Pipeline filters: `Get-ChildItem -Recurse \| FileSizeAbove 100MB`. |
+| `$PSProfileRoot` | Install folder. |
+| `$OneDriveRoot` | Resolved OneDrive folder, or `OneDrive is not configured`. |
+| `$MyDocs` | Documents folder. |
+| `$IsElevated` | `$true` when running as Administrator or root. |
 
-Terminal-Icons is no longer used. On PowerShell 7.2+ `Get-ChildItem` output is already colored by `$PSStyle.FileInfo`. If your own `config.json` still lists Terminal-Icons under `Modules`, remove that entry.
+### Profile management (all OSes)
 
-If you installed oh-my-posh via Homebrew and *also* can't run `brew` itself from PowerShell, that's a separate, more common issue — see [Homebrew on macOS/Linux](#homebrew-on-macoslinux).
+| Function | Description |
+|---|---|
+| `Update-Profile` | Update, check, or roll back PSProfile. See [Lifecycle](#lifecycle-update-roll-back-uninstall). |
+| `Update-PowerShell` | Upgrade PowerShell 7 to the newest 7.6 LTS patch. |
+| `Update-PSProfileCache` | Rebuild startup caches. |
+| `Update-Completions` | Regenerate native and carapace completions. |
+| `Get-PSProfileSecret` | Look up a named secret. |
+| `Edit-Profile` | Open the profile in an editor. |
+| `Open-HistoryFile` | Open the PSReadLine history file. |
 
-## Homebrew on macOS/Linux
+### Diagnostics (all OSes)
 
-Homebrew's installer adds its `PATH` setup to `.zprofile`/`.bash_profile`, which `pwsh` never sources. If you launch PowerShell directly (not from a zsh/bash login shell that already ran that setup), `brew` — and anything installed through it — is invisible to the whole session. This profile detects the standard Homebrew install locations (`/opt/homebrew`, `/usr/local` on macOS; `/home/linuxbrew/.linuxbrew`, `~/.linuxbrew` on Linux) and fixes `$env:PATH` automatically on load, so `brew` works at the prompt afterward too, not just internally for the `Packages` config.
+| Function | Description |
+|---|---|
+| `Test-Port` | Is a TCP port reachable? Short timeout; several hosts and ports at once. |
+| `Get-ProcessByPort` | Which process owns a local port, or connects to a remote one. |
+| `Test-TlsCertificate` | A TLS endpoint's certificate: expiry, SANs, issuer, chain. |
+| `ConvertFrom-Jwt` | Decode a JWT offline and show when it expires. Doesn't verify the signature. |
+| `Get-PathReport` | PATH entries in order, flagging missing and duplicate folders. |
+| `Invoke-Retry` | Run a script block with retries and exponential backoff. |
+| `Get-LastBootTime` | When a computer last booted. |
+| `Resolve-Error` | Expand an error record's full details. |
 
-## Lazy-loaded functions
+```text
+PS> Test-Port -ComputerName github.com -Port 443, 8080
 
-Dot-sourcing a script file has a fixed cost (6–9 ms on Windows, mostly antivirus scanning) no matter how small the file, so dot-sourcing all ~120 function files took about a second on every shell start. Instead, the profile loads one generated **function index** that defines a lightweight placeholder for each public function. A placeholder carries the real function's help and parameters — `Get-Help`, syntax and tab completion all work before anything is loaded — and the first time it's called it loads the real file and hands the call over, arguments and pipeline input included. In an interactive shell, the real files are also loaded a few at a time while the prompt is idle (see [Deferred startup work](#deferred-startup-work)), so within a few seconds every function is the real one.
+ComputerName Port  Open LatencyMs Error
+------------ ----  ---- --------- -----
+github.com    443  True      21.4
+github.com   8080 False           Timed out after 1000 ms
 
-- The index is built by parsing the function files (nothing in them runs) and covers `assets/public/shared` plus `assets/public/<os>`; when both define a function, the OS folder's wins.
-- `[Alias()]` attributes on a function, and top-level `Remove-Item alias:\…`/`New-Alias`/`Set-Alias` lines in a function file, are applied at load just like before, so aliases work before the function's first call.
-- A file with any other top-level code is dot-sourced at load as before.
-- The index records a fingerprint of every function file (name, size, modification time). If a file is added, removed or changed — a `git pull`, an edit, an update that replaced the install directory — the next shell rebuilds it automatically. If it can't be used for any reason, the profile falls back to dot-sourcing every file, so functions always load.
-- Set `settings.LazyLoadFunctions` to `false` in `config.json` to always dot-source everything up front.
+PS> Get-PathReport | Where-Object { -not $_.Exists -or $_.Duplicate }
 
-### Caches
+Order Path                     Expanded Exists Duplicate DuplicateOf Empty
+----- ----                     -------- ------ --------- ----------- -----
+    7 C:\Program Files\OldTool            False     False             False
+   12 C:\Windows\system32                  True      True           2 False
 
-Generated files live outside the install directory, so an update that replaces it can't leave a mismatched cache behind: `%LOCALAPPDATA%\PSProfile\cache` on Windows, `$XDG_CACHE_HOME/PSProfile` (default `~/.cache/PSProfile`) on macOS/Linux. File names include a key derived from the install path, so two installs on one machine don't collide. Every cache is checked on load and rebuilt when out of date; `Update-PSProfileCache` rebuilds them all on demand; `setup.ps1` and `Update-Profile` run it after an install or update, so the next shell doesn't have to. Deleting the cache files is always safe.
+PS> ConvertFrom-Jwt -Token $token
 
-## History and navigation
+Algorithm     : HS256
+Issuer        :
+Subject       : 1234567890
+Audience      :
+IssuedAt      : 01/18/2018 01:30:22
+NotBefore     :
+Expires       : 03/17/2030 17:46:40
+Expired       : False
+TimeRemaining : 1237.21:40:12
+Header        : @{alg=HS256; typ=JWT}
+Payload       : @{sub=1234567890; name=John Doe; iat=1516239022; exp=1900000000}
+Signed        : True
 
-| Key / command | What it does | Needs |
-|---|---|---|
-| `Ctrl+R` | Fuzzy-search history and put the pick on the command line. | `PSFzf` module + `fzf` |
-| `Ctrl+T` | Fuzzy-pick a file or folder under the current token's path and insert it. | `PSFzf` + `fzf` |
-| `Alt+C` | Fuzzy-pick a folder below the current one and `cd` to it. | `PSFzf` + `fzf` |
-| `F7` | History list filtered by what's typed: `Out-GridView` on Windows, `fzf` elsewhere (`Tab` selects several). | `fzf` on macOS/Linux |
-| `z <words>` / `zi` | Jump to a frequently used folder matching the words / pick one interactively. | `zoxide` (`zi` also needs `fzf`) |
-| Inline suggestions | History plus tab-completion results, shown as you type. | `CompletionPredictor`, PowerShell 7.2+ |
+PS> Invoke-Retry -MaxAttempts 5 -DelaySeconds 2 -ScriptBlock { Invoke-RestMethod https://api.example.com/health }
+```
 
-`fzf` and `zoxide` are in `Packages`, and `PSFzf` and `CompletionPredictor` in `Modules`, so `setup.ps1`/`Update-Profile` install them. Anything missing just leaves its keys at PSReadLine's defaults; nothing errors. `PSFzf` and `CompletionPredictor` load right after the prompt appears, so the fzf keys take a moment to arrive in a new shell. `Alt+A` stays on the profile's argument selector rather than PSFzf's argument search. To drop a piece, remove its `Modules`/`Packages` entries, or set `Zoxide.Enabled` to `false`.
+`Test-TlsCertificate` returns `ComputerName`, `Port`, `ServerName`, `Subject`, `Issuer`, `NotBefore`, `NotAfter`, `DaysRemaining`, `Expiring`, `Valid`, `PolicyErrors`, `ChainStatus`, `Chain`, `SANs`, `Protocol`, `KeyAlgorithm`, `Thumbprint` and `SerialNumber`. `Get-ProcessByPort` returns `Protocol`, `LocalAddress`, `LocalPort`, `RemoteAddress`, `RemotePort`, `State`, `ProcessId`, `ProcessName` and `Path`.
 
-zoxide starts from a cached copy of `zoxide init powershell`'s output (see [Caches](#caches)), so a shell doesn't run zoxide at startup. It learns folders from the prompt, so give it a few days of normal `cd` use before `z` gets good.
+### Networking and IP math (all OSes)
 
-**Atuin** is off by default. It's worth turning on only if you want history synced across machines: set `settings.Atuin.Enabled` to `true` and install it (`winget install Atuinsh.Atuin`, `brew install atuin`, `pacman -S atuin`; or add those as `Packages` entries named `atuin`). It records every command into its own database and syncs it, but it doesn't take over any keys: `Ctrl+R` stays with PSFzf and the arrow keys with `HistorySearchArrowKeys`. Run `atuin search -i` for its own search UI. Atuin replaces PSReadLine's `PSConsoleHostReadLine` to do the recording, so if another tool also does that, the one started last wins.
+| Function | Description |
+|---|---|
+| `Get-IPv4Subnet` | Network, broadcast and host count for an IP with a CIDR or mask. |
+| `Split-IPv4Subnet` | Split a subnet into smaller ones. |
+| `Convert-Subnetmask` | Mask to CIDR and back. |
+| `Convert-IPv4Address` | IPv4 address to Int64 and back. |
+| `Invoke-IPv4NetworkScan` | Find live hosts in a range, with DNS names (and MAC vendors with `-EnableMACResolving`). |
+| `Invoke-IPv4PortScan` | Scan a host's TCP ports. |
+| `Get-MACVendor` | Vendor for a MAC address. |
+| `Send-WakeOnLan` / `Send-MagicPacket` | Wake a computer by MAC address. |
+| `Test-DHCPPxe` | Discover DHCP/PXE servers. |
+| `Test-WebSiteStatus` | HTTP status of a URL. |
+| `Resolve-ShortURL` | Follow a short URL to its target. |
+| `Update-GoogleDNS` | Update a Google dynamic DNS record. |
+| `Search-Google` | Open a Google search in the default browser. |
 
-## Deferred startup work
+```text
+PS> Get-IPv4Subnet -IPv4Address 192.168.10.42 -CIDR 26
 
-Some startup work only matters once you're at the prompt, so the profile queues it and runs it right after the prompt appears: one step each time PSReadLine reports it's idle waiting for input (the `PowerShell.OnIdle` event), so the prompt shows up first. Anything you type while a step runs is buffered, not lost. Errors and warnings from a deferred step are printed above the prompt.
+NetworkID    Broadcast     IPs Hosts
+---------    ---------     --- -----
+192.168.10.0 192.168.10.63  64    62
 
-Nothing is deferred when there won't be a prompt to wait for — no PSReadLine, a non-interactive host, or `pwsh -Command`/`-File` without `-NoExit` — then the queued steps run at the end of the profile instead, so scripts and one-off commands behave exactly as before.
+PS> Split-IPv4Subnet -IPv4Address 10.0.0.0 -CIDR 24 -NewCIDR 26
 
-## Load time
+NetworkID  Broadcast  IPs Hosts
+---------  ---------  --- -----
+10.0.0.0   10.0.0.63   64    62
+10.0.0.64  10.0.0.127  64    62
+10.0.0.128 10.0.0.191  64    62
+10.0.0.192 10.0.0.255  64    62
 
-To see where profile load time goes, start a shell with `PSPROFILE_TRACE` set:
+PS> Convert-Subnetmask -CIDR 22
+
+Mask          CIDR
+----          ----
+255.255.252.0   22
+```
+
+### Files, text and data (all OSes)
+
+| Function | Description |
+|---|---|
+| `Find-StringInFile` / `Update-StringInFile` | Search or replace text across files. |
+| `Test-IsFileBinary` | Is a file binary? |
+| `Get-IniContent` | Read an INI file into a hashtable. |
+| `ConvertTo-Base64` / `ConvertFrom-Base64` | Base64 encode a file; decode a string. |
+| `Convert-ROT13` / `Convert-ROT47` | Caesar-cipher rotation. |
+| `ConvertTo-StringList` | Join an array with a delimiter. |
+| `Get-Time` | Convert a time to other formats. |
+| `Get-ConsoleColor` | Show the console colors. |
+| `Get-Weather` | Current weather by city, ZIP code, or your IP's location. Needs an OpenWeatherMap key ([Secrets](#secrets)). |
+| `Get-QuoteOfTheDay` | A quote of the day. |
+
+### Passwords and random values (all OSes)
+
+| Function | Description |
+|---|---|
+| `Get-RandomPassword` | Random password of a given length. |
+| `Get-RandomPIN` | Random numeric PIN. |
+| `Get-RandomString` | Random alphanumeric string. |
+| `New-Password` | Password without look-alike characters (`1`, `l`, `0`, `O`, `\|`). |
+
+`-CopyToClipboard` on `Get-RandomPassword` and `Get-RandomPIN` uses `Set-Clipboard` on Windows, `pbcopy` on macOS, and `xclip`, `xsel` or `wl-copy` on Linux.
+
+### Git shortcuts (all OSes)
+
+| Function | Runs |
+|---|---|
+| `gs` | `git status` |
+| `ga` | `git add .` |
+| `gc <message>` | `git commit -m` (replaces the `gc` alias for `Get-Content`; `cat` still works) |
+| `gcom <message>` | `git add .`, then commit |
+| `lazyg <message>` | `git add .`, commit, push |
+| `gpush` / `gpull` | `git push` / `git pull` |
+| `gcl <url>` | `git clone` |
+
+### Unix-style commands (all OSes)
+
+| Function | Description |
+|---|---|
+| `cd` (`Set-LocationAndList`) | Change folder and list it. Replaces the built-in `cd` alias. |
+| `Set-LocationCustom` | Change folder and list it, without replacing `cd`. |
+| `head` / `tail` | First or last lines of a file; `tail -f` follows new lines. |
+| `pgrep` / `pkill` | Find or kill processes by name. |
+| `unzip` | Extract a zip into the current folder. |
+| `sudo` | Elevate: the real `sudo` on macOS/Linux, a `RunAs` process on Windows. |
+
+### Windows only
+
+**System and hardware:** `Get-DeviceInfo`, `Get-OSInfo`, `Show-Sysinfo`, `Get-Uptime`, `Get-PendingReboot`, `Get-BatteryStatus`, `Get-DiskInfo`, `Get-DiskSize`, `Get-DriveInfo`, `Get-DriveSpace`, `Get-FolderSizes`, `Get-InstalledSoftware`, `Get-NetFramework`, `Get-WindowsProductKey`.
+
+**Users and sessions:** `Get-UserSession`, `Get-LoggedOnUsers`, `Get-LastLogon`, `Get-LocalUser`, `Get-LocalGroup`, `Get-LocalGroupMember`, `Get-LocalAdministratorBuiltin`, `Test-IsAdmin`.
+
+**Networking and remoting:** `Get-ARPCache`, `Clear-ARPCache`, `Get-MACAddress`, `Get-Netstat`, `Get-WLANProfile`, `Invoke-DNSCacheFlush`, `Enable-PSRemotingRemote`, `Get-TrustedHost`, `Add-TrustedHost`, `Set-TrustedHost`, `Remove-TrustedHost`, `Enable-RemoteDesktop`, `Disable-RemoteDesktop`.
+
+**Active Directory:** `Get-ADCertificateInformation`, `Get-ADComputersNoDesc`, `Get-InactiveADComputers`.
+
+**Security and credentials:** `Get-BitLockerRecoveryKeyId`, `Get-CodeSignCert`, `Get-CredentialFromWindowsCredentialManager`, `New-RandomPassword`.
+
+**Files:** `Edit-File` (opens a file in the best available editor; aliased as `edit`), `Get-FileMetaData`, `Get-ImageInformation`, `Get-EncodedFile`, `New-ISOFile`, `New-ZipFile`, `New-Shortcut`, `Get-PublicDesktopShortcuts`.
+
+**Desktop and system changes:** `Lock-Computer`, `Lock-Workstation`, `New-Explorer` (restart Explorer), `Set-ScreenResolution`, `Set-Console`, `Set-PathVariable`, `Set-RegValue`, `Start-Elevated`, `Start-PSElevated`, `Send-VoiceMessage` (text to speech), `Write-Log` (CMTrace format), `Invoke-IvantiInventoryScan`, `ConvertTo-NatoAlphabet`.
+
+## Troubleshooting
+
+**See where startup time goes.** Start a shell with `PSPROFILE_TRACE` set:
 
 ```powershell
 $env:PSPROFILE_TRACE = 1; pwsh
 ```
 
-The profile prints a per-section timing table when it finishes loading, and keeps the rows in `$Global:PSProfileTrace`. Work the profile defers until the first idle prompt is added there too (Phase `Deferred`) a moment after the prompt appears, so look at `$Global:PSProfileTrace` again after a second or two to see it.
+A table of per-section timings prints when the profile finishes loading. The rows stay in `$Global:PSProfileTrace`; look again a second later to see deferred work (Phase `Deferred`). Example, trimmed:
 
-CI guards load time too. Each test job runs `tests/Measure-Startup.ps1`, which times bare starts against starts that load the profile (median of 7, after a warm-up) and fails the job when the overhead ratio is more than 25% over that job's entry in `tests/startup-baseline.json` and the overhead grew by more than 50 ms. CI starts are non-interactive, so it measures the load path every shell pays for, not the splash screen or oh-my-posh. A job with no baseline entry only reports its numbers in the job summary; copy them into the baseline file to arm the gate. Re-record an entry when a change makes startup slower on purpose.
-
-**Dev Drive (Windows, optional).** Most of the per-file cost on Windows is Defender scanning each script as it's read. If the clone you develop in lives on a [Dev Drive](https://learn.microsoft.com/en-us/windows/dev-drive/) with Defender [performance mode](https://learn.microsoft.com/en-us/defender-endpoint/microsoft-defender-endpoint-antivirus-performance-mode), those scans run asynchronously instead of blocking the read. This only helps the files on that drive: the live install under `~/.config/powershell` stays on the system drive. Microsoft doesn't say whether AMSI script-block scanning changes too, and lazy loading already reads few files at startup, so measure with `PSPROFILE_TRACE` before and after rather than assuming a win.
-
-## Security
-
-- **Execution policy**: left at PowerShell's own default, which for pwsh 7 on Windows is `RemoteSigned`: your own local scripts run freely, but anything downloaded from the internet (carrying a Mark-of-the-Web zone identifier) must be signed to auto-execute. Windows PowerShell 5.1 defaults to `Restricted` on client Windows, which blocks profiles entirely, so `setup.ps1` sets `RemoteSigned` for the current user in that one case. It leaves `AllSigned` and Group Policy settings alone. Windows-only; a no-op on macOS/Linux.
-- **Secret-free history**: `PSReadLine.FilterSecretsFromHistory` (on by default in `sample-config.json`) keeps lines that look like they contain a password/token/API key out of the plaintext PSReadLine history file.
-- **No credentials in config**: functions that need an API key take it as a parameter, and otherwise read it on demand from SecretManagement or 1Password via `Get-PSProfileSecret` (see [Secrets](#secrets)). Nothing is unlocked at startup.
-
-## Repository structure
-
-```
-profile2.0.ps1              The profile. Loads config, dot-sources functions, applies settings.
-setup.ps1                   The installer and uninstaller (see Install above).
-PSScriptAnalyzerSettings.psd1  Lint rules CI enforces (Error severity only).
-tests/                      Pester suites, run by .github/workflows/tests.yml on every push/PR.
-assets/
-  lib/
-    PSProfile.Lifecycle.ps1 Install/update/rollback/dependency logic. Not loaded at startup; used by
-                             setup.ps1, Update-Profile, and the background update check.
-    PSProfile.Completion.ps1  Native-command completion routing and the carapace hand-off. Loaded
-                             on the first Tab after a native command.
-  config/
-    sample-config.json      Repo defaults, always loaded first.
-    psprofile.schema.json   JSON Schema for every config layer.
-    config.json             Your settings. Gitignored, created by setup.ps1.
-    config.<MACHINE>.json   Per-machine overrides (e.g. config.ALFHEIM.json). Committable.
-    config.local.json       Last-word overrides for one install. Gitignored.
-  public/
-    shared/                 User-callable functions that work on every OS, one per file.
-    windows/                Windows-only functions (macos/ and linux/ hold any OS-only extras).
-  private/
-    shared/                 Functions the profile uses internally to configure itself.
-      completions/          Hand-written tool completers, loaded on first Tab.
-    windows/
-      completions/          Windows-only completers (wsl).
-        native/             Cached output of installed tools' own completion generators, and
-                             carapace's tool lists (under the running OS's folder). Gitignored,
-                             regenerated by Update-Completions.
+```text
+Phase    Section             Ms
+-----    -------             --
+Load     Config            12.4
+Load     Public functions   8.1
+Load     Private functions 21.7
+Load     Modules            9.3
+Load     PSReadLine        61.0
+Load     oh-my-posh        14.2
+Load     Total (load)     168.9
+Deferred Import PSFzf      48.5
+Deferred Preload functions 39.8
 ```
 
-### Shared and OS-only functions
+**Environment variables:**
 
-Every function under `assets/public/` and `assets/private/` was individually reviewed for what it actually depends on — WMI/CIM, the Windows registry, Active Directory, WinRM `TrustedHosts`, Windows-only cmdlets (`Get-LocalUser`, `Set-ScreenResolution`, `Test-NetConnection`), P/Invoke, or Windows-formatted parsing of `arp`/`netstat`/`nbtstat` output — rather than assumed from its name. Functions that only depend on those live in `windows/`; everything genuinely cross-platform (IP/subnet math, string conversions, git shortcuts, Unix-alias utilities like `unzip`/`pkill`/`tail`, web-request-based tools) lives once in `shared/`. The profile loads `shared/` plus the folder matching the OS it's running on; when both define a function, the OS folder's wins, so an OS can override a shared function without touching the others.
+| Variable | Effect |
+|---|---|
+| `PSPROFILE_TRACE` | Print the timing table. |
+| `PSPROFILE_NO_UPDATE_CHECK` | Skip the update notice and background check for that shell. |
 
-`private/` functions (`Test-InteractiveShell`, `Enable-Tls12`, `Initialize-HomebrewPath`, `Resolve-PoshTheme`, `Set-ProfileWindowTitle`, plus `completions.ps1`/`history.ps1` for tab-completion and PSReadLine key bindings) exist to help the profile configure itself — they're not really meant to be called directly, though nothing stops you.
+**Common fixes:**
 
-`completions.ps1` is a small dispatcher, not the completers themselves: each hand-written tool completer lives in its own file under `private/shared/completions/` (or `private/<os>/completions/` for OS-only tools) (`winget.ps1`, `dotnet.ps1`, `op.ps1`, `oh-my-posh.ps1`, `wsl.ps1` (Windows-only), `ssh-keygen.ps1`, `sqlite3.ps1`, `pwsh.ps1`, `npx.ps1`, `yt-dlp.ps1`, `ffmpeg.ps1`) and `completions.ps1` doesn't load any of them up front. One dispatcher answers the first Tab after a tool's name: it loads that tool's completer file, which registers the real completer, and answers with it; from then on the real completer is used directly. A tool with no completer file goes to [carapace](#carapace) if it's installed and knows the tool; anything else gets PowerShell's normal path completion. Loading every completer on each start cost ~400 ms (`op.ps1` alone is ~200 ms), and even checking which tools were installed cost a `Get-Command` per tool. To add a hand-written completer, drop a `<tool>.ps1` file under `completions/` that calls `Register-ArgumentCompleter` for that tool — the file name is the tool name, and nothing else needs registering.
-
-How the dispatcher gets called depends on the PowerShell version. On 7.6+ it's registered once with `Register-ArgumentCompleter -NativeFallback`, the catch-all PowerShell asks for any native command without a completer of its own, so startup enumerates nothing and aliases work too (`k` aliased to `kubectl` completes as `kubectl`). Windows PowerShell 5.1 and pwsh 7.4/7.5 have no catch-all, so the dispatcher is registered by name for every tool with a completer file, plus the carapace tools `Update-Completions` found installed, in one call. A completer registered for a specific command, by a module or by you, always wins over the dispatcher.
-
-`oh-my-posh.ps1` is a static list like `wsl.ps1`. oh-my-posh replaced cobra with its own command parser, which dropped the hidden `__complete` command the old generated completer called (the `unknown command __complete` error), and there's no `completion powershell` generator any more.
-
-Two flavors of hand-written completer, by option-surface size: small/stable CLIs (`ssh-keygen`, `sqlite3`, `pwsh`, `npx`, `wsl`) get a static, curated flag/subcommand list, same style as `winget.ps1`. `yt-dlp` (270+ flags) and `ffmpeg` (190+, `-h long`) are too large and change too often to hand-transcribe reliably, so those two instead parse the tool's own `--help`/`-h` output at completion time — always matches whatever version is actually installed — and cache the result in a session-global variable so repeated Tab presses don't re-run `--help`. `ssh-keygen` specifically is never invoked by its own completer (only documented flags, hand-transcribed) since running it with no/wrong arguments can drop into an interactive key-generation prompt rather than printing help.
-
-`private/<os>/completions/native/` holds a second kind of completer: for tools that generate their own PowerShell completion script (see [`NativeCompletions`](#nativecompletions)), `Update-Completions` writes the generated output there instead of anyone hand-writing it. Gitignored — regenerated per machine, never committed. `completions.ps1` lazy-loads whichever of those cache files exist, the same way as the hand-written ones.
-
-### Interactive-only behavior
-
-`Test-InteractiveShell` (host is `ConsoleHost` and neither stdin nor stdout is redirected) gates PSReadLine configuration (including loading `history.ps1`'s key handlers, which would otherwise import PSReadLine just to configure it) and the entire Windows/macOS/Linux settings section — window title, splash screen, elevated banner, PS-version banner, oh-my-posh init. None of that runs when the profile is dot-sourced by a script, a CI runner, or an editor's integrated PowerShell extension host; only actual interactive terminal sessions get the full experience.
-
-## What's included
-
-Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, and notes — comment-based help is included throughout.
-
-### Git shortcuts (cross-platform)
-
-`gs` (status) · `ga` (add .) · `gc <msg>` (commit) · `gpush` · `gpull` · `gcl <repo>` (clone) · `gcom <msg>` (add + commit) · `lazyg <msg>` (add + commit + push)
-
-`gc`, and a few others, deliberately remove a same-named built-in PowerShell alias before defining themselves — see [Adding functions](#adding-functions).
-
-### Unix-alias utilities (cross-platform)
-
-`unzip` · `pkill` · `pgrep` · `head` · `tail -f` · `Set-LocationAndList` (aliased over `cd` — `cd` becomes "change directory and list") · `Set-LocationCustom` (same idea, called directly, no alias override) · `sudo` (elevation shim; calls the real external binary on macOS/Linux, `Start-Process -Verb RunAs` on Windows)
-
-### Networking / IP math (cross-platform)
-
-`Convert-IPv4Address` · `Convert-Subnetmask` · `Get-IPv4Subnet` · `Split-IPv4Subnet` · `Invoke-IPv4NetworkScan` · `Invoke-IPv4PortScan` · `Get-MACVendor` · `Send-WakeOnLan` · `Send-MagicPacket` · `Test-DHCPPxe` · `Test-WebSiteStatus` · `Resolve-ShortURL` · `Update-GoogleDNS`
-
-### Diagnostics (cross-platform)
-
-`Test-Port` (fast TCP reachability check with a timeout) · `Get-ProcessByPort` (which process owns a local TCP/UDP port) · `Test-TlsCertificate` (remote cert expiry, SANs, issuer, chain status) · `ConvertFrom-Jwt` (decode a JWT offline and show its expiry; does not verify the signature) · `Get-PathReport` (PATH entries in order, flagging missing and duplicate dirs) · `Invoke-Retry` (run a script block with retries and exponential backoff) · `Get-LastBootTime`
-
-### Networking (Windows-only — WMI/registry/Windows-formatted CLI output)
-
-`Get-ARPCache` · `Clear-ARPCache` · `Get-MACAddress` · `Get-Netstat` · `Get-WLANProfile` · `Invoke-DNSCacheFlush` · `Enable-PSRemotingRemote` · `Add-TrustedHost`/`Get-TrustedHost`/`Set-TrustedHost`/`Remove-TrustedHost` · `Enable-RemoteDesktop`/`Disable-RemoteDesktop`
-
-### System info (Windows-only)
-
-`Get-DeviceInfo` · `Get-OSInfo` · `Get-Uptime` · `Get-PendingReboot` · `Get-DiskInfo`/`Get-DiskSize`/`Get-DriveInfo`/`Get-DriveSpace` · `Get-FolderSizes` · `Get-BatteryStatus` · `Get-InstalledSoftware` · `Get-NetFramework` · `Get-WindowsProductKey` · `Show-Sysinfo` · `Get-UserSession`/`Get-LoggedOnUsers`/`Get-LastLogon`
-
-### Active Directory (Windows-only)
-
-`Get-ADCertificateInformation` · `Get-ADComputersNoDesc` · `Get-InactiveADComputers` · `Get-LocalAdministratorBuiltin`/`Get-LocalGroup`/`Get-LocalGroupMember`/`Get-LocalUser`
-
-### Security / credentials (Windows-only)
-
-`Get-BitLockerRecoveryKeyId` · `Get-CodeSignCert` · `Get-CredentialFromWindowsCredentialManager` · `Test-IsAdmin`
-
-### Random generation (cross-platform)
-
-`Get-RandomPIN` · `Get-RandomPassword` · `Get-RandomString` · `New-Password` — `-CopyToClipboard` on the PIN/password generators uses `Set-Clipboard` on Windows, `pbcopy` on macOS, and `xclip`/`xsel`/`wl-copy` (whichever is present) on Linux.
-
-`New-RandomPassword` (Windows-only — depends on the .NET Framework `System.Web` assembly, not available on PS7+/.NET Core).
-
-### File / data utilities (cross-platform)
-
-`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` (reads its API key with `Get-PSProfileSecret`) · `Get-PSProfileSecret` (on-demand API key lookup from SecretManagement or 1Password, see [Secrets](#secrets)) · `Resolve-Error` · `Update-Profile` (updates a git or zip install with validation and rollback — see [Updating](#updating)) · `Update-Completions` (regenerates cached [`NativeCompletions`](#nativecompletions) for whichever configured tools are installed, and [carapace](#carapace)'s tool lists) · `Update-PSProfileCache` (rebuilds the profile's [startup caches](#caches)) · `Update-PowerShell` (upgrades PowerShell 7 to the newest 7.6 LTS patch with winget, brew or the .pkg, or apt/dnf; `-TargetVersion` picks another line, `-CheckOnly` only reports)
-
-### File utilities (Windows-only)
-
-`Get-FileMetaData` (Shell.Application COM) · `Get-EncodedFile` · `New-ISOFile` · `New-Shortcut` · `New-ZipFile` · `Get-ImageInformation` · `Get-PublicDesktopShortcuts`
-
-### Misc (Windows-only)
-
-`Lock-Computer`/`Lock-Workstation` · `New-Explorer` · `Set-ScreenResolution` · `Set-Console` (WMI-based window title/full-name banner — superseded by the cross-platform `Set-ProfileWindowTitle` for the profile's own `ShowWindowTitle` setting, but still directly callable) · `Set-PathVariable` · `Set-RegValue` · `Send-VoiceMessage` · `Write-Log` · `Start-Elevated`/`Start-PSElevated` · `Invoke-IvantiInventoryScan` · `Edit-File`/`Edit-Profile`/`Open-HistoryFile` (open the right editor for the current host — VS Code, ISE, or OS-appropriate text editor) · `ConvertTo-NatoAlphabet`
+- **A setting has no effect.** Run `Get-PSProfileConfig -ListLayers` to see which files load; a later layer may override yours. A file with a JSON error is skipped with a warning at startup.
+- **"PSProfile: missing module(s) ..." at startup.** Run `Update-Profile`.
+- **A function behaves like an old version.** The function index rebuilds itself when files change. If it doesn't, run `Update-PSProfileCache`, or set `LazyLoadFunctions` to `false`.
+- **`brew` isn't found in pwsh on macOS/Linux.** The profile adds Homebrew's standard locations (`/opt/homebrew`, `/usr/local`, `/home/linuxbrew/.linuxbrew`, `~/.linuxbrew`) to PATH. Add other locations yourself.
+- **No tab completion for a newly installed CLI on 5.1 or 7.4.** Run `Update-Completions`.
+- **An update broke something.** Run `Update-Profile -Rollback`.
 
 ## Requirements
 
-- PowerShell 5.1+ (Windows) or PowerShell 7+ (Windows/macOS/Linux). Some modules/packages in `sample-config.json` are gated to PS5.1-only or require a minimum version — see `PSVersionMajor` in [Modules](#modules).
-- `git` is recommended (for `setup.ps1`'s clone/pull path and easy updates) but not required — the installer falls back to a zip download.
-- Everything else (oh-my-posh, winget/brew/apt/yum/pacman packages) is optional and installed from your `config.json` by `setup.ps1`/`Update-Profile`, on whichever platforms actually support it. On Windows PowerShell 5.1, `setup.ps1` and `Update-Profile` install PSReadLine 2.4.5 or newer for the current user, because the inbox 2.0.0 lacks ListView predictions and several options the profile sets; this is built into the installer rather than listed in `config.json`, so existing configs get it too. Other older PSReadLine versions that don't support `-PredictionSource`/`-Colors` degrade gracefully (the whole `PSReadLine` config block is wrapped in a try/catch) rather than erroring.
+- Windows PowerShell 5.1, or PowerShell 7 on Windows, macOS or Linux. Tested on 5.1, 7.4 and 7.6.
+- PowerShell 7.2+ for inline predictions from `CompletionPredictor`; 7.6+ for the catch-all completer.
+- `git` is recommended. Without it, setup and updates use zip downloads.
+- Optional tools, installed from your config by setup and `Update-Profile`: oh-my-posh, fzf, zoxide, carapace, Atuin, and a splash command.
 
-## Adding functions
+### Security
 
-1. Drop a `.ps1` file with one function per file into `assets/public/shared/` (user-callable) or `assets/private/shared/` (profile-internal) if it works on every OS, or into `assets/<public|private>/<os>/` if it depends on one OS — see [Shared and OS-only functions](#shared-and-os-only-functions).
-2. Write comment-based help (`.SYNOPSIS`/`.DESCRIPTION`/`.PARAMETER`/`.EXAMPLE`/`.OUTPUTS`) directly above the `function` keyword, with **no other comment line directly above it** (a `#---` banner immediately above a help block breaks PowerShell's association between the two — always leave a blank line between them).
-3. If the function name might collide with a built-in alias (e.g. `gc`/`Get-Content`, `cd`/`Set-Location`), remove the alias first: `Remove-Item -Path "alias:\<name>" -Force -ErrorAction Ignore`. PowerShell resolves aliases *before* functions of the same name, so without this the function would silently never run. Use `-ErrorAction Ignore` rather than `SilentlyContinue` for checks like this that are expected to fail - `SilentlyContinue` still records every failure in `$Error`, so a fresh shell would start with a pile of meaningless errors in it.
-4. To give one OS its own version of a shared function, add a file with the same name to that OS folder; it replaces the shared one on that OS only. Don't copy a shared file unchanged into an OS folder (the tests reject identical copies).
-5. Run `./tests/Invoke-Tests.ps1` (needs Pester 6: `Install-Module Pester -MinimumVersion 6.0 -Scope CurrentUser -SkipPublisherCheck`; `-SkipPublisherCheck` is only needed on Windows PowerShell 5.1, whose inbox Pester 3.4 is signed differently). CI runs the same suites on Windows PowerShell 5.1 and on pinned PowerShell 7.4 and 7.6 LTS releases across Windows, macOS, and Ubuntu (not the runner image's own pwsh), so a function that parses or loads on one OS but not another fails the PR. The suites check that every file parses, that each public file defines a function named after the file and has a `.SYNOPSIS`, that no OS folder holds an unchanged copy of a shared file, and that the profile loads with no errors and exposes every public function. Pure functions (IP math, encoders, generators) also get behavior tests in `tests/Functions.Tests.ps1`; add a case there when a new function can be tested without network or admin rights.
-6. Nothing to register: the [function index](#lazy-loaded-functions) notices the new file and rebuilds itself on the next shell start. Keep files to function definitions (plus alias lines, if needed) so the function can be lazy-loaded — any other top-level code makes the file load eagerly on every start.
+- **Execution policy:** left at PowerShell's default (`RemoteSigned` for pwsh 7 on Windows). Setup changes it only when it's `Restricted`, and never touches `AllSigned` or Group Policy.
+- **History:** `FilterSecretsFromHistory` (on in the sample) keeps likely secrets out of the history file.
+- **Credentials:** never stored in config. See [Secrets](#secrets).
+- **TLS:** the profile enables TLS 1.2 for web requests on Windows PowerShell 5.1.
+
+## Contributing
+
+### Repository layout
+
+```text
+profile2.0.ps1               The profile.
+setup.ps1                    Installer and uninstaller.
+assets/
+  config/                    Config layers and psprofile.schema.json.
+  lib/
+    PSProfile.Lifecycle.ps1  Install, update, rollback and dependency logic (not loaded at startup).
+    PSProfile.Completion.ps1 Completion routing (loaded on first Tab).
+  public/
+    shared/                  User-facing functions for every OS, one per file.
+    windows/                 Windows-only functions.
+  private/
+    shared/                  Profile internals: helpers, completions.ps1, history.ps1 (key bindings).
+      completions/           Hand-written completers.
+    windows/completions/     Windows-only completers.
+    <os>/completions/native/ Generated completion caches (gitignored).
+tests/                       Pester suites, Invoke-Tests.ps1, Measure-Startup.ps1.
+.github/workflows/tests.yml  CI.
+```
+
+### Adding a function
+
+1. Add `<FunctionName>.ps1` to `assets/public/shared/`, or to `assets/public/windows/` if it needs Windows. Create `macos/` or `linux/` only for a function that needs that OS. A same-named file in an OS folder overrides the shared one on that OS.
+2. One function per file, named after the file, with comment-based help that includes `.SYNOPSIS`. Put the help inside the function or directly above it, with no other comment line directly above the help block.
+3. No other top-level code apart from alias lines. Prefer `[Alias()]`. If the name clashes with a built-in alias, remove that alias first: `Remove-Item -Path alias:\<name> -Force -ErrorAction Ignore`.
+4. It must parse on Windows PowerShell 5.1: no ternary `? :`, `??`, `?.`, `&&`/`||` pipeline chains, or `ForEach-Object -Parallel`. Test the OS with `$IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop'`. Save as ASCII or UTF-8 with BOM.
+5. If it can be tested without network or admin rights, add a case to `tests/Functions.Tests.ps1`.
+
+Nothing needs registering: the function index picks up the new file on the next shell start.
+
+### Tests
+
+```powershell
+Install-Module Pester -MinimumVersion 6.0 -Scope CurrentUser -SkipPublisherCheck
+./tests/Invoke-Tests.ps1                                    # every suite
+./tests/Invoke-Tests.ps1 -Path ./tests/Functions.Tests.ps1  # one suite
+./tests/Measure-Startup.ps1 -Key windows-7.6                # startup budget check
+```
+
+CI runs the suites on Windows PowerShell 5.1 and PowerShell 7.4 and 7.6 across Windows, macOS and Ubuntu, plus PSScriptAnalyzer. A job also fails when profile load overhead grows more than 25% and more than 50 ms over its entry in `tests/startup-baseline.json`. Update the baseline when a change makes startup slower on purpose.
 
 ## Credits
 
-This repository's structure, documentation, and a substantial share of its features (the config-driven architecture, `NativeCompletions`, `Update-Profile`/`Update-Completions`, cross-OS parity fixes, load-time optimization work, and this Credits/License pass itself) were developed with AI assistance (Claude, via Claude Code) working alongside the repo's human maintainer.
+Most functions are original. These come from other authors, credited in each file's header:
 
-Most of this profile's functions are original or built from common, unattributable patterns, but a number were pulled in from other PowerShell authors and projects, credited here per their own file headers (or, for `history.ps1`, by content match against a known public source — see below). A few files carry `Author: Unknown` in their own `.NOTES` — their origin predates this repo and couldn't be traced further, so they aren't listed individually here.
-
-- **[BornToBeRoot/PowerShell](https://github.com/BornToBeRoot/PowerShell)** (GPL-3.0 — see [License](#license)) — the bulk of the networking/utility toolkit: `Add-TrustedHost`, `Clear-ARPCache`, `Convert-IPv4Address`, `Convert-ROT13`, `Convert-ROT47`, `Convert-Subnetmask`, `Find-StringInFile`, `Get-ARPCache`, `Get-ConsoleColor`, `Get-InstalledSoftware`, `Get-IPv4Subnet`, `Get-MACAddress`, `Get-MACVendor`, `Get-RandomPassword`, `Get-RandomPIN`, `Get-TrustedHost`, `Get-WindowsProductKey`, `Get-WLANProfile`, `Invoke-IPv4NetworkScan`, `Invoke-IPv4PortScan`, `Remove-TrustedHost`, `Send-WakeOnLan`, `Set-TrustedHost`, `Split-IPv4Subnet`, `Test-IsFileBinary`, `Update-StringInFile`.
-- **Microsoft's official [PSReadLine sample profile](https://github.com/PowerShell/PSReadLine/blob/master/PSReadLine/SamplePSReadLineProfile.ps1)** — most of `assets/private/shared/history.ps1`'s key handlers (smart quote/brace insertion, F7 history search via `Out-GridView`, directory marks, `git cmt` → `commit` autocorrect, and more), confirmed by matching `-BriefDescription` names and key bindings against the upstream file.
-- **[lipkau/PsIni](https://github.com/lipkau/PsIni)** — `Get-IniContent`.
-- **Chris Dent, [indented.co.uk](http://www.indented.co.uk/2010/02/17/dhcp-discovery/)** — `Test-DHCPPxe`.
-- **Chris Wu** — `New-ISOFile` (`New-IsoFile`), later modified.
-- **Stephane van Gulick, [powershellDistrict.com](http://www.powershellDistrict.com)** — `Get-BitLockerRecoveryKeyId`.
-- **Brian (C.) Wilhite** — `Get-PendingReboot`, `Get-LastLogon`.
-- **Boe Prox** — `Test-IsAdmin`.
-- **saw-friendship** (published as a PowerShell Gallery script) — `Send-MagicPacket`.
-- **mjolinor**, [blog post](https://mjolinor.wordpress.com/2014/01/31/random-password-generator/) — `New-Password`.
-- **[screenFetch](https://github.com/KittyKatt/screenFetch) by KittyKatt** and **[archey](https://github.com/djmelik/archey) by djmelik** — named as inspiration for `Show-Sysinfo` (its own header lists the original Windows-port author as unknown).
-- A **[Stack Overflow answer](http://stackoverflow.com/questions/7162604/get-cached-credentials-in-powershell-from-windows-7-credential-manager)** — `Get-CredentialFromWindowsCredentialManager` is adapted from it.
-
-Separately, [`NativeCompletions`](#nativecompletions) entries (`docker`, `kubectl`, `gh`, `helm` by default) and the hand-written `winget.ps1`/`dotnet.ps1` completers under `completions/` are generated by, or built to parse the output of, each tool's own official completion generator — not third-party community code, so not credited as external authorship above.
+- **[BornToBeRoot/PowerShell](https://github.com/BornToBeRoot/PowerShell)** (GPL-3.0): `Add-TrustedHost`, `Clear-ARPCache`, `Convert-IPv4Address`, `Convert-ROT13`, `Convert-ROT47`, `Convert-Subnetmask`, `Find-StringInFile`, `Get-ARPCache`, `Get-ConsoleColor`, `Get-InstalledSoftware`, `Get-IPv4Subnet`, `Get-MACAddress`, `Get-MACVendor`, `Get-RandomPassword`, `Get-RandomPIN`, `Get-TrustedHost`, `Get-WindowsProductKey`, `Get-WLANProfile`, `Invoke-IPv4NetworkScan`, `Invoke-IPv4PortScan`, `Remove-TrustedHost`, `Send-WakeOnLan`, `Set-TrustedHost`, `Split-IPv4Subnet`, `Test-IsFileBinary`, `Update-StringInFile`.
+- **Microsoft's [PSReadLine sample profile](https://github.com/PowerShell/PSReadLine/blob/master/PSReadLine/SamplePSReadLineProfile.ps1):** most key handlers in `history.ps1`.
+- **[lipkau/PsIni](https://github.com/lipkau/PsIni):** `Get-IniContent`.
+- **Chris Dent ([indented.co.uk](http://www.indented.co.uk/2010/02/17/dhcp-discovery/)):** `Test-DHCPPxe`.
+- **Chris Wu:** `New-ISOFile`.
+- **Stephane van Gulick ([powershellDistrict.com](http://www.powershellDistrict.com)):** `Get-BitLockerRecoveryKeyId`.
+- **Brian Wilhite:** `Get-PendingReboot`, `Get-LastLogon`.
+- **Boe Prox:** `Test-IsAdmin`.
+- **saw-friendship** (PowerShell Gallery): `Send-MagicPacket`.
+- **mjolinor** ([blog post](https://mjolinor.wordpress.com/2014/01/31/random-password-generator/)): `New-Password`.
+- **[screenFetch](https://github.com/KittyKatt/screenFetch)** and **[archey](https://github.com/djmelik/archey)**: inspiration for `Show-Sysinfo`.
+- A **[Stack Overflow answer](http://stackoverflow.com/questions/7162604/get-cached-credentials-in-powershell-from-windows-7-credential-manager)**: `Get-CredentialFromWindowsCredentialManager`.
 
 ## License
 
-Public domain ([Unlicense](https://unlicense.org)) — use, copy, modify, and redistribute any part of this repository for any purpose, with or without attribution.
-
-**Exception:** the 26 files adapted from [BornToBeRoot/PowerShell](https://github.com/BornToBeRoot/PowerShell) (listed in [Credits](#credits) above) remain licensed under that project's own license, **GPL-3.0** — each carries a `License: GPL-3.0` line in its own header. See [LICENSE](LICENSE) for the full text of both and the exact file list.
+Public domain ([Unlicense](https://unlicense.org)), except the 26 files adapted from BornToBeRoot/PowerShell listed above, which stay under **GPL-3.0** and say so in their headers. See [LICENSE](LICENSE) for both texts and the exact file list.

@@ -6,26 +6,21 @@ Function Get-ADComputersNoDesc {
         Return all computer objects from Active Directory that do not have a description.
         This will filter out servers, and non-Windows devices.
     .PARAMETER SearchBase
-        Default SearchBase is OU=Facilities,DC=pbso,DC=org
-
-        To search entire directory pass SearchBase parameter with an empty value
-    .EXAMPLE
-        Get-ADComputersNoDesc -SearchBase ''
-
-        Searches the entire directory for computers with no description
+        Distinguished name of the OU to search, including its sub-OUs.
+        Omit it to search the entire directory.
     .EXAMPLE
         Get-ADComputersNoDesc
 
-        Searches OU=Facilities and all sub-OUs for devices without a description
+        Searches the entire directory for computers with no description
     .EXAMPLE
-        Get-ADComputersNoDesc -SearchBase 'OU=zTechLab,DC=pbso,DC=org'
+        Get-ADComputersNoDesc -SearchBase 'OU=Workstations,DC=contoso,DC=com'
 
-        Searches the OU zTechlab and all sub-OUs for devices with no description
+        Searches the Workstations OU and all sub-OUs for devices with no description
     #>
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $false)]
-        [string]$SearchBase = "OU=Facilities,DC=pbso,DC=org"
+        [string]$SearchBase
     )
     Begin { }
     Process {

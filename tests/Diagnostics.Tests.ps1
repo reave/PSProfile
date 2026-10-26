@@ -179,10 +179,10 @@ Describe 'ConvertFrom-Jwt' {
         $exp = [DateTimeOffset]::UtcNow.AddHours(1).ToUnixTimeSeconds()
         # Non-ASCII claim, built from a char code so this file stays ASCII for Windows PowerShell 5.1
         $name = 'Zo' + [char]0xEB
-        $payload = ConvertTo-Base64Url ('{"sub":"joe","iss":"psprofile","aud":"tests","exp":' + $exp + ',"name":"' + $name + '"}')
+        $payload = ConvertTo-Base64Url ('{"sub":"testuser","iss":"psprofile","aud":"tests","exp":' + $exp + ',"name":"' + $name + '"}')
         $result = ConvertFrom-Jwt -Token "$header.$payload.signature"
         $result.Algorithm | Should -Be 'HS256'
-        $result.Subject | Should -Be 'joe'
+        $result.Subject | Should -Be 'testuser'
         $result.Payload.name | Should -BeExactly $name
         $result.Expired | Should -BeFalse
         $result.TimeRemaining.TotalMinutes | Should -BeGreaterThan 50
