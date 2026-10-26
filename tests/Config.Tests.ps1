@@ -73,9 +73,9 @@ Describe 'Merge-PSProfileConfigObject' {
 Describe 'Read-PSProfileConfig' {
     It 'merges every layer, later files winning' {
         $root = New-ConfigRoot -Files @{
-            'sample-config.json' = '{"settings":{"Layer":"default","Default":true,"OneDrivePath":"C:\\Users\\josep\\OneDrive"}}'
+            'sample-config.json' = '{"settings":{"Layer":"default","Default":true,"OneDrivePath":"C:\\Users\\user\\OneDrive-Old"}}'
             'config.json'        = '{"settings":{"Layer":"user","User":true}}'
-            $script:machineFile  = '{"settings":{"Layer":"machine","OneDrivePath":"C:\\Users\\joseph\\OneDrive"}}'
+            $script:machineFile  = '{"settings":{"Layer":"machine","OneDrivePath":"C:\\Users\\user\\OneDrive"}}'
             'config.local.json'  = '{"settings":{"Layer":"local"}}'
         }
         (Get-PSProfileConfigLayer -Root $root).Layer | Should -Be 'Default', 'User', 'Machine', 'Local'
@@ -84,7 +84,7 @@ Describe 'Read-PSProfileConfig' {
         $config.settings.Layer | Should -Be 'local'
         $config.settings.Default | Should -BeTrue
         $config.settings.User | Should -BeTrue
-        $config.settings.OneDrivePath | Should -Be 'C:\Users\joseph\OneDrive'
+        $config.settings.OneDrivePath | Should -Be 'C:\Users\user\OneDrive'
     }
 
     It 'works with only the repo defaults' {

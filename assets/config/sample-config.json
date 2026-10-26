@@ -1,6 +1,6 @@
 {
     "$schema": "./psprofile.schema.json",
-    "name": "Joes Profile Config",
+    "name": "PSProfile defaults",
     "version": "0.0.0.1",
     "settings": {
         "MaximumHistoryCount": 8192,

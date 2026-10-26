@@ -27,7 +27,7 @@ jobs:
       matrix:
         # pwsh pins a release line; .github/scripts/Install-PowerShell.ps1 installs its newest
         # patch instead of using whatever pwsh the runner image ships. 7.4 LTS ends support on
-        # 2026-11-10: drop its rows then, and clean up powershell.config.json (README, X4).
+        # 2026-11-10: drop its rows then, and their tests/startup-baseline.json entries.
         # key names the job's entry in tests/startup-baseline.json.
         include:
           - name: Windows, PowerShell 7.6
