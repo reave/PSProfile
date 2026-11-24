@@ -140,11 +140,17 @@ function Test-PSProfileOSMatch {
 
     if ([string]::IsNullOrWhiteSpace($OSField) -or $OSField -eq 'All') { return $true }
     $osList = $OSField -split '\s*,\s*'
-    if ($IsWindows -and $osList -contains 'Windows') { return $true }
-    if ($IsMacOS -and $osList -contains 'MacOS') { return $true }
-    if ($IsLinux -and $osList -contains 'Linux') { return $true }
+    if ($onWindows -and $osList -contains 'Windows') { return $true }
+    if ($onMacOS -and $osList -contains 'MacOS') { return $true }
+    if ($onLinux -and $osList -contains 'Linux') { return $true }
     return $false
 }
+
+#- Platform flags. $IsWindows, $IsMacOS and $IsLinux don't exist in Windows PowerShell 5.1 and
+#- throw under strict mode there, so they're only read when the edition isn't Desktop.
+$onWindows = $PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows
+$onMacOS = $PSVersionTable.PSEdition -ne 'Desktop' -and $IsMacOS
+$onLinux = $PSVersionTable.PSEdition -ne 'Desktop' -and $IsLinux
 
 $PSProfileConfig = Get-PSProfileConfig
 $PSProfileSettings = $PSProfileConfig.settings
@@ -171,7 +177,7 @@ if ($PSProfileSettings.DefaultParameterValues) {
 # Update-Profile's git pull.
 Set-Variable -Name PSProfileRoot -Value $PSScriptRoot -Scope Global
 
-$OSFolder = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } elseif ($IsLinux) { 'linux' }
+$OSFolder = if ($onWindows) { 'windows' } elseif ($onMacOS) { 'macos' } elseif ($onLinux) { 'linux' }
 
 #- Dot Source Public Functions (assets\public\<windows|macos|linux>\*.ps1)
 $functions = Get-ChildItem -Path "$PSScriptRoot\assets\public\$OSFolder\*.ps1" -ErrorAction SilentlyContinue
@@ -199,9 +205,9 @@ Set-Variable -Name MyDocs -Value ([Environment]::GetFolderPath([Environment+Spec
 $configuredOneDrivePath = $PSProfileSettings.OneDrivePath
 if ($configuredOneDrivePath -and (Test-Path -Path $configuredOneDrivePath -ErrorAction SilentlyContinue)) {
     [string]$OneDriveRoot = $configuredOneDrivePath
-} elseif ($IsWindows -and (Test-Path -Path $env:USERPROFILE\OneDrive -ErrorAction SilentlyContinue)) {
+} elseif ($onWindows -and (Test-Path -Path $env:USERPROFILE\OneDrive -ErrorAction SilentlyContinue)) {
     [string]$OneDriveRoot = "$env:USERPROFILE\OneDrive"
-} elseif (-not $IsWindows -and (Test-Path -Path "$env:HOME/OneDrive" -ErrorAction SilentlyContinue)) {
+} elseif (-not $onWindows -and (Test-Path -Path "$env:HOME/OneDrive" -ErrorAction SilentlyContinue)) {
     [string]$OneDriveRoot = "$env:HOME/OneDrive"
 } else {
     [string]$OneDriveRoot = "OneDrive is not configured"
@@ -216,8 +222,11 @@ if ($configuredOneDrivePath -and (Test-Path -Path $configuredOneDrivePath -Error
 $moduleImportMutex = [System.Threading.Mutex]::new($false, 'PSProfile-ModuleImport')
 foreach ($module in $PSProfileConfig.Modules) {
     if (-not (Test-PSProfileOSMatch -OSField $module.OS)) { continue }
-    if ($module.PSVersionMajor -and $PSVersionTable.PSVersion.Major -lt [int]$module.PSVersionMajor) { continue }
-    if ($module.PSVersionMajorMax -and $PSVersionTable.PSVersion.Major -gt [int]$module.PSVersionMajorMax) { continue }
+    # Read optional fields through PSObject.Properties: a missing property throws under strict mode.
+    $minMajor = $module.PSObject.Properties['PSVersionMajor']
+    $maxMajor = $module.PSObject.Properties['PSVersionMajorMax']
+    if ($minMajor -and $minMajor.Value -and $PSVersionTable.PSVersion.Major -lt [int]$minMajor.Value) { continue }
+    if ($maxMajor -and $maxMajor.Value -and $PSVersionTable.PSVersion.Major -gt [int]$maxMajor.Value) { continue }
 
     if (Get-Module -Name $module.Name -ListAvailable -ErrorAction SilentlyContinue) {
         $hasImportMutex = $false
@@ -231,7 +240,7 @@ foreach ($module in $PSProfileConfig.Modules) {
                 # A shell closed mid-write still leaves a truncated theme file, and the module stops
                 # before rewriting it, so every later load fails too. Drop unreadable files and retry
                 # once; the module regenerates its built-in themes on import.
-                $themeCacheBase = if ($IsLinux -or $IsMacOS) {
+                $themeCacheBase = if ($onLinux -or $onMacOS) {
                     if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { [IO.Path]::Combine($HOME, '.local', 'share') }
                 } else { $env:APPDATA }
                 $themeCachePath = [IO.Path]::Combine($themeCacheBase, 'powershell', 'Community', 'Terminal-Icons')
@@ -252,7 +261,7 @@ foreach ($module in $PSProfileConfig.Modules) {
 }
 $moduleImportMutex.Dispose()
 
-$IsElevated = if ($IsWindows) {
+$IsElevated = if ($onWindows) {
     ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 } else {
     try { (id -u) -eq '0' } catch { $false }
@@ -284,29 +293,38 @@ foreach ($package in $PSProfileConfig.Packages) {
         }
         'brew' {
             if (-not (Get-Command -Name brew -ErrorAction SilentlyContinue)) { continue }
-            try { & brew install $package.Id }
-            catch { Write-Error "Unable to install $($package.Id) via brew" }
+            # try/catch doesn't see a native command failing, so check its exit code.
+            try {
+                & brew install $package.Id
+                if ($LASTEXITCODE -ne 0) { throw "brew exited with code $LASTEXITCODE" }
+            } catch { Write-Error "Unable to install $($package.Id) via brew: $($_.Exception.Message)" }
         }
         'apt' {
             $aptCmd = Get-Command -Name apt-get -ErrorAction SilentlyContinue
             if (-not $aptCmd) { continue }
             if (-not $IsElevated) { Write-Warning "Skipping apt install of $($package.Id): not running as root."; continue }
-            try { & apt-get install -y $package.Id }
-            catch { Write-Error "Unable to install $($package.Id) via apt" }
+            try {
+                & apt-get install -y $package.Id
+                if ($LASTEXITCODE -ne 0) { throw "apt-get exited with code $LASTEXITCODE" }
+            } catch { Write-Error "Unable to install $($package.Id) via apt: $($_.Exception.Message)" }
         }
         'yum' {
             $yumCmd = Get-Command -Name dnf -ErrorAction SilentlyContinue
             if (-not $yumCmd) { $yumCmd = Get-Command -Name yum -ErrorAction SilentlyContinue }
             if (-not $yumCmd) { continue }
             if (-not $IsElevated) { Write-Warning "Skipping $($yumCmd.Name) install of $($package.Id): not running as root."; continue }
-            try { & $yumCmd.Name install -y $package.Id }
-            catch { Write-Error "Unable to install $($package.Id) via $($yumCmd.Name)" }
+            try {
+                & $yumCmd.Name install -y $package.Id
+                if ($LASTEXITCODE -ne 0) { throw "$($yumCmd.Name) exited with code $LASTEXITCODE" }
+            } catch { Write-Error "Unable to install $($package.Id) via $($yumCmd.Name): $($_.Exception.Message)" }
         }
         'pacman' {
             if (-not (Get-Command -Name pacman -ErrorAction SilentlyContinue)) { continue }
             if (-not $IsElevated) { Write-Warning "Skipping pacman install of $($package.Id): not running as root."; continue }
-            try { & pacman -S --noconfirm $package.Id }
-            catch { Write-Error "Unable to install $($package.Id) via pacman" }
+            try {
+                & pacman -S --noconfirm $package.Id
+                if ($LASTEXITCODE -ne 0) { throw "pacman exited with code $LASTEXITCODE" }
+            } catch { Write-Error "Unable to install $($package.Id) via pacman: $($_.Exception.Message)" }
         }
     }
 }
@@ -352,7 +370,7 @@ if ($IsInteractiveShell -and $readlineConfig -and (Get-Module -Name PSReadLine -
 #---------------------------------------------------------------
 # Windows Section
 #---------------------------------------------------------------
-if ($IsWindows -and $IsInteractiveShell) {
+if ($onWindows -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowWindowTitle) {
         Set-ProfileWindowTitle
     }
@@ -390,7 +408,7 @@ if ($IsWindows -and $IsInteractiveShell) {
 #---------------------------------------------------------------
 # macOS Section
 #---------------------------------------------------------------
-elseif ($IsMacOS -and $IsInteractiveShell) {
+elseif ($onMacOS -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowWindowTitle) {
         Set-ProfileWindowTitle
     }
@@ -428,7 +446,7 @@ elseif ($IsMacOS -and $IsInteractiveShell) {
 #---------------------------------------------------------------
 # Linux Section
 #---------------------------------------------------------------
-elseif ($IsLinux -and $IsInteractiveShell) {
+elseif ($onLinux -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowWindowTitle) {
         Set-ProfileWindowTitle
     }

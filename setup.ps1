@@ -210,7 +210,8 @@ $marker (https://github.com/reave/PSProfile) - edit assets/config/config.json in
     # would be slow), so it needs this explicit populate step instead. Non-fatal: setup still
     # succeeds even if this fails, same as everything else below "Cloning/Installing" above.
     try {
-        $osFolder = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } else { 'linux' }
+        # $IsWindows/$IsMacOS don't exist in Windows PowerShell 5.1; check the edition first.
+        $osFolder = if ($PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } else { 'linux' }
         $updateCompletionsScript = Join-Path $InstallPath "assets\public\$osFolder\Update-Completions.ps1"
         if (Test-Path -Path $updateCompletionsScript) {
             Write-SetupStep 'Populating native completions for installed tools'

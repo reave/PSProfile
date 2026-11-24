@@ -317,10 +317,10 @@ function Invoke-IPv4PortScan {
         # Process results, while waiting for other jobs
         Do {
             # Get all jobs, which are completed
-            $Jobs_ToProcess = $Jobs | Where-Object -FilterScript { $_.Result.IsCompleted }
+            $Jobs_ToProcess = @($Jobs | Where-Object -FilterScript { $_.Result.IsCompleted })
 
             # If no jobs finished yet, wait 500 ms and try again
-            if ($null -eq $Jobs_ToProcess) {
+            if ($Jobs_ToProcess.Count -eq 0) {
                 Write-Verbose -Message "No jobs completed, wait 500ms..."
 
                 Start-Sleep -Milliseconds 500
@@ -328,7 +328,7 @@ function Invoke-IPv4PortScan {
             }
 
             # Get jobs, which are not complete yet
-            $Jobs_Remaining = ($Jobs | Where-Object -FilterScript { $_.Result.IsCompleted -eq $false }).Count
+            $Jobs_Remaining = @($Jobs | Where-Object -FilterScript { $_.Result.IsCompleted -eq $false }).Count
 
             # Catch when trying to divide through zero
             try {
