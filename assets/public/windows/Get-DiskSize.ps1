@@ -72,7 +72,8 @@ function Get-DiskSize {
                 }
             }
         } catch {
-            # ignore association errors and fall back to DriveType
+            # Without the physical disk, the drive type below is used instead.
+            Write-Verbose "Couldn't find the physical disk for $($ld.DeviceID): $($_.Exception.Message)"
         }
 
         if (-not $mediaName) {

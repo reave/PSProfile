@@ -102,7 +102,6 @@ function Enable-RemoteDesktop {
 							Class          = "Win32_TerminalServiceSetting"
 							NameSpace      = "root\cimv2\terminalservices"
 							CimSession     = $Cim
-							Authentication = 'PacketPrivacy'
 							ErrorAction    = 'Stop'
 							ErrorVariable  = "ErrorProcessGetCimInstance"
 						}

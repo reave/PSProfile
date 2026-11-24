@@ -99,7 +99,7 @@ function Edit-File {
                     $shortcut = $w.CreateShortcut($LinkPath)
                     $target = $shortcut.TargetPath
                     if ($target -and (Test-Path $target)) { return (Resolve-Path -LiteralPath $target).ProviderPath }
-                } catch { }
+                } catch { Write-Debug "Couldn't read the shortcut ${LinkPath}: $($_.Exception.Message)" }
                 return $null
             }
 
@@ -110,7 +110,7 @@ function Edit-File {
                 if ($name -match '[\\:]') {
                     try {
                         if (Test-Path $name) { return (Resolve-Path -LiteralPath $name).ProviderPath }
-                    } catch { }
+                    } catch { Write-Debug "Couldn't resolve ${name} as a path, so searching for it by name: $($_.Exception.Message)" }
                 }
 
                 # 1) If it's a simple command on PATH or an alias/function, Get-Command will find it
@@ -120,7 +120,7 @@ function Edit-File {
                         $src = $cmd.Source
                         if ($src) { return $src }
                     }
-                } catch { }
+                } catch { Write-Debug "Get-Command couldn't look up ${name}, so searching folders instead: $($_.Exception.Message)" }
 
                 # Build candidate filenames (with/without .exe)
                 $candidates = @($name)
@@ -168,7 +168,7 @@ function Edit-File {
                             try {
                                 $guess = Join-Path $root $cand
                                 if (Test-Path $guess) { return (Resolve-Path -LiteralPath $guess).ProviderPath }
-                            } catch { }
+                            } catch { Write-Debug "Couldn't check $cand under ${root}: $($_.Exception.Message)" }
                         }
                     }
                 }
@@ -184,7 +184,7 @@ function Edit-File {
                             }
                         }
                     }
-                } catch { }
+                } catch { Write-Debug "Couldn't search $env:LOCALAPPDATA\bin for ${name}: $($_.Exception.Message)" }
             }
 
             return $null

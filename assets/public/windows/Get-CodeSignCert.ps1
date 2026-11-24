@@ -75,7 +75,8 @@ function Get-CodeSignCert {
                             }
                         }
                     } catch {
-                        # ignore parse errors and continue
+                        # An unreadable extension just means this certificate isn't treated as a code-signing one.
+                        Write-Verbose "Couldn't read the Enhanced Key Usage of $($cert.Thumbprint): $($_.Exception.Message)"
                     }
                 }
                 if ($hasCodeEku) { break }

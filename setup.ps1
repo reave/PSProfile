@@ -206,7 +206,8 @@ try {
         if ($existingContent) {
             foreach ($m in [regex]::Matches($existingContent, '(?m)^\s*\.\s+["'']?([^"''\r\n]+?)["'']?\s*$')) {
                 $candidate = $m.Groups[1].Value -replace '^(\$HOME|\$env:USERPROFILE|~)(?=[\\/])', $HOME
-                try { if ([System.IO.Path]::GetFullPath($candidate) -eq $profileScript) { $alreadyLoads = $true; break } } catch { }
+                try { if ([System.IO.Path]::GetFullPath($candidate) -eq $profileScript) { $alreadyLoads = $true; break } }
+                catch { Write-Verbose "Skipping '$candidate' in the profile: it isn't a valid path." }
             }
         }
 
