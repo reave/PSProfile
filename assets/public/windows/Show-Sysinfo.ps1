@@ -63,7 +63,7 @@ function Show-Sysinfo {
             }
 
             # Define The Target Path
-            $stamp = Get-Date -f MM-dd-yyyy_HH_mm_ss
+            $stamp = Get-Date -Format MM-dd-yyyy_HH_mm_ss
             $target = "$TarPath\screenshot-$stamp.png"
 
             # Save the Screenshot
@@ -204,11 +204,11 @@ namespace PInvoke
     if ($Path) {
         # DONE: Add Countdown Timer
         Write-Host "...3" -NoNewline
-        Start-Sleep -s 1
+        Start-Sleep -Seconds 1
         Write-Host "...2" -NoNewline
-        Start-Sleep -s 1
+        Start-Sleep -Seconds 1
         Write-Host "...1" -NoNewline
-        Start-Sleep -m 500
+        Start-Sleep -Milliseconds 500
         Write-Host "    Cheese!"
     }
 

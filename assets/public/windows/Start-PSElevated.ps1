@@ -18,7 +18,7 @@ function Start-PSElevated {
         [switch]$NoExit
     )
 
-    $sh = New-Object -com 'Shell.Application'
+    $sh = New-Object -ComObject 'Shell.Application'
 
     if ($ScriptBlock -eq '') {
         $sh.ShellExecute('powershell', '-NoLogo', '', 'runas')

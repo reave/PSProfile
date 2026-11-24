@@ -14,7 +14,7 @@ function Get-BatteryStatus {
     #>
     param()
     try {
-        Add-Type -Assembly System.Windows.Forms
+        Add-Type -AssemblyName System.Windows.Forms
         [System.Windows.Forms.SystemInformation]::PowerStatus
     } catch {
         $PSCmdlet.ThrowTerminatingError($_)

@@ -125,7 +125,7 @@ function New-IsoFile {
         )
 
         Write-Verbose -Message "Selected media type is $Media with value $($MediaType.IndexOf($Media))"
-        ($Image = New-Object -com IMAPI2FS.MsftFileSystemImage -Property @{VolumeName = $Title }).ChooseImageDefaultsForMediaType($MediaType.IndexOf($Media))
+        ($Image = New-Object -ComObject IMAPI2FS.MsftFileSystemImage -Property @{VolumeName = $Title }).ChooseImageDefaultsForMediaType($MediaType.IndexOf($Media))
 
         # Decided once here; process and end skip their work when the image isn't being created.
         $CreateImage = $PSCmdlet.ShouldProcess($OutFile, 'Create ISO image')

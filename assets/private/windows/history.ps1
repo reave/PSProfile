@@ -297,7 +297,7 @@ Set-PSReadLineKeyHandler -Key Ctrl+V `
     -ScriptBlock {
     param($key, $arg)
 
-    Add-Type -Assembly PresentationCore
+    Add-Type -AssemblyName PresentationCore
     if ([System.Windows.Clipboard]::ContainsText()) {
         # Get clipboard text - remove trailing spaces, convert \r\n to \n, and remove the final \n.
         $text = ([System.Windows.Clipboard]::GetText() -replace "\p{Zs}*`r?`n", "`n").TrimEnd()
