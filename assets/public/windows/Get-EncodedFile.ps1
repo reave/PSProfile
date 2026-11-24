@@ -39,7 +39,10 @@ function Get-EncodedFile {
             if (!($Force)) {
                 if (Test-Path -Path $outFile) {
                     try { Rename-Item -Path $outFile -NewName "$($outFile).BAK$(Get-Random)" }
-                    catch { throw "Failed to rename existing $($outFile). Choose a different out file or pass the force parameter to overwrite the exising file." }
+                    catch {
+                        throw ("Failed to rename existing $($outFile). Choose a different out file or pass the " +
+                            "force parameter to overwrite the exising file.")
+                    }
                 }
             }
         }

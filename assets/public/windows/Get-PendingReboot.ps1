@@ -107,7 +107,14 @@
                 $CimParams = @{ ErrorAction = 'Stop' }
                 if ($Computer -notin $env:COMPUTERNAME, 'localhost', '.') {
                     try { $CimSession = New-CimSession -ComputerName $Computer -ErrorAction Stop }
-                    catch { $CimSession = New-CimSession -ComputerName $Computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop }
+                    catch {
+                        $dcomSessionParams = @{
+                            ComputerName = $Computer
+                            SessionOption = (New-CimSessionOption -Protocol Dcom)
+                            ErrorAction = 'Stop'
+                        }
+                        $CimSession = New-CimSession @dcomSessionParams
+                    }
                     $CimParams.CimSession = $CimSession
                 }
 
@@ -120,21 +127,39 @@
 
                 ## If Vista/2008 & Above query the CBS Reg Key
                 if ([Int32]$WMI_OS.BuildNumber -ge 6001) {
-                    $RegSubKeysCBS = Invoke-CimMethod @StdRegProv -MethodName EnumKey -Arguments @{ hDefKey = $HKLM; sSubKeyName = "SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\" }
+                    $RegSubKeysCBS = Invoke-CimMethod @StdRegProv -MethodName EnumKey -Arguments @{
+                        hDefKey = $HKLM
+                        sSubKeyName = "SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\"
+                    }
                     $CBSRebootPend = $RegSubKeysCBS.sNames -contains "RebootPending"
                 }
 
                 ## Query WUAU from the registry
-                $RegWUAURebootReq = Invoke-CimMethod @StdRegProv -MethodName EnumKey -Arguments @{ hDefKey = $HKLM; sSubKeyName = "SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\" }
+                $RegWUAURebootReq = Invoke-CimMethod @StdRegProv -MethodName EnumKey -Arguments @{
+                    hDefKey = $HKLM
+                    sSubKeyName = "SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\"
+                }
                 $WUAURebootReq = $RegWUAURebootReq.sNames -contains "RebootRequired"
 
                 ## Query PendingFileRenameOperations from the registry
-                $RegSubKeySM = Invoke-CimMethod @StdRegProv -MethodName GetMultiStringValue -Arguments @{ hDefKey = $HKLM; sSubKeyName = "SYSTEM\CurrentControlSet\Control\Session Manager\"; sValueName = "PendingFileRenameOperations" }
+                $RegSubKeySM = Invoke-CimMethod @StdRegProv -MethodName GetMultiStringValue -Arguments @{
+                    hDefKey = $HKLM
+                    sSubKeyName = "SYSTEM\CurrentControlSet\Control\Session Manager\"
+                    sValueName = "PendingFileRenameOperations"
+                }
                 $RegValuePFRO = $RegSubKeySM.sValue
 
                 ## Query ComputerName and ActiveComputerName from the registry
-                $ActCompNm = Invoke-CimMethod @StdRegProv -MethodName GetStringValue -Arguments @{ hDefKey = $HKLM; sSubKeyName = "SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName\"; sValueName = "ComputerName" }
-                $CompNm = Invoke-CimMethod @StdRegProv -MethodName GetStringValue -Arguments @{ hDefKey = $HKLM; sSubKeyName = "SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName\"; sValueName = "ComputerName" }
+                $ActCompNm = Invoke-CimMethod @StdRegProv -MethodName GetStringValue -Arguments @{
+                    hDefKey = $HKLM
+                    sSubKeyName = "SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName\"
+                    sValueName = "ComputerName"
+                }
+                $CompNm = Invoke-CimMethod @StdRegProv -MethodName GetStringValue -Arguments @{
+                    hDefKey = $HKLM
+                    sSubKeyName = "SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName\"
+                    sValueName = "ComputerName"
+                }
                 # Compare the names themselves: the two result objects are never equal to each other.
                 if ($ActCompNm.sValue -ne $CompNm.sValue) {
                     $CompPendRen = $true
@@ -200,7 +225,8 @@
                     PendComputerRename = $CompPendRen
                     PendFileRename     = $PendFileRename
                     PendFileRenVal     = $RegValuePFRO
-                    RebootPending      = ($CompPendRen -or $CBSRebootPend -or $WUAURebootReq -or $SCCM -or $PendFileRename)
+                    RebootPending      = ($CompPendRen -or $CBSRebootPend -or $WUAURebootReq -or $SCCM -or
+                        $PendFileRename)
                 } | Select-Object @SelectSplat
 
             } catch {

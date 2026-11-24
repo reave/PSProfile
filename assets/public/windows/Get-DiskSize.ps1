@@ -59,11 +59,19 @@ function Get-DiskSize {
         # Try to find an associated physical disk and use its MediaType if available
         $mediaName = $null
         try {
-            $partition = Get-CimAssociatedInstance -InputObject $ld -Association Win32_LogicalDiskToPartition -ErrorAction SilentlyContinue |
-                Select-Object -First 1
+            $partitionParams = @{
+                InputObject = $ld
+                Association = 'Win32_LogicalDiskToPartition'
+                ErrorAction = 'SilentlyContinue'
+            }
+            $partition = Get-CimAssociatedInstance @partitionParams | Select-Object -First 1
             if ($partition) {
-                $diskDrive = Get-CimAssociatedInstance -InputObject $partition -Association Win32_DiskDriveToDiskPartition -ErrorAction SilentlyContinue |
-                    Select-Object -First 1
+                $diskDriveParams = @{
+                    InputObject = $partition
+                    Association = 'Win32_DiskDriveToDiskPartition'
+                    ErrorAction = 'SilentlyContinue'
+                }
+                $diskDrive = Get-CimAssociatedInstance @diskDriveParams | Select-Object -First 1
                 if ($diskDrive -and $diskDrive.MediaType) {
                     $mediaName = $diskDrive.MediaType
                 } elseif ($diskDrive -and $diskDrive.InterfaceType) {

@@ -45,12 +45,14 @@ function Get-FileMetaData {
             $shell = New-Object -ComObject Shell.Application
             $folder = $shell.Namespace((Split-Path $Path)) # Get the folder containing the file.
             if (-not $folder) {
-                throw "Unable to access the folder: $(Split-Path $Path)" # Throw an error if the folder cannot be accessed.
+                # Throw an error if the folder cannot be accessed.
+                throw "Unable to access the folder: $(Split-Path $Path)"
             }
             Write-Verbose "Accessed folder: $(Split-Path $Path)"
             $file = $folder.ParseName((Split-Path $Path -Leaf)) # Get the file object within the folder.
             if (-not $file) {
-                throw "Unable to access the file: $(Split-Path $Path -Leaf)" # Throw an error if the file cannot be accessed.
+                # Throw an error if the file cannot be accessed.
+                throw "Unable to access the file: $(Split-Path $Path -Leaf)"
             }
             Write-Verbose "Accessed file: $(Split-Path $Path -Leaf)"
         } catch {

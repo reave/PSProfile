@@ -10,7 +10,8 @@ function Start-PSElevated {
         Runs the scriptblock 'get-service' in an elevated context
     #>
     [CmdletBinding()]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Starts PowerShell; the User Account Control prompt is the confirmation.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '',
+        Justification = 'Starts PowerShell; the User Account Control prompt is the confirmation.')]
     param(
         [Parameter(Mandatory = $false)]
         [string]$ScriptBlock,

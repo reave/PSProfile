@@ -46,7 +46,9 @@ function Update-Profile {
     }
 
     if (-not (Test-Path -Path (Join-Path $installPath '.git'))) {
-        Write-Warning "This PSProfile install at $installPath isn't a git checkout, so it can't be updated in place. Re-run setup.ps1 to refresh it instead:`nirm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1 | iex"
+        Write-Warning ("This PSProfile install at $installPath isn't a git checkout, so it can't be updated " +
+            "in place. Re-run setup.ps1 to refresh it instead:`n" +
+            "irm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1 | iex")
         return
     }
 

@@ -13,7 +13,8 @@ function Set-Console {
         LastModified: 07/15/2016
     #>
     [CmdletBinding()]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Only sets the title of the current console window and clears the screen.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '',
+        Justification = 'Only sets the title of the current console window and clears the screen.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCommands', '',
         Justification = 'Clear-Host exists on every supported edition; the compatibility profile misses it.')]
     param(
@@ -26,10 +27,14 @@ function Set-Console {
             $UserInfo = Get-CimInstance -ClassName Win32_NetworkLoginProfile |
                 Where-Object { $_.Caption -eq $env:USERNAME }
 
-            if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-                $host.ui.rawui.WindowTitle = "$($host.ui.rawui.WindowTitle) - Welcome $($UserInfo.FullName). Have a great day!"
+            if (-not (
+                    [Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
+                ).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+                $host.ui.rawui.WindowTitle = ("$($host.ui.rawui.WindowTitle) - Welcome $($UserInfo.FullName). " +
+                    "Have a great day!")
             } else {
-                $host.ui.rawui.WindowTitle = "$($host.ui.rawui.WindowTitle) - Elevated Console for $($UserInfo.FullName)."
+                $host.ui.rawui.WindowTitle = ("$($host.ui.rawui.WindowTitle) - Elevated Console for " +
+                    "$($UserInfo.FullName).")
             }
 
         }

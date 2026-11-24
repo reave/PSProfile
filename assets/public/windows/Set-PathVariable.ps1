@@ -66,7 +66,11 @@ function Set-PathVariable {
     }
 
     # Determine target
-    $target = if ($Scope -eq 'Process') { 'Process' } else { [System.Enum]::Parse([System.EnvironmentVariableTarget], $Scope) }
+    $target = if ($Scope -eq 'Process') {
+        'Process'
+    } else {
+        [System.Enum]::Parse([System.EnvironmentVariableTarget], $Scope)
+    }
 
     # If modifying Machine scope require elevation
     if ($Scope -eq 'Machine') {
@@ -168,8 +172,15 @@ public static class EnvNotify {
             $SMTO_ABORTIFHUNG = 0x0002
             $timeout = 5000
             $ptrResult = [UIntPtr]::Zero
-            [EnvNotify]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, "Environment", $SMTO_ABORTIFHUNG, $timeout, [ref]$ptrResult) |
-                Out-Null
+            [EnvNotify]::SendMessageTimeout(
+                $HWND_BROADCAST,
+                $WM_SETTINGCHANGE,
+                [UIntPtr]::Zero,
+                "Environment",
+                $SMTO_ABORTIFHUNG,
+                $timeout,
+                [ref]$ptrResult
+            ) | Out-Null
         }
 
         Write-Output "PATH updated for scope '$Scope'. Added: '$AddPath', Removed: '$RemovePath'."

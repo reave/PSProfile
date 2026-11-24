@@ -5,7 +5,8 @@ using namespace System.Management.Automation.Completion
 using namespace System.Management.Automation.Host
 using namespace System.Management.Automation.Runspaces
 
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The startup banners are console output by design, which STYLE.md allows.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '',
+    Justification = 'The startup banners are console output by design, which STYLE.md allows.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingInvokeExpression', '',
     Justification = 'oh-my-posh init is run this way by design; the splash command is from config.json.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCommands', '',
@@ -113,7 +114,8 @@ function Get-PSProfileConfig {
 
     $path = if (Test-Path -Path $configPath) { $configPath } else { $samplePath }
     if ($path -eq $samplePath -and (Test-Path -Path $samplePath)) {
-        Write-Warning "assets\config\config.json not found - falling back to sample-config.json. Copy sample-config.json to config.json and adjust it for your machine."
+        Write-Warning ("assets\config\config.json not found - falling back to sample-config.json. " +
+            "Copy sample-config.json to config.json and adjust it for your machine.")
     }
 
     if (-not (Test-Path -Path $path)) {
@@ -169,11 +171,17 @@ $PSProfileConfig = Get-PSProfileConfig
 $PSProfileSettings = $PSProfileConfig.settings
 
 #- Set constants
-$MaximumHistoryCount = if ($PSProfileSettings.MaximumHistoryCount) { $PSProfileSettings.MaximumHistoryCount } else { 8192 }
+$MaximumHistoryCount = if ($PSProfileSettings.MaximumHistoryCount) {
+    $PSProfileSettings.MaximumHistoryCount
+} else {
+    8192
+}
 
 if ($PSProfileSettings.ErrorView) { $ErrorView = $PSProfileSettings.ErrorView }
 if ($PSProfileSettings.StrictModeVersion) { Set-StrictMode -Version $PSProfileSettings.StrictModeVersion }
-if ($PSProfileSettings.ModuleAutoLoadingPreference) { $PSModuleAutoLoadingPreference = $PSProfileSettings.ModuleAutoLoadingPreference }
+if ($PSProfileSettings.ModuleAutoLoadingPreference) {
+    $PSModuleAutoLoadingPreference = $PSProfileSettings.ModuleAutoLoadingPreference
+}
 if ($PSProfileSettings.TelemetryOptOut) { $env:POWERSHELL_TELEMETRY_OPTOUT = '1' }
 
 if ($PSProfileSettings.DefaultParameterValues) {
@@ -254,10 +262,19 @@ foreach ($module in $PSProfileConfig.Modules) {
                 # before rewriting it, so every later load fails too. Drop unreadable files and retry
                 # once; the module regenerates its built-in themes on import.
                 $themeCacheBase = if ($onLinux -or $onMacOS) {
-                    if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { [IO.Path]::Combine($HOME, '.local', 'share') }
+                    if ($env:XDG_CONFIG_HOME) {
+                        $env:XDG_CONFIG_HOME
+                    } else {
+                        [IO.Path]::Combine($HOME, '.local', 'share')
+                    }
                 } else { $env:APPDATA }
                 $themeCachePath = [IO.Path]::Combine($themeCacheBase, 'powershell', 'Community', 'Terminal-Icons')
-                foreach ($themeFile in Get-ChildItem -Path $themeCachePath -Filter '*.xml' -ErrorAction SilentlyContinue) {
+                $themeFileParams = @{
+                    Path = $themeCachePath
+                    Filter = '*.xml'
+                    ErrorAction = 'SilentlyContinue'
+                }
+                foreach ($themeFile in Get-ChildItem @themeFileParams) {
                     try { $null = Import-Clixml -Path $themeFile.FullName -ErrorAction Stop }
                     catch { Remove-Item -LiteralPath $themeFile.FullName -Force }
                 }
@@ -279,7 +296,9 @@ foreach ($module in $PSProfileConfig.Modules) {
 $moduleImportMutex.Dispose()
 
 $IsElevated = if ($onWindows) {
-    ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+    ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+        [Security.Principal.WindowsBuiltInRole] "Administrator"
+    )
 } else {
     try { (id -u) -eq '0' } catch { $false }
 }
@@ -319,7 +338,10 @@ foreach ($package in $PSProfileConfig.Packages) {
         'apt' {
             $aptCmd = Get-Command -Name apt-get -ErrorAction SilentlyContinue
             if (-not $aptCmd) { continue }
-            if (-not $IsElevated) { Write-Warning "Skipping apt install of $($package.Id): not running as root."; continue }
+            if (-not $IsElevated) {
+                Write-Warning "Skipping apt install of $($package.Id): not running as root."
+                continue
+            }
             try {
                 & apt-get install -y $package.Id
                 if ($LASTEXITCODE -ne 0) { throw "apt-get exited with code $LASTEXITCODE" }
@@ -329,7 +351,10 @@ foreach ($package in $PSProfileConfig.Packages) {
             $yumCmd = Get-Command -Name dnf -ErrorAction SilentlyContinue
             if (-not $yumCmd) { $yumCmd = Get-Command -Name yum -ErrorAction SilentlyContinue }
             if (-not $yumCmd) { continue }
-            if (-not $IsElevated) { Write-Warning "Skipping $($yumCmd.Name) install of $($package.Id): not running as root."; continue }
+            if (-not $IsElevated) {
+                Write-Warning "Skipping $($yumCmd.Name) install of $($package.Id): not running as root."
+                continue
+            }
             try {
                 & $yumCmd.Name install -y $package.Id
                 if ($LASTEXITCODE -ne 0) { throw "$($yumCmd.Name) exited with code $LASTEXITCODE" }
@@ -337,7 +362,10 @@ foreach ($package in $PSProfileConfig.Packages) {
         }
         'pacman' {
             if (-not (Get-Command -Name pacman -ErrorAction SilentlyContinue)) { continue }
-            if (-not $IsElevated) { Write-Warning "Skipping pacman install of $($package.Id): not running as root."; continue }
+            if (-not $IsElevated) {
+                Write-Warning "Skipping pacman install of $($package.Id): not running as root."
+                continue
+            }
             try {
                 & pacman -S --noconfirm $package.Id
                 if ($LASTEXITCODE -ne 0) { throw "pacman exited with code $LASTEXITCODE" }
@@ -357,12 +385,17 @@ foreach ($alias in $PSProfileConfig.Aliases) {
 # PSReadLine
 #---------------------------------------------------------------
 $readlineConfig = $PSProfileSettings.PSReadLine
-if ($IsInteractiveShell -and $readlineConfig -and (Get-Module -Name PSReadLine -ListAvailable -ErrorAction SilentlyContinue)) {
+if ($IsInteractiveShell -and $readlineConfig -and
+    (Get-Module -Name PSReadLine -ListAvailable -ErrorAction SilentlyContinue)) {
     # Wrapped in try/catch: PredictionSource/PredictionViewStyle throw when the host
     # doesn't support virtual terminal processing (redirected output, some remote/CI shells).
     try {
-        if ($readlineConfig.PredictionSource) { Set-PSReadLineOption -PredictionSource $readlineConfig.PredictionSource -ErrorAction Stop }
-        if ($readlineConfig.PredictionViewStyle) { Set-PSReadLineOption -PredictionViewStyle $readlineConfig.PredictionViewStyle -ErrorAction Stop }
+        if ($readlineConfig.PredictionSource) {
+            Set-PSReadLineOption -PredictionSource $readlineConfig.PredictionSource -ErrorAction Stop
+        }
+        if ($readlineConfig.PredictionViewStyle) {
+            Set-PSReadLineOption -PredictionViewStyle $readlineConfig.PredictionViewStyle -ErrorAction Stop
+        }
         if ($readlineConfig.EditMode) { Set-PSReadLineOption -EditMode $readlineConfig.EditMode -ErrorAction Stop }
         if ($readlineConfig.HistorySearchArrowKeys) {
             Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward -ErrorAction Stop
@@ -378,7 +411,9 @@ if ($IsInteractiveShell -and $readlineConfig -and (Get-Module -Name PSReadLine -
         }
         if ($readlineConfig.Colors) {
             $colorTable = @{}
-            foreach ($colorProperty in $readlineConfig.Colors.PSObject.Properties) { $colorTable[$colorProperty.Name] = $colorProperty.Value }
+            foreach ($colorProperty in $readlineConfig.Colors.PSObject.Properties) {
+                $colorTable[$colorProperty.Name] = $colorProperty.Value
+            }
             Set-PSReadLineOption -Colors $colorTable -ErrorAction Stop
         }
     } catch { Write-Verbose "Skipping PSReadLine configuration: $_" }
@@ -406,12 +441,20 @@ if ($onWindows -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
-        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue |
-            Out-Null
+        $updateHelpJobParams = @{
+            Name = "UpdateHelp"
+            ScriptBlock = { Update-Help -Force -ErrorAction SilentlyContinue }
+            ErrorAction = 'SilentlyContinue'
+        }
+        Start-Job @updateHelpJobParams | Out-Null
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {
-        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
+        $bannerParams = @{
+            Object = "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)"
+            ForegroundColor = 'Yellow'
+        }
+        Write-Host @bannerParams
     }
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue)) {
@@ -445,12 +488,20 @@ elseif ($onMacOS -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
-        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue |
-            Out-Null
+        $updateHelpJobParams = @{
+            Name = "UpdateHelp"
+            ScriptBlock = { Update-Help -Force -ErrorAction SilentlyContinue }
+            ErrorAction = 'SilentlyContinue'
+        }
+        Start-Job @updateHelpJobParams | Out-Null
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {
-        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
+        $bannerParams = @{
+            Object = "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)"
+            ForegroundColor = 'Yellow'
+        }
+        Write-Host @bannerParams
     }
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue)) {
@@ -484,12 +535,20 @@ elseif ($onLinux -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
-        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue |
-            Out-Null
+        $updateHelpJobParams = @{
+            Name = "UpdateHelp"
+            ScriptBlock = { Update-Help -Force -ErrorAction SilentlyContinue }
+            ErrorAction = 'SilentlyContinue'
+        }
+        Start-Job @updateHelpJobParams | Out-Null
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {
-        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)" -ForegroundColor Yellow
+        $bannerParams = @{
+            Object = "PowerShell Version: $($PSVersionTable.PSVersion) - ExecutionPolicy: $(Get-ExecutionPolicy)"
+            ForegroundColor = 'Yellow'
+        }
+        Write-Host @bannerParams
     }
 
     if ($PSProfileSettings.PoshTheme -and (Get-Command -Name oh-my-posh -ErrorAction SilentlyContinue)) {

@@ -38,6 +38,8 @@ function Resolve-PoshTheme {
         }
     }
 
-    Write-Warning "Could not resolve oh-my-posh theme '$PoshTheme' (checked as a direct path, then under `$env:POSH_THEMES_PATH). Falling back to oh-my-posh's default theme. Set `$env:POSH_THEMES_PATH, or put a full path in PoshTheme, to use this theme."
+    Write-Warning ("Could not resolve oh-my-posh theme '$PoshTheme' (checked as a direct path, then under " +
+        "`$env:POSH_THEMES_PATH). Falling back to oh-my-posh's default theme. Set `$env:POSH_THEMES_PATH, " +
+        "or put a full path in PoshTheme, to use this theme.")
     return $null
 }

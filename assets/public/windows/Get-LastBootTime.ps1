@@ -36,8 +36,10 @@ function Get-LastBootTime {
                 Write-Error $_.Exception.Message
             }
         } else {
-            try { Get-CimInstance -ClassName win32_operatingsystem -ComputerName $ComputerName -ErrorAction Stop | Select-Object @{LABEL = "ComputerName"; EXPRESSION = { $_.csname } }, LastbootUpTime }
-            catch {
+            try {
+                Get-CimInstance -ClassName win32_operatingsystem -ComputerName $ComputerName -ErrorAction Stop |
+                    Select-Object @{LABEL = "ComputerName"; EXPRESSION = { $_.csname } }, LastbootUpTime
+            } catch {
                 $props = @{
                     ComputerName   = $ComputerName
                     LastbootUpTime = "Error"

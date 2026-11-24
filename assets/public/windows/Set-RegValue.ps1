@@ -86,7 +86,9 @@ function Set-RegValue {
         Write-Output ''
     }
     process {
-        if (-not $PSCmdlet.ShouldProcess("$RegPath\$RegValueName", "Set registry value to '$RegValueData' ($RegValueType)")) { return }
+        if (-not $PSCmdlet.ShouldProcess(
+                "$RegPath\$RegValueName",
+                "Set registry value to '$RegValueData' ($RegValueType)")) { return }
 
         Write-RegLog -Level INFO -Message "Checking that $RegPath exists."
 
@@ -106,15 +108,30 @@ function Set-RegValue {
                         if ($RegValueType -eq $TestRegType) {
                             Write-RegLog -Level INFO -Message "$RegValueName is already set to $RegValueType"
                         } else {
-                            Write-RegLog -Level INFO -Message "Registry Type is currently $TestRegType, not $RegValueType."
+                            $logParams = @{
+                                Level = 'INFO'
+                                Message = "Registry Type is currently $TestRegType, not $RegValueType."
+                            }
+                            Write-RegLog @logParams
 
                             Write-RegLog -Level INFO -Message "Updating Registry Value Type to $RegValueType."
 
                             try {
-                                Remove-ItemProperty -Path $RegPath -Name $RegValueName -Force -ErrorAction SilentlyContinue |
-                                    Out-Null
-                                New-ItemProperty -Path $RegPath -Name $RegValueName -Type $RegValueType -Force -ErrorAction SilentlyContinue |
-                                    Out-Null
+                                $removeParams = @{
+                                    Path = $RegPath
+                                    Name = $RegValueName
+                                    Force = $true
+                                    ErrorAction = 'SilentlyContinue'
+                                }
+                                Remove-ItemProperty @removeParams | Out-Null
+                                $newPropertyParams = @{
+                                    Path = $RegPath
+                                    Name = $RegValueName
+                                    Type = $RegValueType
+                                    Force = $true
+                                    ErrorAction = 'SilentlyContinue'
+                                }
+                                New-ItemProperty @newPropertyParams | Out-Null
                             } catch {
                                 Write-RegLog -Level ERROR -Message "Failed to Set Registry Value Type of $RegValueType."
                             }
@@ -126,28 +143,61 @@ function Set-RegValue {
                     if ($RegValueData) {
                         Write-RegLog -Level INFO -Message "Checking that $RegValueName has the correct value."
 
-                        if ((Get-ItemProperty -Path $RegPath -ErrorAction SilentlyContinue).$($RegValueName) -eq $RegValueData) {
-                            Write-RegLog -Level INFO -Message "$RegValueName is already at the passed value of $RegValueData."
+                        $propertyParams = @{
+                            Path = $RegPath
+                            ErrorAction = 'SilentlyContinue'
+                        }
+                        if ((Get-ItemProperty @propertyParams).$($RegValueName) -eq $RegValueData) {
+                            $logParams = @{
+                                Level = 'INFO'
+                                Message = "$RegValueName is already at the passed value of $RegValueData."
+                            }
+                            Write-RegLog @logParams
                         } else {
-                            Write-RegLog -Level WARNING -Message "$RegValueName is not currently set to the passed value of $RegValueData. Current Value is $((Get-ItemProperty -Path $RegPath -ErrorAction SilentlyContinue).$($RegValueName))"
+                            $logParams = @{
+                                Level = 'WARNING'
+                                Message = ("$RegValueName is not currently set to the passed value of $RegValueData. " +
+                                    "Current Value is $((Get-ItemProperty @propertyParams).$($RegValueName))")
+                            }
+                            Write-RegLog @logParams
 
-                            Write-RegLog -Level INFO -Message "Setting New Registry Value Data of $RegValueName to $RegValueData"
+                            $logParams = @{
+                                Level = 'INFO'
+                                Message = "Setting New Registry Value Data of $RegValueName to $RegValueData"
+                            }
+                            Write-RegLog @logParams
 
                             try {
                                 Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
                             } catch {
-                                Write-RegLog -Level ERROR -Message "Failed to Set Registry Value Data of $RegValueName to $RegValueData."
+                                $logParams = @{
+                                    Level = 'ERROR'
+                                    Message = "Failed to Set Registry Value Data of $RegValueName to $RegValueData."
+                                }
+                                Write-RegLog @logParams
                             }
                         }
                     } else {
-                        Write-RegLog -Level INFO -Message "No Reg Value Data was passed. Will erase the currently set data from the value."
+                        $logParams = @{
+                            Level = 'INFO'
+                            Message = "No Reg Value Data was passed. Will erase the currently set data from the value."
+                        }
+                        Write-RegLog @logParams
 
-                        Write-RegLog -Level INFO -Message "Setting New Registry Value Data of $RegValueName to $RegValueData"
+                        $logParams = @{
+                            Level = 'INFO'
+                            Message = "Setting New Registry Value Data of $RegValueName to $RegValueData"
+                        }
+                        Write-RegLog @logParams
 
                         try {
                             Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
                         } catch {
-                            Write-RegLog -Level ERROR -Message "Failed to Set Registry Value Data of $RegValueName to $RegValueData."
+                            $logParams = @{
+                                Level = 'ERROR'
+                                Message = "Failed to Set Registry Value Data of $RegValueName to $RegValueData."
+                            }
+                            Write-RegLog @logParams
                         }
                     }
                 } else {
@@ -169,15 +219,30 @@ function Set-RegValue {
                         if ($RegValueType -eq $TestRegType) {
                             Write-RegLog -Level INFO -Message "$RegValueName is already set to $RegValueType"
                         } else {
-                            Write-RegLog -Level INFO -Message "Registry Type is currently $TestRegType, not $RegValueType."
+                            $logParams = @{
+                                Level = 'INFO'
+                                Message = "Registry Type is currently $TestRegType, not $RegValueType."
+                            }
+                            Write-RegLog @logParams
 
                             Write-RegLog -Level INFO -Message "Updating Registry Value Type to $RegValueType."
 
                             try {
-                                Remove-ItemProperty -Path $RegPath -Name $RegValueName -Force -ErrorAction SilentlyContinue |
-                                    Out-Null
-                                New-ItemProperty -Path $RegPath -Name $RegValueName -Type $RegValueType -Force -ErrorAction SilentlyContinue |
-                                    Out-Null
+                                $removeParams = @{
+                                    Path = $RegPath
+                                    Name = $RegValueName
+                                    Force = $true
+                                    ErrorAction = 'SilentlyContinue'
+                                }
+                                Remove-ItemProperty @removeParams | Out-Null
+                                $newPropertyParams = @{
+                                    Path = $RegPath
+                                    Name = $RegValueName
+                                    Type = $RegValueType
+                                    Force = $true
+                                    ErrorAction = 'SilentlyContinue'
+                                }
+                                New-ItemProperty @newPropertyParams | Out-Null
                             } catch {
                                 Write-RegLog -Level ERROR -Message "Failed to Set Registry Value Type of $RegValueType."
                             }
@@ -187,23 +252,43 @@ function Set-RegValue {
                     }
 
                     if ($RegValueData) {
-                        Write-RegLog -Level INFO -Message "Setting Registry value Data of $RegValueName to $RegValueData"
+                        $logParams = @{
+                            Level = 'INFO'
+                            Message = "Setting Registry value Data of $RegValueName to $RegValueData"
+                        }
+                        Write-RegLog @logParams
 
                         try {
                             Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
                         } catch {
-                            Write-RegLog -Level ERROR -Message "Failed to Set Registry value Data of $RegValueName to $RegValueData."
+                            $logParams = @{
+                                Level = 'ERROR'
+                                Message = "Failed to Set Registry value Data of $RegValueName to $RegValueData."
+                            }
+                            Write-RegLog @logParams
                         }
 
                     } else {
-                        Write-RegLog -Level INFO -Message "No Reg Value Data was passed. Will erase the currently set data from the value."
+                        $logParams = @{
+                            Level = 'INFO'
+                            Message = "No Reg Value Data was passed. Will erase the currently set data from the value."
+                        }
+                        Write-RegLog @logParams
 
-                        Write-RegLog -Level INFO -Message "Setting New Registry Value Data of $RegValueName to $RegValueData"
+                        $logParams = @{
+                            Level = 'INFO'
+                            Message = "Setting New Registry Value Data of $RegValueName to $RegValueData"
+                        }
+                        Write-RegLog @logParams
 
                         try {
                             Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
                         } catch {
-                            Write-RegLog -Level ERROR -Message "Failed to Set Registry Value Data of $RegValueName to $RegValueData."
+                            $logParams = @{
+                                Level = 'ERROR'
+                                Message = "Failed to Set Registry Value Data of $RegValueName to $RegValueData."
+                            }
+                            Write-RegLog @logParams
                         }
                     }
                 }
@@ -223,13 +308,27 @@ function Set-RegValue {
             }
 
             if ($RegValueName) {
-                Write-RegLog -Level INFO -Message "Creating Registry Value $($RegValueName) with type of $($RegValueType)."
+                $logParams = @{
+                    Level = 'INFO'
+                    Message = "Creating Registry Value $($RegValueName) with type of $($RegValueType)."
+                }
+                Write-RegLog @logParams
 
                 try {
-                    New-ItemProperty -Path $RegPath -Name $RegValueName -Type $RegValueType -Force -ErrorAction SilentlyContinue |
-                        Out-Null
+                    $newPropertyParams = @{
+                        Path = $RegPath
+                        Name = $RegValueName
+                        Type = $RegValueType
+                        Force = $true
+                        ErrorAction = 'SilentlyContinue'
+                    }
+                    New-ItemProperty @newPropertyParams | Out-Null
                 } catch {
-                    Write-RegLog -Level ERROR -Message "Failed to Set Registry Value $($RegValueName) with type of $($RegValueType)."
+                    $logParams = @{
+                        Level = 'ERROR'
+                        Message = "Failed to Set Registry Value $($RegValueName) with type of $($RegValueType)."
+                    }
+                    Write-RegLog @logParams
                 }
             }
 
@@ -239,17 +338,29 @@ function Set-RegValue {
                 try {
                     Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
                 } catch {
-                    Write-RegLog -Level ERROR -Message "Failed to Set Registry value Data of $RegValueName to $RegValueData."
+                    $logParams = @{
+                        Level = 'ERROR'
+                        Message = "Failed to Set Registry value Data of $RegValueName to $RegValueData."
+                    }
+                    Write-RegLog @logParams
                 }
             } else {
-                Write-RegLog -Level INFO -Message "No Reg Value Data was passed. Will erase the currently set data from the value."
+                $logParams = @{
+                    Level = 'INFO'
+                    Message = "No Reg Value Data was passed. Will erase the currently set data from the value."
+                }
+                Write-RegLog @logParams
 
                 Write-RegLog -Level INFO -Message "Setting New Registry Value Data of $RegValueName to $RegValueData"
 
                 try {
                     Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
                 } catch {
-                    Write-RegLog -Level ERROR -Message "Failed to Set Registry Value Data of $RegValueName to $RegValueData."
+                    $logParams = @{
+                        Level = 'ERROR'
+                        Message = "Failed to Set Registry Value Data of $RegValueName to $RegValueData."
+                    }
+                    Write-RegLog @logParams
                 }
             }
         }

@@ -187,7 +187,8 @@ namespace PInvoke
 
     # Computed from the last boot time, since Windows PowerShell 5.1 has no Get-Uptime.
     $uptimeSpan = (Get-Date) - (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
-    $uptime = "{0} days, {1} hours, {2} minutes, {3} seconds" -f $uptimeSpan.Days, $uptimeSpan.Hours, $uptimeSpan.Minutes, $uptimeSpan.Seconds
+    $uptime = ("{0} days, {1} hours, {2} minutes, {3} seconds" -f $uptimeSpan.Days, $uptimeSpan.Hours,
+        $uptimeSpan.Minutes, $uptimeSpan.Seconds)
 
     # DONE: Fix support for Multiple Monitors
     # FROM: Shay Levy's Response - http://stackoverflow.com/questions/7967699/get-screen-resolution-using-wmi-powershell-in-windows-7
@@ -285,12 +286,17 @@ namespace PInvoke
         #>
         # Using [ScriptBlock]::Create rather than literal notation to force PowerShell to
         # store value of variables in scriptblock, rather than the variables themselves.
-        @( [ScriptBlock]::Create("Write-Host `"$(' ' * $PadLeft)$($Label.PadLeft($LabelSize)) `" -foregroundcolor Red -nonewline"),
+        @( [ScriptBlock]::Create(
+                "Write-Host `"$(' ' * $PadLeft)$($Label.PadLeft($LabelSize)) `" -foregroundcolor Red -nonewline"),
             [ScriptBlock]::Create("Write-Host `"$Value`" -foregroundcolor White") )
     }
 
     # Array of arrays of script blocks, containing commands to write out system information
     # Each sub-array should correspond to 1 line of information
+    $firstDriveParams = @{
+        Label = "$($driveSpecs[0].VolumeName):"
+        Value = "$($driveSpecs[0].DeviceID)\ has $([Decimal]::Round($driveSpecs[0].FreeSpace / 1GB)) GB Free Space"
+    }
     $AllInfo = @(
         @(	{ Write-Host } ),
         @(	{ Write-Host } ),
@@ -304,13 +310,17 @@ namespace PInvoke
         $(Get-LineScriptBlock -Label "Uptime:" -Value $UPTIME),
         $(Get-LineScriptBlock -Label "Resolution:" -Value $RESOLUTION)
         @(	{ Write-Host } ),
-        $(Get-LineScriptBlock -Label "$($driveSpecs[0].VolumeName):" -Value "$($driveSpecs[0].DeviceID)\ has $([Decimal]::Round($driveSpecs[0].FreeSpace / 1GB)) GB Free Space" )
+        $(Get-LineScriptBlock @firstDriveParams)
     )
 
     # Add any drives besides the first
     if ($driveSpecs.Count -gt 1) {
         $driveSpecs | Select-Object -Skip 1 | ForEach-Object {
-            $AllInfo += , $(Get-LineScriptBlock -Label "$($_.VolumeName):" -Value "$($_.DeviceID)\ has $([Decimal]::Round($_.FreeSpace / 1GB)) GB Free Space" )
+            $driveLineParams = @{
+                Label = "$($_.VolumeName):"
+                Value = "$($_.DeviceID)\ has $([Decimal]::Round($_.FreeSpace / 1GB)) GB Free Space"
+            }
+            $AllInfo += , $(Get-LineScriptBlock @driveLineParams)
         }
     }
 
@@ -334,7 +344,13 @@ namespace PInvoke
     if ( $Path ) {
         switch ($SSMode) {
             'AllMonitors' { Save-Screenshot -TarPath $Path }
-            'PowerShellOnly' { Export-ActiveWindowScreenshot -wpid $(([System.Diagnostics.Process]::GetCurrentProcess()).id) -OutPath $Path }
+            'PowerShellOnly' {
+                $activeWindowParams = @{
+                    wpid = $(([System.Diagnostics.Process]::GetCurrentProcess()).id)
+                    OutPath = $Path
+                }
+                Export-ActiveWindowScreenshot @activeWindowParams
+            }
         }
     }
 }

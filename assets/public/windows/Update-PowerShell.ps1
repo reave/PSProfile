@@ -22,7 +22,11 @@ function Update-PowerShell {
     }
 
     try {
-        $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/PowerShell/PowerShell/releases/latest' -ErrorAction Stop
+        $releaseParams = @{
+            Uri = 'https://api.github.com/repos/PowerShell/PowerShell/releases/latest'
+            ErrorAction = 'Stop'
+        }
+        $release = Invoke-RestMethod @releaseParams
         $currentVersion = [version]$PSVersionTable.PSVersion
         $latestVersion = [version]($release.tag_name -replace '^v', '')
 

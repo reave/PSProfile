@@ -144,8 +144,12 @@ function ConvertTo-NatoAlphabet {
 
             # add the nato alphabet array to the output object
             Write-Verbose "Adding nato alphabet array to output object"
-            $outputObject |
-                Add-Member -MemberType NoteProperty -Name 'NATO Phonetic Spelling' -Value ($natoAlphabetArray -join ' -> ')
+            $memberParams = @{
+                MemberType = 'NoteProperty'
+                Name = 'NATO Phonetic Spelling'
+                Value = ($natoAlphabetArray -join ' -> ')
+            }
+            $outputObject | Add-Member @memberParams
 
             if ($TextToSpeech) {
                 Write-Verbose "Speaking the input string $inputString"

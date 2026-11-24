@@ -40,7 +40,14 @@
         if ($ComputerName -notin $env:COMPUTERNAME, 'localhost', '.') {
             # WSMan first, then DCOM, which is how the earlier Get-WmiObject version connected.
             try { $cimSession = New-CimSession -ComputerName $ComputerName -ErrorAction Stop }
-            catch { $cimSession = New-CimSession -ComputerName $ComputerName -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction SilentlyContinue }
+            catch {
+                $dcomSessionParams = @{
+                    ComputerName = $ComputerName
+                    SessionOption = (New-CimSessionOption -Protocol Dcom)
+                    ErrorAction = 'SilentlyContinue'
+                }
+                $cimSession = New-CimSession @dcomSessionParams
+            }
             if (-not $cimSession) {
                 Write-Error -Message "Can't connect to $ComputerName."
                 return

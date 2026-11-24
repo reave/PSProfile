@@ -106,7 +106,12 @@ function Get-OSInfo {
                 Write-Verbose "WSMan is not available"
                 try {
                     Write-Verbose "Retrieving Opearting System Information information for $computer"
-                    $session = New-CimSession -ComputerName $computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
+                    $cimSessionParams = @{
+                        ComputerName = $computer
+                        SessionOption = (New-CimSessionOption -Protocol Dcom)
+                        ErrorAction = 'Stop'
+                    }
+                    $session = New-CimSession @cimSessionParams
                     $os = Get-CimInstance -CimSession $session -ClassName Win32_OperatingSystem -ErrorAction Stop
                     $properties = @{
                         ComputerName     = $computer

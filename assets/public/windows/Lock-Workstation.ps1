@@ -20,7 +20,13 @@ function Lock-Workstation {
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool LockWorkStation();
 "@
-    $LockWorkStation = Add-Type -MemberDefinition $signature -Name "Win32LockWorkStation" -Namespace Win32Functions -PassThru
+    $addTypeParams = @{
+        MemberDefinition = $signature
+        Name = "Win32LockWorkStation"
+        Namespace = 'Win32Functions'
+        PassThru = $true
+    }
+    $LockWorkStation = Add-Type @addTypeParams
 
     $LockWorkStation::LockWorkStation() | Out-Null
 }

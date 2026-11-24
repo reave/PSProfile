@@ -16,7 +16,8 @@ $__wslTopLevel = @(
     '--terminate', '-t', '--unregister', '--version', '-v'
 )
 $__wslSubOptions = @{
-    '--install' = '--enable-wsl1', '--fixed-vhd', '--from-file', '--legacy', '--location', '--name', '--no-distribution', '--no-launch', '-n', '--version', '--vhd-size', '--web-download'
+    '--install' = @('--enable-wsl1', '--fixed-vhd', '--from-file', '--legacy', '--location', '--name',
+        '--no-distribution', '--no-launch', '-n', '--version', '--vhd-size', '--web-download')
     '--manage'  = '--move', '--set-sparse', '-s', '--set-default-user', '--resize'
     '--mount'   = '--vhd', '--bare', '--name', '--type', '--options', '--partition'
     '--export'  = '--format'

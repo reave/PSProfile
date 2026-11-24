@@ -106,7 +106,9 @@ function Get-LastLogon {
                     $SessionSplat = @{ ComputerName = $Computer; ErrorAction = 'Stop' }
                     if ($UseCredential) { $SessionSplat.Credential = $CredentialObject }
                     try { $CimSession = New-CimSession @SessionSplat }
-                    catch { $CimSession = New-CimSession @SessionSplat -SessionOption (New-CimSessionOption -Protocol Dcom) }
+                    catch {
+                        $CimSession = New-CimSession @SessionSplat -SessionOption (New-CimSessionOption -Protocol Dcom)
+                    }
                     $CimParams.CimSession = $CimSession
                 }
 
@@ -165,8 +167,15 @@ function Get-LastLogon {
 
                             Loads the details of the most recently used profile into the script-scope variables.
                         #>
-                        $Script:LastProf = ($Script:NTUserDatLog | Sort-Object -Property LastWriteTime -Descending)[$InstanceNumber]
-                        $Script:UserName = $Script:LastProf.DirectoryName.Replace("$Script:ProfLoc", "").Trim("\").ToUpper()
+                        $sortParams = @{
+                            Property = 'LastWriteTime'
+                            Descending = $true
+                        }
+                        $Script:LastProf = ($Script:NTUserDatLog | Sort-Object @sortParams)[$InstanceNumber]
+                        $Script:UserName = $Script:LastProf.DirectoryName.Replace(
+                            "$Script:ProfLoc",
+                            ""
+                        ).Trim("\").ToUpper()
                         $Script:Time = $Script:LastProf.LastAccessTime
 
                         #Getting the SID of the user from the file ACE to compare
@@ -190,7 +199,10 @@ function Get-LastLogon {
 
                     #If the detected SID via Sddl matches the UserSID, then connect to the registry to detect currently loggedon.
                     if ($Script:Sddl -eq $Script:UserSID) {
-                        $Reg = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]"Users", $Computer)
+                        $Reg = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey(
+                            [Microsoft.Win32.RegistryHive]"Users",
+                            $Computer
+                        )
                         $Loaded = $Reg.GetSubKeyNames() -contains $Script:UserSID.Value
                         #Convert SID to Account for friendly display
                         $Script:UserSID = New-Object System.Security.Principal.SecurityIdentifier($Script:UserSID)
@@ -217,7 +229,8 @@ function Get-LastLogon {
             }#End Try
             catch {
                 if ($_.Exception.Message -like "*Some or all identity references could not be translated*") {
-                    Write-Warning "Unable to Translate $Script:UserSID, try filtering the SID `nby using the -FilterSID parameter."
+                    Write-Warning ("Unable to Translate $Script:UserSID, try filtering the SID `n" +
+                        "by using the -FilterSID parameter.")
                     Write-Warning "It may be that $Script:UserSID is local to $Computer, Unable to translate remote SID"
                 } else {
                     Write-Warning $_

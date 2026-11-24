@@ -98,7 +98,9 @@ function New-IsoFile {
         }
 
         if ( $BootFile ) {
-            if ('BDR', 'BDRE' -contains $Media) { Write-Warning "Bootable image doesn't seem to work with media type $Media" }
+            if ('BDR', 'BDRE' -contains $Media) {
+                Write-Warning "Bootable image doesn't seem to work with media type $Media"
+            }
 
             ($Stream = New-Object -ComObject ADODB.Stream -Property @{Type = 1 }).Open()  # adFileTypeBinary
             $Stream.LoadFromFile((Get-Item -LiteralPath $BootFile).Fullname)
@@ -129,14 +131,17 @@ function New-IsoFile {
         )
 
         Write-Verbose -Message "Selected media type is $Media with value $($MediaType.IndexOf($Media))"
-        ($Image = New-Object -ComObject IMAPI2FS.MsftFileSystemImage -Property @{VolumeName = $Title }).ChooseImageDefaultsForMediaType($MediaType.IndexOf($Media))
+        ($Image = New-Object -ComObject IMAPI2FS.MsftFileSystemImage -Property @{
+            VolumeName = $Title
+        }).ChooseImageDefaultsForMediaType($MediaType.IndexOf($Media))
 
         # Decided once here; process and end skip their work when the image isn't being created.
         $CreateImage = $PSCmdlet.ShouldProcess($OutFile, 'Create ISO image')
         if (-not $CreateImage) { return }
 
         if (!( $Target = New-Item -Path $OutFile -ItemType File -Force:$Force -ErrorAction SilentlyContinue )) {
-            Write-Error -Message "Cannot create file $Path. Use -Force parameter to overwrite if the target file already exists."
+            Write-Error -Message ("Cannot create file $Path. Use -Force parameter to overwrite " +
+                "if the target file already exists.")
             break
         }
     }
@@ -168,7 +173,11 @@ function New-IsoFile {
 
             if ( $item ) {
                 Write-Verbose -Message "Adding item to the target image: $($item.FullName)"
-                try { $Image.Root.AddTree($item.FullName, $true) } catch { Write-Error -Message ($_.Exception.Message.Trim() + ' Try a different media type.') }
+                try {
+                    $Image.Root.AddTree($item.FullName, $true)
+                } catch {
+                    Write-Error -Message ($_.Exception.Message.Trim() + ' Try a different media type.')
+                }
             }
         }
     }

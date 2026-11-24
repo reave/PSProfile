@@ -77,7 +77,12 @@ function Get-DeviceInfo {
                 Write-Verbose "WSMan is not available"
                 try {
                     Write-Verbose "Retrieving computer information for $computer"
-                    $session = New-CimSession -ComputerName $computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
+                    $cimSessionParams = @{
+                        ComputerName = $computer
+                        SessionOption = (New-CimSessionOption -Protocol Dcom)
+                        ErrorAction = 'Stop'
+                    }
+                    $session = New-CimSession @cimSessionParams
                     $cs = Get-CimInstance -CimSession $session -ClassName Win32_ComputerSystem -ErrorAction Stop
                     $properties = @{
                         ComputerName              = $computer

@@ -50,7 +50,9 @@ function Send-MagicPacket {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)][Alias("LinkLayerAddress", "PhysicalAddress", "ClientId")][string[]]$MacAddress,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [Alias("LinkLayerAddress", "PhysicalAddress", "ClientId")]
+        [string[]]$MacAddress,
         [IPAddress]$Broadcast = [System.Net.IPAddress]::Broadcast,
         [int32[]]$Ports = @(7..9)
     )

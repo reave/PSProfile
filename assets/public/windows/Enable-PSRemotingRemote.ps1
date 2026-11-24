@@ -29,15 +29,29 @@ function Enable-PSRemotingRemote {
     )
     begin {
         Write-Verbose "Building Command"
-        $commandLine = "powershell -NoProfile -NoLogo -ExecutionPolicy Bypass -Command ""& { Start-Process powershell -Verb runAs -ArgumentList ""Enable-PSRemoting -force;Set-Item WSMan:localhost\client\trustedhosts -value $($TrustedHosts)""}"""
+        $commandLine = ("powershell -NoProfile -NoLogo -ExecutionPolicy Bypass -Command ""& { " +
+            "Start-Process powershell -Verb runAs -ArgumentList ""Enable-PSRemoting -force;Set-Item " +
+            "WSMan:localhost\client\trustedhosts -value $($TrustedHosts)""}""")
         Write-Verbose "Command line: $commandLine"
     }
     process {
         # WinRM isn't running on the target yet, so connect over DCOM.
-        $session = New-CimSession -ComputerName $ComputerName -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
+        $cimSessionParams = @{
+            ComputerName = $ComputerName
+            SessionOption = (New-CimSessionOption -Protocol Dcom)
+            ErrorAction = 'Stop'
+        }
+        $session = New-CimSession @cimSessionParams
         try {
             Write-Verbose "Creating process"
-            Invoke-CimMethod -CimSession $session -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $commandLine } -ErrorAction Stop
+            $createProcessParams = @{
+                CimSession = $session
+                ClassName = 'Win32_Process'
+                MethodName = 'Create'
+                Arguments = @{ CommandLine = $commandLine }
+                ErrorAction = 'Stop'
+            }
+            Invoke-CimMethod @createProcessParams
         } finally {
             Remove-CimSession -CimSession $session
         }

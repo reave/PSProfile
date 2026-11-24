@@ -56,7 +56,11 @@
     )
     process {
 
-        $BitLocker = Get-CimInstance -Namespace "Root\cimv2\Security\MicrosoftVolumeEncryption" -ClassName "Win32_EncryptableVolume"
+        $volumeParams = @{
+            Namespace = "Root\cimv2\Security\MicrosoftVolumeEncryption"
+            ClassName = "Win32_EncryptableVolume"
+        }
+        $BitLocker = Get-CimInstance @volumeParams
 
         switch ($KeyProtectorType) {
             ("Alltypes") { $Value = "0" }
@@ -75,7 +79,12 @@
 
         # CIM instances have no methods of their own, so call GetKeyProtectors on each volume.
         $Ids = foreach ($Volume in $BitLocker) {
-            (Invoke-CimMethod -InputObject $Volume -MethodName GetKeyProtectors -Arguments @{ KeyProtectorType = [uint32]$Value }).VolumeKeyProtectorID
+            $protectorParams = @{
+                InputObject = $Volume
+                MethodName = 'GetKeyProtectors'
+                Arguments = @{ KeyProtectorType = [uint32]$Value }
+            }
+            (Invoke-CimMethod @protectorParams).VolumeKeyProtectorID
         }
         return $ids
     }

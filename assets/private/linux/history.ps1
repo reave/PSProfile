@@ -108,7 +108,11 @@ Set-PSReadLineKeyHandler -Key '"', "'" `
 
     # If text is selected, just quote it without any smarts
     if ($selectionStart -ne -1) {
-        [Microsoft.PowerShell.PSConsoleReadLine]::Replace($selectionStart, $selectionLength, $quote + $line.SubString($selectionStart, $selectionLength) + $quote)
+        [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
+            $selectionStart,
+            $selectionLength,
+            $quote + $line.SubString($selectionStart, $selectionLength) + $quote
+        )
         [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($selectionStart + $selectionLength + 2)
         return
     }
@@ -175,7 +179,8 @@ Set-PSReadLineKeyHandler -Key '"', "'" `
     }
 
     if ($null -eq $token -or
-        $token.Kind -eq [TokenKind]::RParen -or $token.Kind -eq [TokenKind]::RCurly -or $token.Kind -eq [TokenKind]::RBracket) {
+        $token.Kind -eq [TokenKind]::RParen -or $token.Kind -eq [TokenKind]::RCurly -or
+        $token.Kind -eq [TokenKind]::RBracket) {
         if ($line[0..$cursor].Where{ $_ -eq $quote }.Count % 2 -eq 1) {
             # Odd number of quotes before the cursor, insert a single quote
             [Microsoft.PowerShell.PSConsoleReadLine]::Insert($quote)
@@ -193,7 +198,11 @@ Set-PSReadLineKeyHandler -Key '"', "'" `
             $token.Kind -eq [TokenKind]::Variable -or $token.TokenFlags.hasFlag([TokenFlags]::Keyword)) {
             $end = $token.Extent.EndOffset
             $len = $end - $cursor
-            [Microsoft.PowerShell.PSConsoleReadLine]::Replace($cursor, $len, $quote + $line.SubString($cursor, $len) + $quote)
+            [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
+                $cursor,
+                $len,
+                $quote + $line.SubString($cursor, $len) + $quote
+            )
             [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($end + 2)
             return
         }
@@ -225,7 +234,11 @@ Set-PSReadLineKeyHandler -Key '(', '{', '[' `
 
     if ($selectionStart -ne -1) {
         # Text is selected, wrap it in brackets
-        [Microsoft.PowerShell.PSConsoleReadLine]::Replace($selectionStart, $selectionLength, $key.KeyChar + $line.SubString($selectionStart, $selectionLength) + $closeChar)
+        [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
+            $selectionStart,
+            $selectionLength,
+            $key.KeyChar + $line.SubString($selectionStart, $selectionLength) + $closeChar
+        )
         [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($selectionStart + $selectionLength + 2)
     } else {
         # No text is selected, insert a pair
@@ -322,7 +335,8 @@ Set-PSReadLineKeyHandler -Key Ctrl+V `
 # or if nothing is selected, the whole line.
 Set-PSReadLineKeyHandler -Key 'Alt+(' `
     -BriefDescription ParenthesizeSelection `
-    -LongDescription "Put parenthesis around the selection or entire line and move the cursor to after the closing parenthesis" `
+    -LongDescription ("Put parenthesis around the selection or entire line and move the cursor to after " +
+    "the closing parenthesis") `
     -ScriptBlock {
     param($key, $arg)
 
@@ -334,7 +348,11 @@ Set-PSReadLineKeyHandler -Key 'Alt+(' `
     $cursor = $null
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
     if ($selectionStart -ne -1) {
-        [Microsoft.PowerShell.PSConsoleReadLine]::Replace($selectionStart, $selectionLength, '(' + $line.SubString($selectionStart, $selectionLength) + ')')
+        [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
+            $selectionStart,
+            $selectionLength,
+            '(' + $line.SubString($selectionStart, $selectionLength) + ')'
+        )
         [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($selectionStart + $selectionLength + 2)
     } else {
         [Microsoft.PowerShell.PSConsoleReadLine]::Replace(0, $line.Length, '(' + $line + ')')
@@ -537,7 +555,8 @@ Set-PSReadLineOption -CommandValidationHandler {
 if (@(Get-Module -Name PSReadLine)[0].Version -ge [version]'2.1.0') {
     Set-PSReadLineKeyHandler -Key RightArrow `
         -BriefDescription ForwardCharAndAcceptNextSuggestionWord `
-        -LongDescription "Move cursor one character to the right in the current editing line and accept the next word in suggestion when it's at the end of current editing line" `
+        -LongDescription ("Move cursor one character to the right in the current editing line and accept the next " +
+        "word in suggestion when it's at the end of current editing line") `
         -ScriptBlock {
         param($key, $arg)
 
@@ -558,7 +577,8 @@ if (@(Get-Module -Name PSReadLine)[0].Version -ge [version]'2.1.0') {
 # on the command line.
 Set-PSReadLineKeyHandler -Key Alt+a `
     -BriefDescription SelectCommandArguments `
-    -LongDescription "Set current selection to next command argument in the command line. Use of digit argument selects argument by position" `
+    -LongDescription ("Set current selection to next command argument in the command line. " +
+    "Use of digit argument selects argument by position") `
     -ScriptBlock {
     param($key, $arg)
 
@@ -605,7 +625,10 @@ Set-PSReadLineKeyHandler -Key Alt+a `
 
     [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($nextAst.Extent.StartOffset + $startOffsetAdjustment)
     [Microsoft.PowerShell.PSConsoleReadLine]::SetMark($null, $null)
-    [Microsoft.PowerShell.PSConsoleReadLine]::SelectForwardChar($null, ($nextAst.Extent.EndOffset - $nextAst.Extent.StartOffset) - $endOffsetAdjustment)
+    [Microsoft.PowerShell.PSConsoleReadLine]::SelectForwardChar(
+        $null,
+        ($nextAst.Extent.EndOffset - $nextAst.Extent.StartOffset) - $endOffsetAdjustment
+    )
 }
 
 # Wrapped in try/catch: PredictionSource/PredictionViewStyle throw when the host

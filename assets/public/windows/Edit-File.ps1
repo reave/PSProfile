@@ -110,7 +110,10 @@ function Edit-File {
                 if ($name -match '[\\:]') {
                     try {
                         if (Test-Path $name) { return (Resolve-Path -LiteralPath $name).ProviderPath }
-                    } catch { Write-Debug "Couldn't resolve ${name} as a path, so searching for it by name: $($_.Exception.Message)" }
+                    } catch {
+                        Write-Debug ("Couldn't resolve ${name} as a path, so searching for it by name: " +
+                            "$($_.Exception.Message)")
+                    }
                 }
 
                 # 1) If it's a simple command on PATH or an alias/function, Get-Command will find it
@@ -120,7 +123,10 @@ function Edit-File {
                         $src = $cmd.Source
                         if ($src) { return $src }
                     }
-                } catch { Write-Debug "Get-Command couldn't look up ${name}, so searching folders instead: $($_.Exception.Message)" }
+                } catch {
+                    Write-Debug ("Get-Command couldn't look up ${name}, so searching folders instead: " +
+                        "$($_.Exception.Message)")
+                }
 
                 # Build candidate filenames (with/without .exe)
                 $candidates = @($name)
@@ -136,10 +142,12 @@ function Edit-File {
                 # 3) Add common per-user install locations
                 if ($env:LOCALAPPDATA) {
                     $programRoots += Join-Path $env:LOCALAPPDATA 'Programs'                  # e.g. VSCode user install
-                    $programRoots += Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps'    # MS Store / App execution aliases
+                    # MS Store / App execution aliases
+                    $programRoots += Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps'
                 }
                 if ($env:APPDATA) {
-                    $programRoots += Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'  # user start menu shortcuts
+                    # user start menu shortcuts
+                    $programRoots += Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
                 }
 
                 # 4) also consider user's profile (shallow search)
@@ -154,8 +162,15 @@ function Edit-File {
                     foreach ($cand in $candidates) {
                         try {
                             # Use -Depth when available (PowerShell 7+). If not available, the call will still work in many environments.
-                            $found = Get-ChildItem -Path $root -Filter $cand -Recurse -ErrorAction SilentlyContinue -Force -Depth $MaxDepth |
-                                Select-Object -First 1
+                            $childItemParams = @{
+                                Path = $root
+                                Filter = $cand
+                                Recurse = $true
+                                ErrorAction = 'SilentlyContinue'
+                                Force = $true
+                                Depth = $MaxDepth
+                            }
+                            $found = Get-ChildItem @childItemParams | Select-Object -First 1
                             if ($found) {
                                 if ($found.Extension -ieq '.lnk') {
                                     $target = Resolve-LnkTarget $found.FullName
@@ -198,7 +213,11 @@ function Edit-File {
             @{ Name = 'Notepad++'; Probe = @('notepad++.exe'); Args = '"{0}"' },
             @{ Name = 'Sublime Text'; Probe = @('sublime_text.exe'); Args = '"{0}"' },
             @{ Name = 'Atom'; Probe = @('atom.exe'); Args = '"{0}"' },
-            @{ Name = 'IntelliJ/PyCharm'; Probe = @('idea64.exe', 'pycharm64.exe', 'idea.exe', 'pycharm.exe'); Args = '"{0}"' },
+            @{
+                Name = 'IntelliJ/PyCharm'
+                Probe = @('idea64.exe', 'pycharm64.exe', 'idea.exe', 'pycharm.exe')
+                Args = '"{0}"'
+            },
             @{ Name = 'PowerShell ISE'; Probe = @('powershell_ise.exe'); Args = '"{0}"' },
             @{ Name = 'Notepad'; Probe = @('notepad.exe'); Args = '"{0}"' },
             @{ Name = 'CMTrace'; Probe = @('CMTrace.exe', 'cmtrace.exe'); Args = '"{0}"' },
@@ -223,7 +242,12 @@ function Edit-File {
         if (-not ($detected | Where-Object Name -EQ 'Notepad')) {
             $np = Resolve-Executable -Names @('notepad.exe') -MaxDepth 0
             if ($np) {
-                $detected.Add([pscustomobject]@{ Name = 'Notepad'; Executable = $np; ArgsTemplate = '"{0}"'; Key = 'notepad' })
+                $detected.Add([pscustomobject]@{
+                        Name = 'Notepad'
+                        Executable = $np
+                        ArgsTemplate = '"{0}"'
+                        Key = 'notepad'
+                    })
             }
         }
 
@@ -354,7 +378,11 @@ function Edit-File {
             $argumentList = , ($argsStr.Trim())
         } else {
             # naive split by space while preserving quoted segments
-            $argumentList = [System.Management.Automation.Language.Parser]::ParseInput($argsStr, [ref]$null, [ref]$null) |
+            $argumentList = [System.Management.Automation.Language.Parser]::ParseInput(
+                $argsStr,
+                [ref]$null,
+                [ref]$null
+            ) |
                 ForEach-Object {
                     # Fallback: this will not always be perfect but works for typical cases
                     $_.End

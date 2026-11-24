@@ -35,7 +35,13 @@
                     $session = New-CimSession -ComputerName $computer -ErrorAction Stop
 
                     Write-Verbose "Retrieving disk information for $computer"
-                    $Drives = Get-CimInstance -CimSession $Session -ClassName Win32_LogicalDisk -Filter 'DriveType=3' -ErrorAction Stop
+                    $diskParams = @{
+                        CimSession = $Session
+                        ClassName = 'Win32_LogicalDisk'
+                        Filter = 'DriveType=3'
+                        ErrorAction = 'Stop'
+                    }
+                    $Drives = Get-CimInstance @diskParams
 
                     foreach ($drive in $Drives) {
                         $properties = @{
@@ -76,8 +82,19 @@
                 Write-Verbose "WSMan is not available"
                 try {
                     Write-Verbose "Retrieving disk information for $computer"
-                    $session = New-CimSession -ComputerName $computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
-                    $Drives = Get-CimInstance -CimSession $session -ClassName Win32_LogicalDisk -Filter 'DriveType=3' -ErrorAction Stop
+                    $cimSessionParams = @{
+                        ComputerName = $computer
+                        SessionOption = (New-CimSessionOption -Protocol Dcom)
+                        ErrorAction = 'Stop'
+                    }
+                    $session = New-CimSession @cimSessionParams
+                    $diskParams = @{
+                        CimSession = $session
+                        ClassName = 'Win32_LogicalDisk'
+                        Filter = 'DriveType=3'
+                        ErrorAction = 'Stop'
+                    }
+                    $Drives = Get-CimInstance @diskParams
 
                     foreach ($drive in $Drives) {
                         $properties = @{

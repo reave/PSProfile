@@ -11,6 +11,12 @@ function Lock-Computer {
 public static extern bool LockWorkStation();
 "@
 
-    $LockComputer = Add-Type -MemberDefinition $signature -Name "Win32LockWorkStation" -Namespace Win32Functions -PassThru
+    $addTypeParams = @{
+        MemberDefinition = $signature
+        Name = "Win32LockWorkStation"
+        Namespace = 'Win32Functions'
+        PassThru = $true
+    }
+    $LockComputer = Add-Type @addTypeParams
     $LockComputer::LockWorkStation() | Out-Null
 }

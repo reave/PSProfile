@@ -110,7 +110,8 @@ function Get-Weather {
         if ($ZipCode -eq '' -and $City -ne '') {
             $APIPath = "http://api.openweathermap.org/data/2.5/weather?q=$City,$Country&APPID=$APIKey&units=$u&mode=xml"
         } elseif ($City -eq '' -and $ZipCode -ne '') {
-            $APIPath = "http://api.openweathermap.org/data/2.5/weather?zip=$ZipCode,$Country&APPID=$APIKey&units=$u&mode=xml"
+            $APIPath = ("http://api.openweathermap.org/data/2.5/weather?zip=$ZipCode,$Country" +
+                "&APPID=$APIKey&units=$u&mode=xml")
         } else {
             try {
                 $MyPublicIP = (Invoke-WebRequest 'http://myip.dnsomatic.com' -UseBasicParsing).Content
@@ -120,7 +121,8 @@ function Get-Weather {
                 $Country = $content.response.CountryCode
 
                 if ($ZipCode -ne '' -and $Country -ne '') {
-                    $APIPath = "http://api.openweathermap.org/data/2.5/weather?zip=$ZipCode,$Country&APPID=$APIKey&units=$u&mode=xml"
+                    $APIPath = ("http://api.openweathermap.org/data/2.5/weather?zip=$ZipCode,$Country" +
+                        "&APPID=$APIKey&units=$u&mode=xml")
                 } else {
                     $Properties = @{City = $Null
                         Country          = $Null

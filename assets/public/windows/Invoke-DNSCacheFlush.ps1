@@ -61,11 +61,23 @@ function Invoke-DNSCacheFlush {
             }
 
             # Fallback to ipconfig
-            $proc = Start-Process -FilePath 'ipconfig.exe' -ArgumentList '/flushdns' -NoNewWindow -Wait -PassThru -ErrorAction Stop
+            $ipconfigParams = @{
+                FilePath = 'ipconfig.exe'
+                ArgumentList = '/flushdns'
+                NoNewWindow = $true
+                Wait = $true
+                PassThru = $true
+                ErrorAction = 'Stop'
+            }
+            $proc = Start-Process @ipconfigParams
             if ($proc.ExitCode -eq 0) {
                 return @{ Success = $true; Method = 'ipconfig /flushdns'; Message = 'Cache flushed.' }
             } else {
-                return @{ Success = $false; Method = 'ipconfig /flushdns'; Message = "ipconfig returned exit code $($proc.ExitCode)." }
+                return @{
+                    Success = $false
+                    Method = 'ipconfig /flushdns'
+                    Message = "ipconfig returned exit code $($proc.ExitCode)."
+                }
             }
         }
 
@@ -101,20 +113,42 @@ function Invoke-DNSCacheFlush {
                     Clear-DnsClientCache -ErrorAction Stop
                     return @{ Success = $true; Method = 'Clear-DnsClientCache'; Message = 'Cache cleared.' }
                 }
-                $proc = Start-Process -FilePath 'ipconfig.exe' -ArgumentList '/flushdns' -NoNewWindow -Wait -PassThru -ErrorAction Stop
+                $ipconfigParams = @{
+                    FilePath = 'ipconfig.exe'
+                    ArgumentList = '/flushdns'
+                    NoNewWindow = $true
+                    Wait = $true
+                    PassThru = $true
+                    ErrorAction = 'Stop'
+                }
+                $proc = Start-Process @ipconfigParams
                 if ($proc.ExitCode -eq 0) {
                     return @{ Success = $true; Method = 'ipconfig /flushdns'; Message = 'Cache flushed.' }
                 } else {
-                    return @{ Success = $false; Method = 'ipconfig /flushdns'; Message = "ipconfig returned exit code $($proc.ExitCode)." }
+                    return @{
+                        Success = $false
+                        Method = 'ipconfig /flushdns'
+                        Message = "ipconfig returned exit code $($proc.ExitCode)."
+                    }
                 }
             }
 
             try {
                 if ($Session) {
-                    Invoke-CimMethod -CimSession $Session -ClassName __Namespace -MethodName NonExistentMethod -ErrorAction SilentlyContinue |
-                        Out-Null
+                    $probeParams = @{
+                        CimSession = $Session
+                        ClassName = '__Namespace'
+                        MethodName = 'NonExistentMethod'
+                        ErrorAction = 'SilentlyContinue'
+                    }
+                    Invoke-CimMethod @probeParams | Out-Null
                     # Using Invoke-Command with CimSession isn't direct, so use Invoke-Command against the session's machine
-                    $result = Invoke-Command -Session (New-PSSession -ComputerName $Target -ErrorAction Stop) -ScriptBlock $script -ErrorAction Stop
+                    $invokeParams = @{
+                        Session = (New-PSSession -ComputerName $Target -ErrorAction Stop)
+                        ScriptBlock = $script
+                        ErrorAction = 'Stop'
+                    }
+                    $result = Invoke-Command @invokeParams
                 } else {
                     $result = Invoke-Command -ComputerName $Target -ScriptBlock $script -ErrorAction Stop
                 }
@@ -134,9 +168,12 @@ function Invoke-DNSCacheFlush {
                 try {
                     if ($isLocal -and -not $PSBoundParameters.ContainsKey('CimSession')) {
                         # Local flush
-                        $admin = (New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+                        $admin = (New-Object Security.Principal.WindowsPrincipal(
+                                [Security.Principal.WindowsIdentity]::GetCurrent()
+                            )).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
                         if (-not $admin -and -not $Force) {
-                            Write-Warning "Administrator privileges are recommended to flush the DNS cache. Rerun with elevated rights or -Force to attempt anyway."
+                            Write-Warning ("Administrator privileges are recommended to flush the DNS cache. " +
+                                "Rerun with elevated rights or -Force to attempt anyway.")
                         }
 
                         $res = Clear-DnsCacheLocal

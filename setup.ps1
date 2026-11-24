@@ -29,7 +29,8 @@
 .EXAMPLE
     &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1))) -InstallPath 'C:\PSProfile' -Branch 'develop'
 #>
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The installer reports its steps and next steps on the console, which is its interface.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '',
+    Justification = 'The installer reports its steps and next steps on the console, which is its interface.')]
 [CmdletBinding()]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '',
     Justification = 'Sets PSProfileRoot so Update-Completion can find the new install.')]
@@ -137,8 +138,13 @@ function Update-LegacyProfileReference {
     $bytes = [System.IO.File]::ReadAllBytes($ProfilePath)
     $preambleLength = 0
     $encoding = [System.Text.Encoding]::GetEncoding(28591)
-    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) { $encoding = [System.Text.Encoding]::Unicode; $preambleLength = 2 }
-    elseif ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFE -and $bytes[1] -eq 0xFF) { $encoding = [System.Text.Encoding]::BigEndianUnicode; $preambleLength = 2 }
+    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) {
+        $encoding = [System.Text.Encoding]::Unicode
+        $preambleLength = 2
+    } elseif ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFE -and $bytes[1] -eq 0xFF) {
+        $encoding = [System.Text.Encoding]::BigEndianUnicode
+        $preambleLength = 2
+    }
 
     $text = $encoding.GetString($bytes, $preambleLength, $bytes.Length - $preambleLength)
     $pattern = '(?m)^(\s*\.\s+.*?)profile2\.0\.ps1'
@@ -212,8 +218,12 @@ try {
         if ($existingContent) {
             foreach ($m in [regex]::Matches($existingContent, '(?m)^\s*\.\s+["'']?([^"''\r\n]+?)["'']?\s*$')) {
                 $candidate = $m.Groups[1].Value -replace '^(\$HOME|\$env:USERPROFILE|~)(?=[\\/])', $HOME
-                try { if ([System.IO.Path]::GetFullPath($candidate) -eq $profileScript) { $alreadyLoads = $true; break } }
-                catch { Write-Verbose "Skipping '$candidate' in the profile: it isn't a valid path." }
+                try {
+                    if ([System.IO.Path]::GetFullPath($candidate) -eq $profileScript) {
+                        $alreadyLoads = $true
+                        break
+                    }
+                } catch { Write-Verbose "Skipping '$candidate' in the profile: it isn't a valid path." }
             }
         }
 
@@ -236,7 +246,11 @@ $marker (https://github.com/reave/PSProfile) - edit assets/config/config.json in
 "@ | Set-Content -Path $profileTarget
 
             if ($existingContent) {
-                Add-Content -Path $profileTarget -Value "`n# --- Original profile content (preserved below) ---`n$existingContent"
+                $addContentParams = @{
+                    Path = $profileTarget
+                    Value = "`n# --- Original profile content (preserved below) ---`n$existingContent"
+                }
+                Add-Content @addContentParams
             }
         }
     }

@@ -39,7 +39,11 @@ function Get-ADCertificateInformation {
             Write-Verbose "Retrieving Certificates for $userID"
             $user = Get-ADUser -Identity $userID -Properties "Certificates"
 
-            if ($(Get-ADUser -Identity $userID -Properties "Certificates" | Select-Object -ExpandProperty Certificates) -isnot [System.Object]) {
+            $userParams = @{
+                Identity = $userID
+                Properties = "Certificates"
+            }
+            if ($(Get-ADUser @userParams | Select-Object -ExpandProperty Certificates) -isnot [System.Object]) {
                 $properties = @{Identity = $userID
                     IssuedOn             = $null
                     ExpiresOn            = $null

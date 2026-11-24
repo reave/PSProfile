@@ -78,7 +78,13 @@ function Get-UserSession {
 
             #Record date.  Start process to run query in cmd.  I use starttime independently of process starttime due to a few issues we ran into
             $Started = Get-Date
-            $p = Start-Process -FilePath C:\windows\system32\cmd.exe -ArgumentList "/c query user /server:$computer > $tempfile" -WindowStyle hidden -PassThru
+            $queryParams = @{
+                FilePath = 'C:\windows\system32\cmd.exe'
+                ArgumentList = "/c query user /server:$computer > $tempfile"
+                WindowStyle = 'hidden'
+                PassThru = $true
+            }
+            $p = Start-Process @queryParams
 
             #we can't read in info or else it will freeze.  We cant run waitforexit until we read the standard output, or we run into issues...
             #handle timeouts on our own by watching hasexited
@@ -146,7 +152,11 @@ function Get-UserSession {
                             $temp.IdleTime = $sessions[$_].Substring(54, 11).trim()
                             $logonTimeLength = $sessions[$_].length - 65
                             try {
-                                $temp.LogonTime = Get-Date $sessions[$_].Substring(65, $logonTimeLength).trim() -ErrorAction stop
+                                $dateParams = @{
+                                    Date = $sessions[$_].Substring(65, $logonTimeLength).trim()
+                                    ErrorAction = 'stop'
+                                }
+                                $temp.LogonTime = Get-Date @dateParams
                             } catch {
                                 #Cleaning up code, investigate reason behind this.  Long way of saying $null....
                                 $temp.LogonTime = $sessions[$_].Substring(65, $logonTimeLength).trim() | Out-Null
@@ -166,7 +176,11 @@ function Get-UserSession {
                                 $temp.State = $array[3]
                                 $temp.IdleTime = $array[4]
                                 try {
-                                    $temp.LogonTime = Get-Date $($array[5] + " " + $array[6] + " " + $array[7]) -ErrorAction stop
+                                    $dateParams = @{
+                                        Date = $($array[5] + " " + $array[6] + " " + $array[7])
+                                        ErrorAction = 'stop'
+                                    }
+                                    $temp.LogonTime = Get-Date @dateParams
                                 } catch {
                                     $temp.LogonTime = ($array[5] + " " + $array[6] + " " + $array[7]).trim()
                                 }
@@ -176,7 +190,11 @@ function Get-UserSession {
                                 $temp.State = $array[4]
                                 $temp.IdleTime = $array[5]
                                 try {
-                                    $temp.LogonTime = Get-Date $($array[6] + " " + $array[7] + " " + $array[8]) -ErrorAction stop
+                                    $dateParams = @{
+                                        Date = $($array[6] + " " + $array[7] + " " + $array[8])
+                                        ErrorAction = 'stop'
+                                    }
+                                    $temp.LogonTime = Get-Date @dateParams
                                 } catch {
                                     $temp.LogonTime = ($array[6] + " " + $array[7] + " " + $array[8]).trim()
                                 }

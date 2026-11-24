@@ -13,7 +13,8 @@ function Start-Elevated {
     Author: Unknown
 #>
     [CmdletBinding()]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Starts a program; the User Account Control prompt is the confirmation.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '',
+        Justification = 'Starts a program; the User Account Control prompt is the confirmation.')]
     param (
         [parameter(Mandatory = $true, ValueFromPipeline = $true, Position = 0)] [String]$FilePath,
         [parameter(Mandatory = $false, ValueFromRemainingArguments = $true, Position = 1)] [String[]]$ArgumentList

@@ -102,7 +102,11 @@ function New-Shortcut {
                 if (($Name.ToLower()).EndsWith('url')) {
                     if ($StartMenuFolder) {
                         Write-Verbose "A Start folder was specified"
-                        $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
+                        $startFolderParams = @{
+                            Path = $env:ALLUSERSPROFILE
+                            ChildPath = "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
+                        }
+                        $sFolder = Join-Path @startFolderParams
                         if (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
                             Write-Verbose "Specified start folder doesn't exist. Creating it."
                             try {
@@ -114,7 +118,11 @@ function New-Shortcut {
                         }
                     } else {
                         Write-Verbose "No Start folder was specified. Will put the shortcut in the root of programs."
-                        $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs"
+                        $programsFolderParams = @{
+                            Path = $env:ALLUSERSPROFILE
+                            ChildPath = "Microsoft\Windows\Start Menu\Programs"
+                        }
+                        $sFolder = Join-Path @programsFolderParams
                     }
 
                     $sSPath = Join-Path -Path $sFolder -ChildPath $Name
@@ -136,7 +144,11 @@ function New-Shortcut {
                 } else {
                     if ($StartMenuFolder) {
                         Write-Verbose "A Start folder was specified"
-                        $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
+                        $startFolderParams = @{
+                            Path = $env:ALLUSERSPROFILE
+                            ChildPath = "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
+                        }
+                        $sFolder = Join-Path @startFolderParams
                         if (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
                             Write-Verbose "Specified start folder doesn't exist. Creating it."
                             try {
@@ -148,7 +160,11 @@ function New-Shortcut {
                         }
                     } else {
                         Write-Verbose "No Start folder was specified. Will put the shortcut in the root of programs."
-                        $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs"
+                        $programsFolderParams = @{
+                            Path = $env:ALLUSERSPROFILE
+                            ChildPath = "Microsoft\Windows\Start Menu\Programs"
+                        }
+                        $sFolder = Join-Path @programsFolderParams
                     }
 
                     $sSPath = Join-Path -Path $sFolder -ChildPath $Name
@@ -260,7 +276,11 @@ function New-Shortcut {
                 if (($Name.ToLower()).EndsWith('url')) {
                     if ($StartMenuFolder) {
                         Write-Verbose "A Start folder was specified"
-                        $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
+                        $startFolderParams = @{
+                            Path = $env:ALLUSERSPROFILE
+                            ChildPath = "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
+                        }
+                        $sFolder = Join-Path @startFolderParams
                         if (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
                             Write-Verbose "Specified start folder doesn't exist. Creating it."
                             try {
@@ -272,7 +292,11 @@ function New-Shortcut {
                         }
                     } else {
                         Write-Verbose "No Start folder was specified. Will put the shortcut in the root of programs."
-                        $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs"
+                        $programsFolderParams = @{
+                            Path = $env:ALLUSERSPROFILE
+                            ChildPath = "Microsoft\Windows\Start Menu\Programs"
+                        }
+                        $sFolder = Join-Path @programsFolderParams
                     }
                     $sSPath = Join-Path -Path $sFolder -ChildPath $Name
                     $sDPath = Join-Path -Path "$env:PUBLIC\Desktop" -ChildPath $Name
@@ -296,7 +320,8 @@ function New-Shortcut {
                     } catch {
                         if (Test-Path -Path $sSPath) {
                             if (Test-Path $sDPath) {
-                                Write-Warning "Both shortcuts appear to have been created but an exception was thrown. Verify the shorctus are correct."
+                                Write-Warning ("Both shortcuts appear to have been created but " +
+                                    "an exception was thrown. Verify the shorctus are correct.")
                                 return
                             } else {
                                 Write-Error "Failed to create shorcut $($Name) on the desktop."
@@ -317,7 +342,11 @@ function New-Shortcut {
                 else {
                     if ($StartMenuFolder) {
                         Write-Verbose "A Start folder was specified"
-                        $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
+                        $startFolderParams = @{
+                            Path = $env:ALLUSERSPROFILE
+                            ChildPath = "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
+                        }
+                        $sFolder = Join-Path @startFolderParams
                         if (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
                             Write-Verbose "Specified start folder doesn't exist. Creating it."
                             try {
@@ -329,7 +358,11 @@ function New-Shortcut {
                         }
                     } else {
                         Write-Verbose "No Start folder was specified. Will put the shortcut in the root of programs."
-                        $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs"
+                        $programsFolderParams = @{
+                            Path = $env:ALLUSERSPROFILE
+                            ChildPath = "Microsoft\Windows\Start Menu\Programs"
+                        }
+                        $sFolder = Join-Path @programsFolderParams
                     }
 
                     $sSPath = Join-Path -Path $sFolder -ChildPath $Name
@@ -383,7 +416,8 @@ function New-Shortcut {
                     } catch {
                         if (Test-Path -Path $sSPath) {
                             if (Test-Path $sDPath) {
-                                Write-Warning "Both shortcuts appear to have been created but an exception was thrown. Verify the shorctus are correct."
+                                Write-Warning ("Both shortcuts appear to have been created but " +
+                                    "an exception was thrown. Verify the shorctus are correct.")
                                 return
                             } else {
                                 Write-Error "Failed to create shorcut $($Name) on the desktop."

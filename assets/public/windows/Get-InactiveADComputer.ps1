@@ -24,7 +24,8 @@
         # LastLogonTimeStamp is a FileTime, so the cutoff has to be one too.
         $cutoff = (Get-Date).AddDays(-$DaysInactive).ToFileTime()
         # Inactive, and either a Windows client or a Mac.
-        $filter = "LastLogonTimeStamp -lt $cutoff -and ((OperatingSystem -like '*Windows*' -and OperatingSystem -notlike '*server*') -or OperatingSystem -like '*Mac*')"
+        $filter = ("LastLogonTimeStamp -lt $cutoff -and ((OperatingSystem -like '*Windows*' -and " +
+            "OperatingSystem -notlike '*server*') -or OperatingSystem -like '*Mac*')")
         Write-Verbose "AD filter: $filter"
         Get-ADComputer -Filter $filter -Properties LastLogonTimeStamp, DNSHostName, OperatingSystem
     }

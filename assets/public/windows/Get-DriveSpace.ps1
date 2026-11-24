@@ -35,7 +35,14 @@ function Get-DriveSpace {
         if ($Computer -notin $env:COMPUTERNAME, 'localhost', '.') {
             # WSMan first, then DCOM for computers without WinRM.
             try { $session = New-CimSession -ComputerName $Computer -ErrorAction Stop }
-            catch { $session = New-CimSession -ComputerName $Computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction SilentlyContinue }
+            catch {
+                $dcomSessionParams = @{
+                    ComputerName = $Computer
+                    SessionOption = (New-CimSessionOption -Protocol Dcom)
+                    ErrorAction = 'SilentlyContinue'
+                }
+                $session = New-CimSession @dcomSessionParams
+            }
             if (-not $session) {
                 Write-Error -Message "Can't connect to $Computer."
                 return
@@ -58,7 +65,9 @@ function Get-DriveSpace {
                     VolumeName  = $Drive.VolumeName
                     TotalSize   = if ($Drive.Size -gt 0) { [Math]::Round($Drive.Size / 1GB) } else { 0 }
                     FreeSpace   = if ($Drive.FreeSpace -gt 0) { [Math]::Round($Drive.FreeSpace / 1GB) } else { 0 }
-                    PercentFree = if ($Drive.Size -gt 0) { [Math]::Round(([double]$Drive.FreeSpace / [double]$Drive.Size) * 100, 2) } else { 0 }
+                    PercentFree = if ($Drive.Size -gt 0) {
+                        [Math]::Round(([double]$Drive.FreeSpace / [double]$Drive.Size) * 100, 2)
+                    } else { 0 }
                 }
 
                 $OutputObject = New-Object -TypeName psobject -Property $Properties
