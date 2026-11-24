@@ -104,7 +104,7 @@ Applied via `New-Alias -Force`. Keep in mind PowerShell resolves existing aliase
 }
 ```
 
-Each entry is installed (`Install-Module -Scope CurrentUser -Force`) and imported if not already present. `OS` is `"Windows"`, `"MacOS"`, `"Linux"`, `"All"`, or a comma-separated combination (e.g. `"Windows,MacOS"`). `PSVersionMajor` is a **minimum** PowerShell major version — the entry is skipped if `$PSVersionTable.PSVersion.Major` is lower. `PSVersionMajorMax` is the inverse — a **maximum** PowerShell major version, for a module that stops working on newer PowerShell (e.g. `TabExpansionPlusPlus`, which only supports Windows PowerShell 5.1 and doesn't install cleanly on PS7+/Core). The two can be combined to bound a module to a specific range.
+Each entry is installed (`Install-Module -Scope CurrentUser -Force`) and imported if not already present. `OS` is `"Windows"`, `"MacOS"`, `"Linux"`, `"All"`, or a comma-separated combination (e.g. `"Windows,MacOS"`). `PSVersionMajor` is a **minimum** PowerShell major version — the entry is skipped if `$PSVersionTable.PSVersion.Major` is lower. `PSVersionMajorMax` is the inverse — a **maximum** PowerShell major version, for a module that stops working on newer PowerShell (for example, one that only supports Windows PowerShell 5.1). The two can be combined to bound a module to a specific range.
 
 ### `Packages`
 
@@ -254,7 +254,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ## Requirements
 
-- PowerShell 5.1+ (Windows) or PowerShell 7+ (Windows/macOS/Linux). Some modules/packages in `sample-config.json` are gated to PS5.1-only or require a minimum version — see `PSVersionMajor` in [Modules](#modules).
+- PowerShell 5.1+ (Windows) or PowerShell 7+ (Windows/macOS/Linux). Some modules in `sample-config.json` require a minimum PowerShell version — see `PSVersionMajor` in [Modules](#modules).
 - `git` is recommended (for `setup.ps1`'s clone/pull path and easy updates) but not required — the installer falls back to a zip download.
 - Everything else (oh-my-posh, Terminal-Icons, winget/brew/apt/yum/pacman packages) is optional and self-installs from your `config.json` on first load, on whichever platforms actually support it. PSReadLine is optional too; older versions that don't support `-PredictionSource`/`-Colors` degrade gracefully (the whole `PSReadLine` config block is wrapped in a try/catch) rather than erroring.
 
