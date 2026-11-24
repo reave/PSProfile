@@ -3,7 +3,7 @@ function Get-OSInfo {
     .SYNOPSIS
         Get Operating System information
     .DESCRIPTION
-        Get Operating System Information from WMI on all devices specified
+        Get Operating System Information through CIM on all devices specified, over WSMan or, when WSMan is not available, DCOM
     .PARAMETER ComputerName
         Accepts a single string or an array of strings containing ComputerNames
 
@@ -35,7 +35,7 @@ function Get-OSInfo {
 
     foreach ($computer in $ComputerName) {
         Write-Verbose "Verify WSMan Connection to $computer"
-        if ($computer = $env:COMPUTERNAME) {
+        if ($computer -eq $env:COMPUTERNAME) {
             try {
                 Write-Verbose "Retrieving Operating System information from $computer"
                 $os = Get-CimInstance -ClassName Win32_OperatingSystem
@@ -62,6 +62,7 @@ function Get-OSInfo {
                     InstallDirectory = $Null
                 }
             } finally {
+                if ($session) { Remove-CimSession -CimSession $session; $session = $null }
                 $obj = New-Object -TypeName psobject -Property $properties
                 Write-Output $obj
             }
@@ -96,6 +97,7 @@ function Get-OSInfo {
                     InstallDirectory = $Null
                 }
             } finally {
+                if ($session) { Remove-CimSession -CimSession $session; $session = $null }
                 $obj = New-Object -TypeName psobject -Property $properties
                 Write-Output $obj
             }
@@ -103,7 +105,8 @@ function Get-OSInfo {
             Write-Verbose "WSMan is not available"
             try {
                 Write-Verbose "Retrieving Opearting System Information information for $computer"
-                $os = Get-WmiObject -Class Win32_OperatingSystem -ComputerName $computer -ErrorAction Stop
+                $session = New-CimSession -ComputerName $computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
+                $os = Get-CimInstance -CimSession $session -ClassName Win32_OperatingSystem -ErrorAction Stop
                 $properties = @{
                     ComputerName     = $computer
                     Status           = 'Connected'
@@ -111,7 +114,7 @@ function Get-OSInfo {
                     SPVersion        = $os.ServicePackMajorVersion
                     OSVersion        = $os.Version
                     OSArchitecture   = $os.OSArchitecture
-                    LastBootUpTime   = $os.ConvertToDateTime($os.LastBootUpTime)
+                    LastBootUpTime   = $os.LastBootUpTime
                     InstallDirectory = $os.WindowsDirectory
                 }
             } catch {
@@ -127,6 +130,7 @@ function Get-OSInfo {
                     InstallDirectory = $Null
                 }
             } finally {
+                if ($session) { Remove-CimSession -CimSession $session; $session = $null }
                 $obj = New-Object -TypeName psobject -Property $properties
                 Write-Output $obj
             }

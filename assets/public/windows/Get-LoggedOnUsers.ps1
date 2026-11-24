@@ -19,10 +19,6 @@
         [string]$ComputerName = $ENV:COMPUTERNAME
     )
     begin {
-        Write-Verbose "Building Regex for user identification"
-        $regexa = '.+Domain="(.+)",Name="(.+)"$'
-        $regexd = '.+LogonId="(\d+)"$'
-
         Write-Verbose "Configuring Logon Type HashTable"
         $logontype = @{
             "0"  = "Local System"      # (Local System Accounts)
@@ -36,23 +32,36 @@
             "10" = "RemoteInteractive" # (RDP\TS\RemoteAssistance)
             "11" = "CachedInteractive" # (Local w\cached credentials)
         }
-
-        Write-Verbose "Retrieving Logged on Sessions"
-        $logon_sessions = Get-WmiObject -Class Win32_logonsession -ComputerName $computername -ErrorAction SilentlyContinue
-
-        Write-Verbose "Retrieving Logged on Users"
-        $logon_users = Get-WmiObject -Class Win32_loggedonuser -ComputerName $computername -ErrorAction SilentlyContinue
     }
     process {
+        # The queries run here rather than in begin, so a computer name from the pipeline is used.
+        $cimSession = $null
+        $cimParams = @{ ErrorAction = 'SilentlyContinue' }
+        if ($ComputerName -notin $env:COMPUTERNAME, 'localhost', '.') {
+            # WSMan first, then DCOM, which is how the earlier Get-WmiObject version connected.
+            try { $cimSession = New-CimSession -ComputerName $ComputerName -ErrorAction Stop }
+            catch { $cimSession = New-CimSession -ComputerName $ComputerName -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction SilentlyContinue }
+            if (-not $cimSession) {
+                Write-Error -Message "Can't connect to $ComputerName."
+                return
+            }
+            $cimParams.CimSession = $cimSession
+        }
+
+        Write-Verbose "Retrieving Logged on Sessions"
+        $logon_sessions = Get-CimInstance -ClassName Win32_LogonSession @cimParams
+
+        Write-Verbose "Retrieving Logged on Users"
+        $logon_users = Get-CimInstance -ClassName Win32_LoggedOnUser @cimParams
+        if ($cimSession) { Remove-CimSession -CimSession $cimSession }
+
         $session_user = @{ }
 
         Write-Verbose "Building logon principal name for each discovered user"
         foreach ($logon_user in $logon_users) {
-            $logon_user.antecedent -match $regexa > $nul
-            $username = $matches[1] + "\" + $matches[2]
-            $logon_user.dependent -match $regexd > $nul
-            $session = $matches[1]
-            $session_user[$session] += $username
+            # CIM returns the account and the session as objects rather than WMI path strings.
+            $username = $logon_user.Antecedent.Domain + "\" + $logon_user.Antecedent.Name
+            $session_user[$logon_user.Dependent.LogonId] += $username
 
             Write-Verbose "Finished processing $username"
         }
@@ -60,7 +69,7 @@
         Write-Verbose "Processing each session"
         foreach ($session in $logon_sessions) {
             Write-Verbose "Calculating session start time"
-            $starttime = [management.managementdatetimeconverter]::todatetime($session.starttime)
+            $starttime = $session.StartTime
 
             Write-Verbose "Creating session object"
             $Props = @{

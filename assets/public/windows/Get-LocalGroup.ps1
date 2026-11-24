@@ -13,7 +13,7 @@ function Get-LocalGroup {
 
 	.DESCRIPTION
 		This script can be list all of local group account.
-		The function is using WMI to connect to the remote machine
+		The function is using CIM to connect to the remote machine, over WSMan or, failing that, DCOM
 
 	.PARAMETER ComputerName
 		Specifies the computers on which the command . The default is the local computer.
@@ -44,18 +44,28 @@ function Get-LocalGroup {
     )
 
     $Splatting = @{
-        Class     = "Win32_Group"
+        ClassName = "Win32_Group"
         Namespace = "root\cimv2"
         Filter    = "LocalAccount='$True'"
     }
 
     #Credentials
-    If ($PSBoundParameters['Credential']) { $Splatting.Credential = $Credential }
+    $SessionSplat = @{ ErrorAction = 'Stop' }
+    If ($PSBoundParameters['Credential']) { $SessionSplat.Credential = $Credential }
 
     Foreach ($Computer in $ComputerName) {
         TRY {
             Write-Verbose -Message "[PROCESS] ComputerName: $Computer"
-            Get-WmiObject @Splatting -ComputerName $Computer | Select-Object -Property Name, Caption, Status, SID, SIDType, Domain, Description
+            $CimParams = @{}
+            $CimSession = $null
+            IF ($Computer -notin $env:COMPUTERNAME, 'localhost', '.' -or $PSBoundParameters['Credential']) {
+                # WSMan first, then DCOM, which is how Get-WmiObject connected
+                TRY { $CimSession = New-CimSession @SessionSplat -ComputerName $Computer }
+                CATCH { $CimSession = New-CimSession @SessionSplat -ComputerName $Computer -SessionOption (New-CimSessionOption -Protocol Dcom) }
+                $CimParams.CimSession = $CimSession
+            }
+            Get-CimInstance @Splatting @CimParams | Select-Object -Property Name, Caption, Status, SID, SIDType, Domain, Description
+            IF ($CimSession) { Remove-CimSession -CimSession $CimSession }
         }
         CATCH {
             Write-Warning -Message "[PROCESS] Issue connecting to $Computer"

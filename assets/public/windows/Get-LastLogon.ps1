@@ -1,4 +1,4 @@
-﻿function Get-LastLogon {
+function Get-LastLogon {
     <#
     .SYNOPSIS
         This function will list the last user logged on or logged in.
@@ -20,6 +20,9 @@
         Default WQLFilter defined for the Win32_UserProfile query, it is best to leave this alone, unless you know what
         you are doing.
         Default Value = "NOT SID = 'S-1-5-18' AND NOT SID = 'S-1-5-19' AND NOT SID = 'S-1-5-20'"
+
+    .PARAMETER CredentialObject
+        Credentials for the remote computers. By default the current user's credentials are used.
 
     .EXAMPLE
         $Servers = Get-Content "C:\ServerList.txt"
@@ -78,9 +81,10 @@
         [String]$FilterSID,
         [Parameter(Mandatory = $false)]
         [String]$WQLFilter = "NOT SID = 'S-1-5-18' AND NOT SID = 'S-1-5-19' AND NOT SID = 'S-1-5-20'",
-        [Parameter(Mandatory = $true)]
-        [System.Management.Automation.CredentialAttribute()]
-        [securestring]$CredentialObject
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $CredentialObject = [System.Management.Automation.PSCredential]::Empty
     )
 
     begin {
@@ -93,10 +97,23 @@
     process {
         foreach ($Computer in $ComputerName) {
             $Computer = $Computer.ToUpper().Trim()
+            $CimSession = $null
             try {
+                #Connecting: no session for the local computer without credentials, otherwise WSMan and then DCOM
+                $CimParams = @{}
+                $UseCredential = $CredentialObject -ne [System.Management.Automation.PSCredential]::Empty
+                if ($Computer -notin $env:COMPUTERNAME, 'LOCALHOST', '.' -or $UseCredential) {
+                    $SessionSplat = @{ ComputerName = $Computer; ErrorAction = 'Stop' }
+                    if ($UseCredential) { $SessionSplat.Credential = $CredentialObject }
+                    try { $CimSession = New-CimSession @SessionSplat }
+                    catch { $CimSession = New-CimSession @SessionSplat -SessionOption (New-CimSessionOption -Protocol Dcom) }
+                    $CimParams.CimSession = $CimSession
+                }
+
                 #Querying Windows version to determine how to proceed.
-                $Win32OS = Get-WmiObject -Class Win32_OperatingSystem -ComputerName $Computer -Credential $CredentialObject
-                $Build = $Win32OS.BuildNumber
+                $Win32OS = Get-CimInstance -ClassName Win32_OperatingSystem @CimParams
+                # BuildNumber is a string; compare it as a number.
+                $Build = [int]$Win32OS.BuildNumber
 
                 #Win32_UserProfile exist on Windows Vista and above
                 if ($Build -ge 6001) {
@@ -104,10 +121,10 @@
                         $WQLFilter = $WQLFilter + " AND NOT SID = `'$FilterSID`'"
                     }#End If ($FilterSID)
 
-                    $Win32User = Get-WmiObject -Class Win32_UserProfile -Filter $WQLFilter -ComputerName $Computer -Credential $CredentialObject
+                    $Win32User = Get-CimInstance -ClassName Win32_UserProfile -Filter $WQLFilter @CimParams
                     $LastUser = $Win32User | Sort-Object -Property LastUseTime -Descending | Select-Object -First 1
                     $Loaded = $LastUser.Loaded
-                    $Script:Time = ([WMI]'').ConvertToDateTime($LastUser.LastUseTime)
+                    $Script:Time = $LastUser.LastUseTime
 
                     #Convert SID to Account for friendly display
                     $Script:UserSID = New-Object System.Security.Principal.SecurityIdentifier($LastUser.SID)
@@ -203,6 +220,9 @@
                     Write-Warning $_
                 }
             }#End Catch
+            finally {
+                if ($CimSession) { Remove-CimSession -CimSession $CimSession }
+            }
         }#End Foreach ($Computer in $ComputerName)
     }#End Process
     end {

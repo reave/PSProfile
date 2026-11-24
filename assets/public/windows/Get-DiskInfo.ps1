@@ -69,12 +69,15 @@
                     }
                     $obj = New-Object -TypeName psobject -Property $properties
                     Write-Output $obj
+                } finally {
+                    if ($session) { Remove-CimSession -CimSession $session; $session = $null }
                 }
             } else {
                 Write-Verbose "WSMan is not available"
                 try {
                     Write-Verbose "Retrieving disk information for $computer"
-                    $Drives = Get-WmiObject -ClassName Win32_LogicalDisk -ComputerName $computer -ErrorAction Stop -Filter 'DriveType=3'
+                    $session = New-CimSession -ComputerName $computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
+                    $Drives = Get-CimInstance -CimSession $session -ClassName Win32_LogicalDisk -Filter 'DriveType=3' -ErrorAction Stop
 
                     foreach ($drive in $Drives) {
                         $properties = @{
@@ -108,6 +111,8 @@
                     }
                     $obj = New-Object -TypeName psobject -Property $properties
                     Write-Output $obj
+                } finally {
+                    if ($session) { Remove-CimSession -CimSession $session; $session = $null }
                 }
             }
         }

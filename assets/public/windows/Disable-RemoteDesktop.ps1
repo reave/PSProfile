@@ -143,10 +143,8 @@ function Disable-RemoteDesktop {
 						Write-Verbose -Message (Get-DefaultMessage -Message "$Computer - Test-Connection")
 						IF (Test-Connection -Computer $Computer -count 1 -quiet) {
 							$Splatting = @{
-								Class          = "Win32_TerminalServiceSetting"
-								NameSpace      = "root\cimv2\terminalservices"
+								SessionOption  = (New-CimSessionOption -PacketPrivacy)
 								ComputerName   = $Computer
-								Authentication = 'PacketPrivacy'
 								ErrorAction    = 'Stop'
 								ErrorVariable  = 'ErrorProcessGetWmi'
 							}
@@ -156,8 +154,10 @@ function Disable-RemoteDesktop {
 							}
 
 							# disable Remote Desktop
-							Write-Verbose -Message (Get-DefaultMessage -Message "$Computer - Get-WmiObject - disable Remote Desktop")
-							(Get-WmiObject @Splatting).SetAllowTsConnections(0, 0) | Out-Null
+							Write-Verbose -Message (Get-DefaultMessage -Message "$Computer - CIM over DCOM - disable Remote Desktop")
+							$RemoteCimSession = New-CimSession @Splatting
+							Get-CimInstance -CimSession $RemoteCimSession -ClassName Win32_TerminalServiceSetting -Namespace "root\cimv2\terminalservices" -ErrorAction Stop |
+								Invoke-CimMethod -MethodName SetAllowTSConnections -Arguments @{ AllowTSConnections = [uint32]0; ModifyFirewallException = [uint32]0 } -ErrorAction Stop | Out-Null
 
 							# Disable requirement that user must be authenticated
 							#(Get-WmiObject -Class Win32_TSGeneralSetting @Splatting -Filter TerminalName='RDP-tcp').SetUserAuthenticationRequired(0)  Out-Null
@@ -165,11 +165,12 @@ function Disable-RemoteDesktop {
 					}
 					CATCH {
 						Write-Warning -Message (Get-DefaultMessage -Message "$Computer - Something wrong happened")
-						IF ($ErrorProcessGetWmi) { Write-Warning -Message (Get-DefaultMessage -Message "$Computer - Issue with Get-WmiObject") }
+						IF ($ErrorProcessGetWmi) { Write-Warning -Message (Get-DefaultMessage -Message "$Computer - Issue with New-CimSession") }
 						Write-Warning -MEssage $Error[0].Exception.Message
 					}
 					FINALLY {
 						$Splatting.Clear()
+						IF ($RemoteCimSession) { Remove-CimSession -CimSession $RemoteCimSession; $RemoteCimSession = $null }
 					}
 				}
 			} #FOREACH

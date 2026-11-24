@@ -55,7 +55,7 @@
         $KeyProtectorType
     )
 
-    $BitLocker = Get-WmiObject -Namespace "Root\cimv2\Security\MicrosoftVolumeEncryption" -Class "Win32_EncryptableVolume"
+    $BitLocker = Get-CimInstance -Namespace "Root\cimv2\Security\MicrosoftVolumeEncryption" -ClassName "Win32_EncryptableVolume"
 
     switch ($KeyProtectorType) {
         ("Alltypes") { $Value = "0" }
@@ -72,6 +72,9 @@
         default { $Value = "0" }
     }
 
-    $Ids = $BitLocker.GetKeyProtectors($Value).volumekeyprotectorID
+    # CIM instances have no methods of their own, so call GetKeyProtectors on each volume.
+    $Ids = foreach ($Volume in $BitLocker) {
+        (Invoke-CimMethod -InputObject $Volume -MethodName GetKeyProtectors -Arguments @{ KeyProtectorType = [uint32]$Value }).VolumeKeyProtectorID
+    }
     return $ids
 }

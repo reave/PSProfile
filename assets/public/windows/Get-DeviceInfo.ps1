@@ -3,7 +3,7 @@ function Get-DeviceInfo {
     .SYNOPSIS
         Get Operating System information
     .DESCRIPTION
-        Get Operating System Information from WMI on all devices specified
+        Get computer information through CIM on all devices specified, over WSMan or, when WSMan is not available, DCOM
     .PARAMETER ComputerName
         Accepts a single string or an array of strings containing ComputerNames
 
@@ -68,6 +68,7 @@ function Get-DeviceInfo {
                     TotalPhysicalMemory       = $Null
                 }
             } finally {
+                if ($session) { Remove-CimSession -CimSession $session; $session = $null }
                 $obj = New-Object -TypeName psobject -Property $properties
                 Write-Output $obj
             }
@@ -75,7 +76,8 @@ function Get-DeviceInfo {
             Write-Verbose "WSMan is not available"
             try {
                 Write-Verbose "Retrieving computer information for $computer"
-                $cs = Get-WmiObject -Class Win32_ComputerSystem -ComputerName $computer -ErrorAction Stop
+                $session = New-CimSession -ComputerName $computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
+                $cs = Get-CimInstance -CimSession $session -ClassName Win32_ComputerSystem -ErrorAction Stop
                 $properties = @{
                     ComputerName              = $computer
                     Status                    = 'Connected'
@@ -99,6 +101,7 @@ function Get-DeviceInfo {
                     TotalPhysicalMemory       = $Null
                 }
             } finally {
+                if ($session) { Remove-CimSession -CimSession $session; $session = $null }
                 $obj = New-Object -TypeName psobject -Property $properties
                 Write-Output $obj
             }

@@ -21,14 +21,7 @@ function Get-DriveSpace {
     )
     begin { Write-Verbose "Beginning Execution" }
     process {
-        Write-Verbose "Determining Version of PowerShell"
-        if ($PSVersionTable.PSVersion.Major -lt 4) {
-            Write-Verbose "PowerShell Version is less than 4. Using Get-WMIObject instead of Get-CIMInstance"
-            $DriveInfo = Get-WmiObject -Class Win32_LogicalDisk -Filter { DriveType = 3 } -ErrorAction SilentlyContinue
-        } else {
-            Write-Verbose "PowerShell Version is greater than 4. Using Get-CIMInstance"
-            $DriveInfo = Get-CimInstance -ClassName Win32_LogicalDisk -Filter 'DriveType = 3' -ErrorAction SilentlyContinue
-        }
+        $DriveInfo = Get-CimInstance -ClassName Win32_LogicalDisk -Filter 'DriveType = 3' -ErrorAction SilentlyContinue
 
         $count = ($DriveInfo | Measure-Object).Count
         $i = 1

@@ -169,31 +169,15 @@ namespace PInvoke
     $username = [Environment]::USERNAME
     $workstation = $Env:COMPUTERNAME
 
-    if ($PSVersionTable.PSVersion.Major -lt 4) {
-        $os = (Get-WmiObject -Class Win32_OperatingSystem).Caption
-    } else {
-        $os = (Get-CimInstance -ClassName Win32_OperatingSystem).Caption
-    }
+    $os = (Get-CimInstance -ClassName Win32_OperatingSystem).Caption
 
-    if ($PSVersionTable.PSVersion.Major -lt 4) {
-        $arch = (Get-WmiObject -Class Win32_OperatingSystem).osarchitecture
-    } else {
-        $arch = (Get-CimInstance -ClassName Win32_OperatingSystem).osarchitecture
-    }
+    $arch = (Get-CimInstance -ClassName Win32_OperatingSystem).osarchitecture
 
     $CPU = [Decimal]::Round((Get-Counter '\Processor(_Total)\% Processor Time').CounterSamples.CookedValue)
 
-    if ($PSVersionTable.PSVersion.Major -lt 4) {
-        $driveSpecs = Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $PSItem.DriveType -eq 3 }
-    } else {
-        $driveSpecs = Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $PSItem.DriveType -eq 3 }
-    }
+    $driveSpecs = Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $PSItem.DriveType -eq 3 }
 
-    if ($PSVersionTable.PSVersion.Major -lt 4) {
-        $memTotal = [Decimal]::Round(((Get-WmiObject -Class Win32_OperatingSystem).TotalVisibleMemorySize / 1024))
-    } else {
-        $memTotal = [Decimal]::Round(((Get-CimInstance -ClassName Win32_OperatingSystem).TotalVisibleMemorySize / 1024))
-    }
+    $memTotal = [Decimal]::Round(((Get-CimInstance -ClassName Win32_OperatingSystem).TotalVisibleMemorySize / 1024))
     $memFree = (Get-Counter '\Memory\Available MBytes').CounterSamples.CookedValue
     $mem = "$memFree MB out of $memTotal MB available"
 

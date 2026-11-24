@@ -98,7 +98,9 @@ function Invoke-IvantiInventoryScan {
         } else {
             Write-Verbose "WSMan is not available"
             Write-Verbose "Retrieving Operating System Information for $computer"
-            $os = Get-WmiObject -Class Win32_OperatingSystem -ComputerName $computer -ErrorAction Stop
+            $session = New-CimSession -ComputerName $computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
+            try { $os = Get-CimInstance -CimSession $session -ClassName Win32_OperatingSystem -ErrorAction Stop }
+            finally { Remove-CimSession -CimSession $session }
 
             if ($os.OSArchitecture -eq '64-bit') {
                 $LDInventoryScanner = Join-Path -Path "C:\Program Files (x86)" -ChildPath $LDInventoryScannerPost

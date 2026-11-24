@@ -3,7 +3,8 @@ function Enable-PSRemotingRemote {
     .SYNOPSIS
         Enable PSRemoting on a remote device
     .DESCRIPTION
-        Enable PSRemoting on a remote computer
+        Enable PSRemoting on a remote computer. Connects over DCOM, since WinRM isn't running there
+        yet, and starts an elevated PowerShell that runs Enable-PSRemoting and sets TrustedHosts.
     .PARAMETER ComputerName
         Describes the device name or IP Address of the computer you want to enable PSRemoting on
 
@@ -28,18 +29,17 @@ function Enable-PSRemotingRemote {
     )
     begin {
         Write-Verbose "Building Command"
-        $cargs = @{
-            ComputerName = "$($ComputerName)"
-            Class        = 'Win32_Process'
-            Name         = 'Create'
-            ArgumentList = "powershell -NoProfile -NoLogo -ExecutionPolicy Bypass -Command ""& { Start-Process powershell -Verb runAs -ArgumentList ""Enable-PSRemoting -force;Set-Item WSMan:localhost\client\trustedhosts -value $($TrustedHosts)""}"""
-            ErrorAction  = 'Stop'
-        }
-        $tempObject = New-Object -TypeName psobject -Property $cargs
-        Write-Verbose "Arguments: $($tempObject)"
+        $commandLine = "powershell -NoProfile -NoLogo -ExecutionPolicy Bypass -Command ""& { Start-Process powershell -Verb runAs -ArgumentList ""Enable-PSRemoting -force;Set-Item WSMan:localhost\client\trustedhosts -value $($TrustedHosts)""}"""
+        Write-Verbose "Command line: $commandLine"
     }
     process {
-        Write-Verbose "Creating process"
-        Invoke-WmiMethod @args -EnableAllPrivileges
+        # WinRM isn't running on the target yet, so connect over DCOM.
+        $session = New-CimSession -ComputerName $ComputerName -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
+        try {
+            Write-Verbose "Creating process"
+            Invoke-CimMethod -CimSession $session -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $commandLine } -ErrorAction Stop
+        } finally {
+            Remove-CimSession -CimSession $session
+        }
     }
 }

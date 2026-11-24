@@ -80,6 +80,7 @@
         Removed unneeded variables
         Added PendFileRenVal - Contents of the PendingFileRenameOperations Reg Entry
         Removed .Net Registry connection, replaced with WMI StdRegProv
+        Uses CIM (WSMan, or DCOM for computers without WinRM) instead of Get-WmiObject
         Added ComputerPendingRename
     #>
     [CmdletBinding()]
@@ -101,31 +102,41 @@
                 ## Setting CBSRebootPend to null since not all versions of Windows has this value
                 $CBSRebootPend = $null
 
-                ## Querying WMI for build version
-                $WMI_OS = Get-WmiObject -Class Win32_OperatingSystem -Property BuildNumber, CSName -ComputerName $Computer -ErrorAction Stop
+                ## Connecting to the computer: no session locally, otherwise WSMan and then DCOM
+                $CimSession = $null
+                $CimParams = @{ ErrorAction = 'Stop' }
+                if ($Computer -notin $env:COMPUTERNAME, 'localhost', '.') {
+                    try { $CimSession = New-CimSession -ComputerName $Computer -ErrorAction Stop }
+                    catch { $CimSession = New-CimSession -ComputerName $Computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop }
+                    $CimParams.CimSession = $CimSession
+                }
 
-                ## Making registry connection to the local/remote computer
+                ## Querying CIM for build version
+                $WMI_OS = Get-CimInstance -ClassName Win32_OperatingSystem -Property BuildNumber, CSName @CimParams
+
+                ## Registry access through the StdRegProv class on the local/remote computer
                 $HKLM = [UInt32] "0x80000002"
-                $WMI_Reg = [WMIClass] "\\$Computer\root\default:StdRegProv"
+                $StdRegProv = @{ Namespace = 'root\default'; ClassName = 'StdRegProv' } + $CimParams
 
                 ## If Vista/2008 & Above query the CBS Reg Key
                 if ([Int32]$WMI_OS.BuildNumber -ge 6001) {
-                    $RegSubKeysCBS = $WMI_Reg.EnumKey($HKLM, "SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\")
+                    $RegSubKeysCBS = Invoke-CimMethod @StdRegProv -MethodName EnumKey -Arguments @{ hDefKey = $HKLM; sSubKeyName = "SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\" }
                     $CBSRebootPend = $RegSubKeysCBS.sNames -contains "RebootPending"
                 }
 
                 ## Query WUAU from the registry
-                $RegWUAURebootReq = $WMI_Reg.EnumKey($HKLM, "SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\")
+                $RegWUAURebootReq = Invoke-CimMethod @StdRegProv -MethodName EnumKey -Arguments @{ hDefKey = $HKLM; sSubKeyName = "SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\" }
                 $WUAURebootReq = $RegWUAURebootReq.sNames -contains "RebootRequired"
 
                 ## Query PendingFileRenameOperations from the registry
-                $RegSubKeySM = $WMI_Reg.GetMultiStringValue($HKLM, "SYSTEM\CurrentControlSet\Control\Session Manager\", "PendingFileRenameOperations")
+                $RegSubKeySM = Invoke-CimMethod @StdRegProv -MethodName GetMultiStringValue -Arguments @{ hDefKey = $HKLM; sSubKeyName = "SYSTEM\CurrentControlSet\Control\Session Manager\"; sValueName = "PendingFileRenameOperations" }
                 $RegValuePFRO = $RegSubKeySM.sValue
 
                 ## Query ComputerName and ActiveComputerName from the registry
-                $ActCompNm = $WMI_Reg.GetStringValue($HKLM, "SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName\", "ComputerName")
-                $CompNm = $WMI_Reg.GetStringValue($HKLM, "SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName\", "ComputerName")
-                if ($ActCompNm -ne $CompNm) {
+                $ActCompNm = Invoke-CimMethod @StdRegProv -MethodName GetStringValue -Arguments @{ hDefKey = $HKLM; sSubKeyName = "SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName\"; sValueName = "ComputerName" }
+                $CompNm = Invoke-CimMethod @StdRegProv -MethodName GetStringValue -Arguments @{ hDefKey = $HKLM; sSubKeyName = "SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName\"; sValueName = "ComputerName" }
+                # Compare the names themselves: the two result objects are never equal to each other.
+                if ($ActCompNm.sValue -ne $CompNm.sValue) {
                     $CompPendRen = $true
                 }
 
@@ -135,21 +146,19 @@
                 }
 
                 ## Determine SCCM 2012 Client Reboot Pending Status
-                ## To avoid nested 'if' statements and unneeded WMI calls to determine if the CCM_ClientUtilities class exist, setting EA = 0
+                ## To avoid nested 'if' statements and unneeded CIM calls to determine if the CCM_ClientUtilities class exist, setting EA = 0
                 $CCMClientSDK = $null
                 $CCMSplat = @{
-                    NameSpace    = 'ROOT\ccm\ClientSDK'
-                    Class        = 'CCM_ClientUtilities'
-                    Name         = 'DetermineIfRebootPending'
-                    ComputerName = $Computer
-                    ErrorAction  = 'Stop'
-                }
+                    Namespace  = 'ROOT\ccm\ClientSDK'
+                    ClassName  = 'CCM_ClientUtilities'
+                    MethodName = 'DetermineIfRebootPending'
+                } + $CimParams
                 ## Try CCMClientSDK
                 try {
-                    $CCMClientSDK = Invoke-WmiMethod @CCMSplat
+                    $CCMClientSDK = Invoke-CimMethod @CCMSplat
                 } catch [System.UnauthorizedAccessException] {
-                    $CcmStatus = Get-Service -Name CcmExec -ComputerName $Computer -ErrorAction SilentlyContinue
-                    if ($CcmStatus.Status -ne 'Running') {
+                    $CcmStatus = Get-CimInstance -ClassName Win32_Service -Filter "Name='CcmExec'" @CimParams
+                    if ($CcmStatus.State -ne 'Running') {
                         Write-Warning "$Computer`: Error - CcmExec service is not running."
                         $CCMClientSDK = $null
                     }
@@ -200,6 +209,8 @@
                 if ($ErrorLog) {
                     Out-File -InputObject "$Computer`,$_" -FilePath $ErrorLog -Append
                 }
+            } finally {
+                if ($CimSession) { Remove-CimSession -CimSession $CimSession }
             }
         } ## End Foreach ($Computer in $ComputerName)
     } ## End Process
