@@ -5,7 +5,9 @@
     Runs `git pull --ff-only` in the PSProfile install directory ($Global:PSProfileRoot,
     set by profile.ps1) and, unless -SkipReload is passed, re-dot-sources
     $PROFILE.CurrentUserAllHosts afterward so the update takes effect immediately.
-    Never touches assets\config\config.json - it's gitignored, so a pull can't overwrite it.
+    The pull never touches assets\config\config.json, because it's gitignored. After the pull,
+    Update-ProfileConfig adds any new settings from sample-config.json to config.json and keeps
+    your own settings as they are.
 
     Only works for a git-based install. If PSProfile was installed via the zip fallback
     (no git available at install time), this stops with a pointer to re-run setup.ps1
@@ -20,6 +22,8 @@
     since Update-Completion needs the reloaded profile's functions to be current.
 .PARAMETER SkipCompletions
     Update and reload the profile but don't run Update-Completion afterward.
+.PARAMETER SkipConfig
+    Update the profile but don't run Update-ProfileConfig on config.json.
 .EXAMPLE
     Update-Profile
 .EXAMPLE
@@ -33,7 +37,8 @@ function Update-Profile {
         Justification = 'profile.ps1 sets PSProfileRoot so functions in other files can find the install.')]
     param(
         [switch]$SkipReload,
-        [switch]$SkipCompletions
+        [switch]$SkipCompletions,
+        [switch]$SkipConfig
     )
 
     # Show informational messages unless the caller chose otherwise with -InformationAction.
@@ -65,6 +70,16 @@ function Update-Profile {
         }
 
         Write-Information -MessageData 'PSProfile updated.'
+
+        # Load Update-ProfileConfig from the files just pulled, so the newest migration runs, and
+        # bring config.json up to date before the profile reloads with it.
+        if (-not $SkipConfig) {
+            $configUpdater = Join-Path $PSScriptRoot 'Update-ProfileConfig.ps1'
+            if (Test-Path -Path $configUpdater) {
+                . $configUpdater
+                Update-ProfileConfig
+            }
+        }
 
         if (-not $SkipReload) {
             $profileTarget = $PROFILE.CurrentUserAllHosts

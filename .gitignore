@@ -9,3 +9,6 @@ assets/data/
 # generator, cached by Update-Completion) - version/machine-specific, regenerated on demand,
 # never meant to be committed. See NativeCompletions in config.json.
 assets/private/*/completions/native/
+
+# Backups Update-ProfileConfig saves before it changes config.json
+assets/config/config.json.bak-*

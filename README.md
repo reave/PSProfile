@@ -37,7 +37,7 @@ cp ~/.config/powershell/PSProfile/assets/config/sample-config.json ~/.config/pow
 
 ### Updating
 
-From an already-loaded profile, run `Update-Profile` — it `git pull`s the install directory and reloads `$PROFILE` in place, no restart needed. Otherwise, re-run the install one-liner at the top of this file, or if you cloned manually, `git pull` inside the install directory. Either way, your `config.json` is untouched — it isn't part of the repo (it's gitignored), so nothing can overwrite it.
+From an already-loaded profile, run `Update-Profile` — it `git pull`s the install directory and reloads `$PROFILE` in place, no restart needed. Otherwise, re-run the install one-liner at the top of this file, or if you cloned manually, `git pull` inside the install directory. Either way, the update itself never overwrites your `config.json` — it isn't part of the repo (it's gitignored). See [Keeping config.json up to date](#keeping-configjson-up-to-date) for how new settings reach it.
 
 `Update-Profile` only works for a git-based install (the default); a zip-installed copy (no git available at install time) needs the install one-liner re-run instead.
 
@@ -52,6 +52,19 @@ Remove the dot-source line (and the `# Managed by PSProfile` comment block above
 Everything behavioral is controlled by `assets/config/config.json`, which you get by copying `assets/config/sample-config.json` (setup.ps1 does this for you automatically on first install). `sample-config.json` stays checked into git as the template/example; `config.json` is yours, gitignored, and never touched by updates.
 
 If `config.json` is missing for any reason, the profile falls back to `sample-config.json` with a warning — it never fails to load outright.
+
+### Keeping config.json up to date
+
+The `version` in `sample-config.json` is the version of the profile, and `config.json` records the version of the sample it was made from. When a new version adds settings, `Update-Profile` runs `Update-ProfileConfig` after it pulls, and that brings your `config.json` up to date:
+
+- New settings, and new `Aliases`, `Modules`, `Packages` and `NativeCompletions` entries, are added.
+- A default that changed, or a setting the sample dropped, is updated or removed only if you never changed it.
+- Anything you added, changed or removed yourself stays as it is.
+- The previous file is saved next to it as `config.json.bak-<timestamp>` (gitignored), and each change is listed.
+
+If you update another way, such as with `git pull`, the profile warns at startup that `config.json` is behind; run `Update-ProfileConfig` yourself, or add `-WhatIf` to see whether it would change anything. Pass `-SkipConfig` to `Update-Profile` to leave `config.json` alone.
+
+`Update-ProfileConfig` reads the matching older sample from the install's git history to tell your changes from the sample's. On a zip install, which has no history, it only adds settings that are missing.
 
 ### `settings`
 
@@ -165,6 +178,7 @@ profile.ps1              The profile. Loads config, dot-sources functions, appli
 setup.ps1                   The installer (see Install above).
 powershell.config.json      PowerShell engine config (execution policy, experimental features).
 STYLE.md                    Code style and practices for this repository.
+CHANGELOG.md                What changed in each version.
 PSScriptAnalyzerSettings.psd1  Lint settings that enforce STYLE.md.
 .editorconfig               Editor indentation and line-ending defaults.
 .markdownlint.json          Markdown lint settings that enforce STYLE.md's documentation rules.
@@ -244,7 +258,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ### File / data utilities (cross-platform)
 
-`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` · `Resolve-Error` · `Update-Profile` (`git pull`s the install directory and reloads `$PROFILE` — see [Updating](#updating)) · `Update-Completion` (regenerates cached [`NativeCompletions`](#nativecompletions) for whichever configured tools are installed)
+`Find-StringInFile` · `Update-StringInFile` · `Test-IsFileBinary` · `Get-IniContent` · `ConvertTo-Base64`/`ConvertFrom-Base64` · `Convert-ROT13`/`Convert-ROT47` · `ConvertTo-StringList` · `Get-ConsoleColor` · `Get-Time` · `Get-QuoteOfTheDay` · `Get-Weather` · `Resolve-Error` · `Update-Profile` (`git pull`s the install directory and reloads `$PROFILE` — see [Updating](#updating)) · `Update-ProfileConfig` (adds new settings from `sample-config.json` to your `config.json` — see [Keeping config.json up to date](#keeping-configjson-up-to-date)) · `Update-Completion` (regenerates cached [`NativeCompletions`](#nativecompletions) for whichever configured tools are installed)
 
 ### File utilities (Windows-only)
 
@@ -253,6 +267,10 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 ### Misc (Windows-only)
 
 `Lock-Computer`/`Lock-Workstation` · `New-Explorer` · `Set-ScreenResolution` · `Set-Console` (WMI-based window title/full-name banner — superseded by the cross-platform `Set-ProfileWindowTitle` for the profile's own `ShowWindowTitle` setting, but still directly callable) · `Set-PathVariable` · `Set-RegValue` · `Send-VoiceMessage` · `Write-Log` · `Start-Elevated`/`Start-PSElevated` · `Invoke-IvantiInventoryScan` · `Update-PowerShell` (checks the latest PowerShell GitHub release, upgrades via winget) · `Edit-File`/`Edit-Profile`/`Open-HistoryFile` (open the right editor for the current host — VS Code, ISE, or OS-appropriate text editor) · `ConvertTo-NatoAlphabet`
+
+## Versioning
+
+PSProfile uses [Semantic Versioning](https://semver.org/). The current version is the `version` in `assets/config/sample-config.json`, and a loaded profile exposes it as `$PSProfileVersion`. [CHANGELOG.md](CHANGELOG.md) lists what changed in each version.
 
 ## Requirements
 

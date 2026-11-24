@@ -1,6 +1,6 @@
 {
     "name": "PSProfile Config",
-    "version": "0.0.0.1",
+    "version": "1.0.0",
     "settings": {
         "MaximumHistoryCount": 8192,
         "ErrorView": "ConciseView",
