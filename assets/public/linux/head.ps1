@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\head" -Force -ErrorAction SilentlyContinue
+if (Test-Path -Path Alias:\head) { Remove-Item -Path "alias:\head" -Force -ErrorAction SilentlyContinue }
 
 <#
 .SYNOPSIS

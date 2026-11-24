@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\gpush" -Force -ErrorAction SilentlyContinue
+if (Test-Path -Path Alias:\gpush) { Remove-Item -Path "alias:\gpush" -Force -ErrorAction SilentlyContinue }
 
 <#
 .SYNOPSIS

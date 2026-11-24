@@ -21,9 +21,13 @@ function Initialize-HomebrewPath {
 
     if (Get-Command -Name brew -ErrorAction SilentlyContinue) { return }
 
-    $candidates = if ($IsMacOS) {
+    # $IsWindows, $IsMacOS and $IsLinux don't exist in Windows PowerShell 5.1 and throw under
+    # strict mode there, so check the edition first.
+    $onMacOS = $PSVersionTable.PSEdition -ne 'Desktop' -and $IsMacOS
+    $onLinux = $PSVersionTable.PSEdition -ne 'Desktop' -and $IsLinux
+    $candidates = if ($onMacOS) {
         '/opt/homebrew/bin/brew', '/usr/local/bin/brew'
-    } elseif ($IsLinux) {
+    } elseif ($onLinux) {
         '/home/linuxbrew/.linuxbrew/bin/brew', (Join-Path $HOME '.linuxbrew/bin/brew')
     } else {
         @()

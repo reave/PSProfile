@@ -1,5 +1,10 @@
 # PSRead Line implementation of History search
 
+# The key handlers below need PSReadLine. It isn't loaded in non-interactive hosts or when
+# module autoloading is off, so import it if it's installed and skip this file otherwise.
+if (-not (Get-Module -Name PSReadLine)) { Import-Module -Name PSReadLine -ErrorAction Ignore }
+if (-not (Get-Module -Name PSReadLine)) { return }
+
 # Up/down-arrow history search is controlled by config.json's
 # PSReadLine.HistorySearchArrowKeys, applied conditionally in profile.ps1 -
 # not hardcoded here, so that setting actually does something.

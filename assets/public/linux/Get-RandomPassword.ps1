@@ -118,7 +118,7 @@ function Get-RandomPassword
 		function Set-CrossPlatformClipboard {
 			param([Parameter(Mandatory=$true)][string]$Value)
 
-			if ($IsWindows -or $null -eq $IsWindows) {
+			if ($PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows) {
 				Set-Clipboard -Value $Value
 			}
 			elseif ($IsMacOS) {

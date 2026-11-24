@@ -34,7 +34,8 @@ function Get-Uptime {
     )
 
     try {
-        if ($IsWindows) {
+        # $IsWindows doesn't exist in Windows PowerShell 5.1; check the edition first.
+        if ($PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows) {
             $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
             $boot = $os.LastBootUpTime
             $computer = $env:COMPUTERNAME

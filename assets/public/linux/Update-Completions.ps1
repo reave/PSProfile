@@ -34,7 +34,10 @@ function Update-Completions {
         return
     }
 
-    $osFolder = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } else { 'linux' }
+    # $IsWindows, $IsMacOS and $IsLinux don't exist in Windows PowerShell 5.1 and throw under
+    # strict mode there, so check the edition first.
+    $onWindows = $PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows
+    $osFolder = if ($onWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } else { 'linux' }
     $nativeDir = Join-Path $Global:PSProfileRoot "assets\private\$osFolder\completions\native"
     if (-not (Test-Path -Path $nativeDir)) {
         New-Item -ItemType Directory -Path $nativeDir -Force | Out-Null

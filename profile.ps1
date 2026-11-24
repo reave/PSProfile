@@ -254,6 +254,8 @@ foreach ($module in $PSProfileConfig.Modules) {
         finally { if ($hasImportMutex) { $moduleImportMutex.ReleaseMutex() } }
     } else {
         try {
+            # Module autoloading may be off (ModuleAutoLoadingPreference), so load PowerShellGet first.
+            Import-Module -Name PowerShellGet -ErrorAction Stop
             Install-Module -Name $module.Name -Force -ErrorAction Stop
             Import-Module -Name $module.Name -ErrorAction Stop
         } catch { Write-Error "Unable to install $($module.Name) module" }

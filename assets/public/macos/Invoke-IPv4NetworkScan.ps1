@@ -353,7 +353,7 @@ function Invoke-IPv4NetworkScan {
             $MAC = [String]::Empty
 
             if (($EnableMACResolving) -and (($Status -eq "Up") -or ($IncludeInactive))) {
-                if ($IsWindows -or $null -eq $IsWindows) {
+                if ($PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows) {
                     # Windows: arp -a, falling back to nbtstat
                     $Arp_Result = (arp -a ).ToUpper()
 

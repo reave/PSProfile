@@ -16,7 +16,9 @@ function Set-ProfileWindowTitle {
     param()
 
     try {
-        $suffix = if ($IsElevated) { if ($IsWindows -or $null -eq $IsWindows) { ' [ADMIN]' } else { ' [ROOT]' } } else { '' }
+        # $IsWindows doesn't exist in Windows PowerShell 5.1; check the edition first.
+        $onWindows = $PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows
+        $suffix = if ($IsElevated) { if ($onWindows) { ' [ADMIN]' } else { ' [ROOT]' } } else { '' }
         $Host.UI.RawUI.WindowTitle = "PowerShell $($PSVersionTable.PSVersion)$suffix"
     } catch {
         Write-Verbose "Unable to set console title: $_"

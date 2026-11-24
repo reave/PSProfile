@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\gcom" -Force -ErrorAction SilentlyContinue
+if (Test-Path -Path Alias:\gcom) { Remove-Item -Path "alias:\gcom" -Force -ErrorAction SilentlyContinue }
 
 <#
 .SYNOPSIS

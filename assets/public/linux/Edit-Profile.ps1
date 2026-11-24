@@ -17,7 +17,12 @@ function Edit-Profile {
             'Visual Studio Code Host' { Open-EditorFile "$PROFILE" }
             'Windows PowerShell ISE Host' { psedit "$PROFILE" }
             default {
-                if ($IsLinux) {
+                # $IsWindows, $IsMacOS and $IsLinux don't exist in Windows PowerShell 5.1 and throw under
+                # strict mode there, so check the edition first.
+                $onWindows = $PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows
+                $onMacOS = $PSVersionTable.PSEdition -ne 'Desktop' -and $IsMacOS
+                $onLinux = $PSVersionTable.PSEdition -ne 'Desktop' -and $IsLinux
+                if ($onLinux) {
                     $nano = Get-Command "nano" -ErrorAction SilentlyContinue
                     $vim = Get-Command "vim" -ErrorAction SilentlyContinue
                     $gedit = Get-Command "gedit" -ErrorAction SilentlyContinue
@@ -35,10 +40,10 @@ function Edit-Profile {
                         Write-Error "Could not detect a text editor."
                         return
                     }
-                } elseif ($IsMacOS) {
+                } elseif ($onMacOS) {
                     Start-Process "open" -ArgumentList "$PROFILE"
                     return
-                } elseif ($IsWindows) {
+                } elseif ($onWindows) {
                     if (Get-Command "notepad" -ErrorAction SilentlyContinue) {
                         Start-Process "notepad" -ArgumentList "$PROFILE"
                         return

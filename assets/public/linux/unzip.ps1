@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\unzip" -Force -ErrorAction SilentlyContinue
+if (Test-Path -Path Alias:\unzip) { Remove-Item -Path "alias:\unzip" -Force -ErrorAction SilentlyContinue }
 
 <#
 .SYNOPSIS

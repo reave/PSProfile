@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\pgrep" -Force -ErrorAction SilentlyContinue
+if (Test-Path -Path Alias:\pgrep) { Remove-Item -Path "alias:\pgrep" -Force -ErrorAction SilentlyContinue }
 
 <#
 .SYNOPSIS

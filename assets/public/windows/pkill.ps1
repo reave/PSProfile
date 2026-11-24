@@ -1,4 +1,4 @@
-Remove-Item -Path "alias:\pkill" -Force -ErrorAction SilentlyContinue
+if (Test-Path -Path Alias:\pkill) { Remove-Item -Path "alias:\pkill" -Force -ErrorAction SilentlyContinue }
 
 <#
 .SYNOPSIS
