@@ -45,8 +45,13 @@ function Get-MACVendor {
     )
 
     Begin {
+        # Lookup data root: $env:PSAssetPath if set, otherwise assets/data in the PSProfile install
+        $DataRoot = if ($env:PSAssetPath) { $env:PSAssetPath }
+        elseif ($Global:PSProfileRoot) { [System.IO.Path]::Combine($Global:PSProfileRoot, 'assets', 'data') }
+        else { throw 'Could not determine the lookup data folder ($env:PSAssetPath and $Global:PSProfileRoot are unset).' }
+
         # MAC-Vendor list path
-        $CSV_MACVendorList_Path = "$($env:PSAssetPath)\IEEE\IEEE-MAC Address Block Large.csv"
+        $CSV_MACVendorList_Path = [System.IO.Path]::Combine($DataRoot, 'IEEE', 'IEEE-MAC Address Block Large.csv')
 
         if ([System.IO.File]::Exists($CSV_MACVendorList_Path)) {
             $MAC_VendorList = Import-Csv -Path $CSV_MACVendorList_Path | Select-Object -Property "Assignment", "Organization Name"

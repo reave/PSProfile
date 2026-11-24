@@ -137,14 +137,22 @@ function Invoke-IPv4NetworkScan {
         # IEEE ->  The Public Listing For IEEE Standards Registration Authority -> CSV-File
         $IEEE_MACVendorList_WebUri = "http://standards-oui.ieee.org/oui/oui.csv"
 
+        # Lookup data root: $env:PSAssetPath if set, otherwise assets/data in the PSProfile install
+        $DataRoot = if ($env:PSAssetPath) { $env:PSAssetPath }
+        elseif ($Global:PSProfileRoot) { [System.IO.Path]::Combine($Global:PSProfileRoot, 'assets', 'data') }
+        else { throw 'Could not determine the lookup data folder ($env:PSAssetPath and $Global:PSProfileRoot are unset).' }
+
         # MAC-Vendor list path
-        $CSV_MACVendorList_Path = "$($env:PSAssetPath)\IEEE\IEEE-MAC Address Block Large.csv"
-        $CSV_MACVendorList_BackupPath = "$($env:PSAssetPath)\IEEE\IEEE-MAC Address Block Large.csv.bak"
+        $CSV_MACVendorList_Path = [System.IO.Path]::Combine($DataRoot, 'IEEE', 'IEEE-MAC Address Block Large.csv')
+        $CSV_MACVendorList_BackupPath = "$CSV_MACVendorList_Path.bak"
 
         # Function to update the list from IEEE (MAC-Vendor)
         function UpdateListFromIEEE {
             # Try to download the MAC-Vendor list from IEEE
             try {
+                # Make sure the target folder exists
+                New-Item -ItemType Directory -Path (Split-Path -Parent $CSV_MACVendorList_Path) -Force | Out-Null
+
                 Write-Verbose -Message "Create backup of the IEEE Standards Registration Authority list..."
 
                 # Backup file, before download a new version

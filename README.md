@@ -168,6 +168,9 @@ assets/
   config/
     sample-config.json      Checked-in template/example. Copy to config.json to customize.
     config.json              Your personal config. Gitignored, created by setup.ps1.
+  data/                     Downloaded lookup data (IEEE MAC vendors, IANA port registry) for
+                             Get-MACVendor and the IPv4 scanners. Gitignored, fetched on demand;
+                             set $env:PSAssetPath to keep it somewhere else instead.
   public/
     windows/ macos/ linux/  User-callable functions, one per file, split by OS support.
   private/

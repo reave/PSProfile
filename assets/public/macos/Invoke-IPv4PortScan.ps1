@@ -80,13 +80,21 @@ function Invoke-IPv4PortScan {
         # IANA --> Service Name and Transport Protocol Port Number Registry -> xml-file
         $IANA_PortList_WebUri = "https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xml"
 
+        # Lookup data root: $env:PSAssetPath if set, otherwise assets/data in the PSProfile install
+        $DataRoot = if ($env:PSAssetPath) { $env:PSAssetPath }
+        elseif ($Global:PSProfileRoot) { [System.IO.Path]::Combine($Global:PSProfileRoot, 'assets', 'data') }
+        else { throw 'Could not determine the lookup data folder ($env:PSAssetPath and $Global:PSProfileRoot are unset).' }
+
         # Port list path
-        $XML_PortList_Path = "$($env:PSAssetPath)\iana-assignments\service-names-port-numbers\service-names-port-numbers.xml"
-        $XML_PortList_BackupPath = "$($env:PSAssetPath)\iana-assignments\service-names-port-numbers\service-names-port-numbers.xml.bak"
+        $XML_PortList_Path = [System.IO.Path]::Combine($DataRoot, 'iana-assignments', 'service-names-port-numbers', 'service-names-port-numbers.xml')
+        $XML_PortList_BackupPath = "$XML_PortList_Path.bak"
 
         # Function to update the list from IANA (Port list)
         function UpdateListFromIANA {
             try {
+                # Make sure the target folder exists
+                New-Item -ItemType Directory -Path (Split-Path -Parent $XML_PortList_Path) -Force | Out-Null
+
                 Write-Verbose -Message "Create backup of the IANA Service Name and Transport Protocol Port Number Registry..."
 
                 # Backup file, before donload a new version
