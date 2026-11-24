@@ -61,6 +61,12 @@
             "OS": "All"
         },
         {
+            "Name": "Microsoft.PowerShell.LocalAccounts",
+            "Description": "Built-in local user and group cmdlets (Get-LocalUser, Get-LocalGroup, Get-LocalGroupMember). Imported here because module autoloading is off by default",
+            "PSVersionMajor": "5",
+            "OS": "Windows"
+        },
+        {
             "Name": "Microsoft.WinGet.CommandNotFound",
             "Description": "PowerToys CommandNotFound module - suggests winget packages for unrecognized commands",
             "PSVersionMajor": "7",

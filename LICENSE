@@ -58,9 +58,7 @@ This repository is made up of files under four licenses:
    assets/public/windows/Enable-RemoteDesktop.ps1
    assets/public/windows/Get-ImageInformation.ps1
    assets/public/windows/Get-LocalAdministrator.ps1
-   assets/public/windows/Get-LocalGroup.ps1
    assets/public/windows/Get-LocalGroupMember.ps1
-   assets/public/windows/Get-LocalUser.ps1
    assets/public/windows/Get-Netstat.ps1
    assets/public/windows/New-RandomPassword.ps1
 
