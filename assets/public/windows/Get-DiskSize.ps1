@@ -13,8 +13,23 @@ function Get-DiskSize {
     [CmdletBinding()]
     param()
 
-    # Helper: translate Win32_LogicalDisk DriveType code
     function Convert-DriveType {
+        <#
+        .SYNOPSIS
+            Converts a Win32_LogicalDisk DriveType code to a name.
+
+        .DESCRIPTION
+            Maps 0 to 6 to Unknown, No Root Directory, Removable, Local Disk, Network, CD-ROM and RAM Disk.
+            Any other value returns Other.
+
+        .PARAMETER Type
+            The DriveType value of a Win32_LogicalDisk instance.
+
+        .EXAMPLE
+            Convert-DriveType -Type 3
+
+            Returns Local Disk.
+        #>
         param([int]$Type)
         switch ($Type) {
             0 { 'Unknown' }

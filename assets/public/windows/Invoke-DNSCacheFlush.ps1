@@ -38,6 +38,19 @@ function Invoke-DNSCacheFlush {
     )
 
     function Clear-DnsCacheLocal {
+        <#
+        .SYNOPSIS
+            Clears the DNS client cache on the local computer.
+
+        .DESCRIPTION
+            Uses Clear-DnsClientCache when it's available, and otherwise runs ipconfig /flushdns. Returns
+            a hashtable with Success, Method and Message keys.
+
+        .EXAMPLE
+            Clear-DnsCacheLocal
+
+            Clears the local DNS cache and returns the result.
+        #>
         param()
 
         # Check for native cmdlet
@@ -56,6 +69,26 @@ function Invoke-DNSCacheFlush {
     }
 
     function Clear-DnsCacheRemote {
+        <#
+        .SYNOPSIS
+            Clears the DNS client cache on a remote computer.
+
+        .DESCRIPTION
+            Runs the same steps as Clear-DnsCacheLocal on the remote computer through PowerShell remoting
+            and returns its result hashtable. When Session is given, the command still runs over a new
+            remoting session to Target. Errors are passed on to the caller.
+
+        .PARAMETER Target
+            The name of the remote computer.
+
+        .PARAMETER Session
+            A CIM session for the remote computer. Optional.
+
+        .EXAMPLE
+            Clear-DnsCacheRemote -Target 'Server01'
+
+            Clears the DNS cache on Server01.
+        #>
         param(
             [string] $Target,
             [Microsoft.Management.Infrastructure.CimSession] $Session

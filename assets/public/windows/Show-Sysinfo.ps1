@@ -30,8 +30,29 @@ function Show-Sysinfo {
         break
     }
 
-    # DONE: Function to Save the Screenshot
     function Save-Screenshot {
+        <#
+        .SYNOPSIS
+            Saves a screenshot of all monitors as a PNG file.
+
+        .DESCRIPTION
+            Captures the whole virtual screen, which spans every monitor, and saves it in TarPath as
+            screenshot-<MM-dd-yyyy_HH_mm_ss>.png.
+
+        .PARAMETER Width
+            Not used. The size of the capture always comes from the virtual screen.
+
+        .PARAMETER Height
+            Not used. The size of the capture always comes from the virtual screen.
+
+        .PARAMETER TarPath
+            The folder to save the screenshot in.
+
+        .EXAMPLE
+            Save-Screenshot -TarPath "$HOME\Pictures"
+
+            Saves a screenshot of all monitors in your Pictures folder.
+        #>
         [CmdletBinding()]
         param(
             [string]$Width,
@@ -63,8 +84,33 @@ function Show-Sysinfo {
         }
     }
 
-    # Done: Function to screenshot active window
     function Export-ActiveWindowScreenshot {
+        <#
+        .SYNOPSIS
+            Saves a screenshot of a process's main window.
+
+        .DESCRIPTION
+            Finds the main window of the process with the given ID, captures the area of the screen it
+            covers, and saves it as <FileName>.<ImageType> in OutPath. Nothing is saved if the window's
+            position can't be read.
+
+        .PARAMETER wpid
+            The ID of the process whose main window to capture.
+
+        .PARAMETER OutPath
+            The folder to save the file in. The default is $env:HOME.
+
+        .PARAMETER FileName
+            The file name, without the extension. The default is Screenshot.
+
+        .PARAMETER ImageType
+            The file name extension. The default is png.
+
+        .EXAMPLE
+            Export-ActiveWindowScreenshot -wpid $PID -OutPath "$HOME\Pictures" -FileName 'Sysinfo'
+
+            Saves a screenshot of the current PowerShell window as Sysinfo.png in your Pictures folder.
+        #>
         [cmdletbinding()]
         param(
             [Parameter(Mandatory = $true)]
@@ -227,8 +273,34 @@ namespace PInvoke
         @(	{ Write-Host "`n" } )
     )
 
-    # Returns an array of scriptblocks, containing the commands necessary to write one line of system information
     function Get-LineScriptBlock($Label, $Value, $LabelSize = 11, $PadLeft = 4 ) {
+        <#
+        .SYNOPSIS
+            Builds the commands that write one line of system information.
+
+        .DESCRIPTION
+            Returns two script blocks. The first writes Label in red, right-aligned to LabelSize
+            characters after PadLeft spaces, without ending the line. The second writes Value in white and
+            ends the line. The values are fixed into the script blocks when they're created, not read when
+            the blocks run.
+
+        .PARAMETER Label
+            The label text, such as OS:.
+
+        .PARAMETER Value
+            The value to show after the label.
+
+        .PARAMETER LabelSize
+            The width the label is right-aligned to. The default is 11.
+
+        .PARAMETER PadLeft
+            The number of spaces before the label. The default is 4.
+
+        .EXAMPLE
+            Get-LineScriptBlock -Label 'OS:' -Value 'Windows 11 Pro'
+
+            Returns the script blocks that write the OS line.
+        #>
         # Using [ScriptBlock]::Create rather than literal notation to force PowerShell to
         # store value of variables in scriptblock, rather than the variables themselves.
         @( [ScriptBlock]::Create("Write-Host `"$(' ' * $PadLeft)$($Label.PadLeft($LabelSize)) `" -foregroundcolor Red -nonewline"),

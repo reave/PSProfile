@@ -1,4 +1,37 @@
 function Resolve-ShortURL {
+    <#
+    .SYNOPSIS
+        Follows the redirects of a shortened URL and returns where it ends up.
+
+    .DESCRIPTION
+        Requests each URL without following redirects automatically, then follows each Location
+        header itself, up to MaxRedirection times. It uses HEAD requests, and switches to GET if a HEAD
+        request fails. A URL without a scheme is treated as https. Returns one object per URL with
+        InputUrl, FinalUrl, StatusCode, Redirects (the From, To and StatusCode of each hop),
+        MaxRedirectionReached and Error.
+
+    .PARAMETER Url
+        One or more URLs to resolve. Accepts pipeline input, by value or by property name.
+
+    .PARAMETER MaxRedirection
+        The maximum number of redirects to follow. The default is 10.
+
+    .PARAMETER TimeoutSeconds
+        How long to wait for each response, in seconds. The default is 30.
+
+    .EXAMPLE
+        Resolve-ShortURL -Url 'https://aka.ms/powershell'
+
+        Returns the page the short link points to, with each redirect along the way.
+
+    .EXAMPLE
+        'https://aka.ms/powershell', 'https://aka.ms/terminal' | Resolve-ShortURL
+
+        Resolves two short links passed through the pipeline.
+
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject
+    #>
     [CmdletBinding()]
     param(
         [Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, Mandatory = $true, Position = 0)]

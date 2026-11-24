@@ -1,15 +1,21 @@
 function Lock-Workstation {
     <#
-.SYNOPSIS
-    Lock the workstation
-.DESCRIPTION
-    Locks the workstation
-.NOTES
-    Name: Lock-Workstation
-    Author: Unknown
-.ALIASES
-    llm
-#>
+    .SYNOPSIS
+        Locks the workstation.
+
+    .DESCRIPTION
+        Calls the Windows LockWorkStation function, which shows the lock screen as if you had pressed
+        Windows+L.
+
+    .EXAMPLE
+        Lock-Workstation
+
+        Locks this computer.
+
+    .NOTES
+        Name: Lock-Workstation
+        Author: Unknown
+    #>
     $signature = @"
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool LockWorkStation();

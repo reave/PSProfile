@@ -1,4 +1,37 @@
 function Set-PathVariable {
+    <#
+    .SYNOPSIS
+        Adds a folder to or removes a folder from the PATH environment variable.
+
+    .DESCRIPTION
+        Reads PATH for the chosen scope, removes RemovePath, adds AddPath at the end, and writes the
+        result back, keeping the existing order. Entries are compared after expanding environment
+        variables and removing trailing slashes, ignoring case. For the User and Machine scopes it
+        also notifies running programs that the environment changed. Returns a message saying what
+        changed, or that no change was needed.
+
+    .PARAMETER AddPath
+        A folder to add. It's stored as written, so environment variables such as %USERPROFILE% stay
+        unexpanded.
+
+    .PARAMETER RemovePath
+        A folder to remove. It matches entries that expand to the same folder, and entries written
+        exactly the same way.
+
+    .PARAMETER Scope
+        Which PATH to change: User (the default), Machine, or Process, which affects only the current
+        session. Changing the Machine PATH requires running as Administrator.
+
+    .EXAMPLE
+        Set-PathVariable -AddPath "$env:LOCALAPPDATA\Programs\Tools"
+
+        Adds a folder to the user PATH.
+
+    .EXAMPLE
+        Set-PathVariable -RemovePath 'C:\OldTool\bin' -Scope Machine
+
+        Removes a folder from the machine PATH. Run this as Administrator.
+    #>
     param (
         [string]$AddPath,
         [string]$RemovePath,
@@ -7,6 +40,22 @@ function Set-PathVariable {
     )
 
     function Normalize-PathEntry {
+        <#
+        .SYNOPSIS
+            Normalizes a PATH entry for comparison.
+
+        .DESCRIPTION
+            Trims spaces, expands environment variables such as %USERPROFILE%, and removes trailing
+            backslashes and slashes. Returns $null for an empty entry.
+
+        .PARAMETER p
+            The PATH entry to normalize.
+
+        .EXAMPLE
+            Normalize-PathEntry -p '%USERPROFILE%\bin\'
+
+            Returns the expanded folder path without the trailing backslash.
+        #>
         param([string]$p)
         if (-not $p) { return $null }
         $p = $p.Trim()

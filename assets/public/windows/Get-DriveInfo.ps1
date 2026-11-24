@@ -1,25 +1,35 @@
 function Get-DriveInfo {
     <#
     .SYNOPSIS
-        Returns Drive Information
+        Returns information about the logical drives on one or more computers.
+
     .DESCRIPTION
-        Returns Drive Information for all drives
+        Opens a CIM session to each computer and returns one object per Win32_LogicalDisk drive, with
+        its device ID, description, file system, size and free space in GB (as text with three
+        decimal places), compression state, drive type code and volume name. If a computer can't be
+        reached, one object is returned for it with ComputerStatus set to "Could Not Connect" and the
+        other properties empty.
+
     .PARAMETER ComputerName
-        Aliases: 'Hostname','cn','Name'
-        Parameter Values:   Mandatory=$false,
-                            ValueFromPipeline=$True,
-                            ValueFromPipelineByPropertyName=$True,
-                            HelpMessage="The. Computer. Name."
-        Parameter Type: Array of Strings
-        Define a device or list of devices by Hostname,CN,or Name
-        to get drive information for.
-    .OUTPUT
-        System.Management.Automation
+        The computers to query. Accepts pipeline input, by value or by property name. The default is
+        the local computer. Hostname, cn and Name are aliases for this parameter.
+
+    .EXAMPLE
+        Get-DriveInfo
+
+        Returns the drives on the local computer.
+
+    .EXAMPLE
+        Get-DriveInfo -ComputerName 'Server01', 'Server02'
+
+        Returns the drives on two remote computers.
+
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject
+
     .NOTES
         Name: Get-DriveInfo
         Author: reave (https://github.com/reave)
-    .ALIASES
-        df
     #>
     [CmdletBinding()]
     param(

@@ -59,11 +59,26 @@
         [Byte]$DiscoverTimeout = 60
     )
 
-    # Build a DHCPDISCOVER packet to send
-    #
-    # Caller: Main
-
     function New-DhcpDiscoverPacket {
+        <#
+        .SYNOPSIS
+            Builds the DHCPDISCOVER packet that Test-DHCPPxe sends.
+
+        .DESCRIPTION
+            Creates the packet with a random transaction ID, the given MAC address, the broadcast flag and
+            the DHCP message type option. It then adds option 60 (vendor class) from $Option60String,
+            option 93 (client architecture) from $ProcessorArchitecture and option 97 (client UUID) from
+            $UUIDString, which are Test-DHCPPxe's parameters. Returns the packet as a byte array.
+
+        .PARAMETER MacAddressString
+            The client MAC address to put in the packet, with or without - or : separators. The default is
+            AA:BB:CC:DD:EE:FF.
+
+        .EXAMPLE
+            New-DhcpDiscoverPacket -MacAddressString '00-15-5D-01-02-03'
+
+            Returns a DHCPDISCOVER packet for that MAC address.
+        #>
         param(
             [String]$MacAddressString = "AA:BB:CC:DD:EE:FF"
         )
@@ -140,11 +155,26 @@
         return $DhcpDiscover
     }
 
-    # Parse a DHCP Packet, returning an object containing each field
-    #
-    # Caller: Main
-
     function Read-DhcpPacket( [Byte[]]$Packet ) {
+        <#
+        .SYNOPSIS
+            Parses a DHCP packet into an object.
+
+        .DESCRIPTION
+            Reads the fixed header fields (Op, HType, HLen, Hops, XID, Secs, Flags, CIAddr, YIAddr, SIAddr,
+            GIAddr, CHAddr, SName, File and MagicCookie), then each option. Common options, such as the
+            subnet mask, router, DNS servers, lease times and message type, are decoded by name. Others
+            are returned as raw bytes with the name NoOptionDecode. Returns an object with a property for
+            each field and an Options array.
+
+        .PARAMETER Packet
+            The bytes of the received DHCP packet.
+
+        .EXAMPLE
+            Read-DhcpPacket -Packet $ReceiveBuffer[0..$BytesReceived]
+
+            Parses the response that was received into the buffer.
+        #>
         $Reader = New-Object IO.BinaryReader(New-Object IO.MemoryStream(@(, $Packet)))
 
         $DhcpResponse = New-Object Object
@@ -313,11 +343,25 @@
 
     }
 
-    # Create a UDP Socket with Broadcast and Address Re-use enabled.
-    #
-    # Caller: Main
-
     function New-UdpSocket {
+        <#
+        .SYNOPSIS
+            Creates a UDP socket for sending and receiving DHCP broadcasts.
+
+        .DESCRIPTION
+            Returns an IPv4 UDP socket with broadcasting enabled and exclusive address use turned off.
+
+        .PARAMETER SendTimeOut
+            How long a send can take, in seconds. The default is 5.
+
+        .PARAMETER ReceiveTimeOut
+            How long to wait for data, in seconds. The default is 5.
+
+        .EXAMPLE
+            New-UdpSocket -SendTimeOut 5 -ReceiveTimeOut 10
+
+            Returns a socket that waits up to 10 seconds for a response.
+        #>
         param(
             [Int32]$SendTimeOut = 5,
             [Int32]$ReceiveTimeOut = 5
@@ -335,11 +379,19 @@
         return $UdpSocket
     }
 
-    # Close down a Socket
-    #
-    # Caller: Main
-
     function Remove-Socket {
+        <#
+        .SYNOPSIS
+            Shuts down and closes a socket.
+
+        .PARAMETER Socket
+            The socket to close.
+
+        .EXAMPLE
+            Remove-Socket -Socket $UdpSocket
+
+            Shuts down sending and receiving on the socket and closes it.
+        #>
         param(
             [Net.Sockets.Socket]$Socket
         )

@@ -1,21 +1,37 @@
 function Get-FolderSizes {
     <#
-.SYNOPSIS
-    Get the size of folders
-.DESCRIPTION
-    Get the size of folders in the directory
-.PARAMETER Path
-    The path to get folder sizes from
-.PARAMETER SizeMB
-    Specify if yo uwant the size in MB
-.PARAMETER ExcludeFolder
-    Folders to Exclude from the Get
-.NOTES
-    Name: Get-FolderSizes
-    Author: Unknown
-.ALIASES
-    gfs
-#>
+    .SYNOPSIS
+        Shows the size of each folder in a folder.
+
+    .DESCRIPTION
+        Measures each folder directly under Path and shows the results as a table, largest first, with
+        sizes in MB. Folders whose size the FileSystemObject can't report, such as some special
+        folders, are measured by adding up the files they contain. Last, it returns the total size in
+        GB, including the files directly in Path.
+
+    .PARAMETER Path
+        The folder whose subfolders to measure. Accepts pipeline input.
+
+    .PARAMETER SizeMB
+        Only list folders larger than this many MB. By default all folders are listed.
+
+    .PARAMETER ExcludeFolder
+        The name of a folder to leave out.
+
+    .EXAMPLE
+        Get-FolderSizes -Path 'C:\Users'
+
+        Shows the size of each user's folder and the total.
+
+    .EXAMPLE
+        Get-FolderSizes -Path $HOME -SizeMB 500 -ExcludeFolder 'OneDrive'
+
+        Lists the folders in your home folder that are larger than 500 MB, leaving out OneDrive.
+
+    .NOTES
+        Name: Get-FolderSizes
+        Author: Unknown
+    #>
     [cmdletBinding()]
     param(
         [Parameter(

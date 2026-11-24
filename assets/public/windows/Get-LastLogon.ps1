@@ -126,8 +126,28 @@
                     $Script:ProfLoc = "\\$Computer\$SysDrv\Documents and Settings"
                     $Profiles = Get-ChildItem -Path $Script:ProfLoc
                     $Script:NTUserDatLog = $Profiles | ForEach-Object -Process { $_.GetFiles("ntuser.dat.LOG") }
-                    #Function to grab last profile data, used for allowing -FilterSID to function properly.
                     function GetLastProfData ($InstanceNumber) {
+                        <#
+                        .SYNOPSIS
+                            Reads the details of one recently used user profile.
+
+                        .DESCRIPTION
+                            Sorts the ntuser.dat.LOG files in $Script:NTUserDatLog by LastWriteTime, newest
+                            first, and takes the one at InstanceNumber. It sets script-scope variables for
+                            that profile: the file ($Script:LastProf), the user name from the profile folder
+                            ($Script:UserName), the last access time ($Script:Time), the SID read from the
+                            file's access control list ($Script:Sddl) and the SID translated from the user
+                            name ($Script:UserSID). Calling it with a higher number lets FilterSID skip to
+                            the next profile.
+
+                        .PARAMETER InstanceNumber
+                            The position in the sorted list, starting at 0 for the most recently used profile.
+
+                        .EXAMPLE
+                            GetLastProfData -InstanceNumber 0
+
+                            Loads the details of the most recently used profile into the script-scope variables.
+                        #>
                         $Script:LastProf = ($Script:NTUserDatLog | Sort-Object -Property LastWriteTime -Descending)[$InstanceNumber]
                         $Script:UserName = $Script:LastProf.DirectoryName.Replace("$Script:ProfLoc", "").Trim("\").ToUpper()
                         $Script:Time = $Script:LastProf.LastAccessTime

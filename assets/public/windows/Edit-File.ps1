@@ -45,16 +45,54 @@ function Edit-File {
     )
 
     begin {
-        # Helper: try to resolve executable by common names and common program folders,
-        # including user-scoped install locations and Start Menu shortcuts.
         function Resolve-Executable {
+            <#
+            .SYNOPSIS
+                Finds the full path of an executable by name.
+
+            .DESCRIPTION
+                Tries each name in turn and returns the first match. A name that looks like a path is returned
+                if it exists. Otherwise the name is looked up with Get-Command, then searched for in Program
+                Files, Program Files (x86), the per-user Programs and WindowsApps folders, the user's Start
+                menu and the user profile folder, up to MaxDepth folders deep. A shortcut (.lnk) that matches
+                is resolved to its target. Last, $env:LOCALAPPDATA\bin is checked. Returns $null if nothing is
+                found.
+
+            .PARAMETER Names
+                One or more executable names or paths, in order of preference. When searching folders, a name
+                without the .exe extension is also tried with it.
+
+            .PARAMETER MaxDepth
+                How many folder levels below each search folder to look in. The default is 2.
+
+            .EXAMPLE
+                Resolve-Executable -Names 'code', 'Code.exe' -MaxDepth 3
+
+                Returns the path to Visual Studio Code if it's on the PATH or installed in one of the searched
+                folders.
+            #>
             param(
                 [string[]]$Names,
                 [int]$MaxDepth = 2
             )
 
-            # Helper to resolve .lnk shortcut target (returns $null on failure)
             function Resolve-LnkTarget {
+                <#
+                .SYNOPSIS
+                    Returns the target of a Windows shortcut (.lnk) file.
+
+                .DESCRIPTION
+                    Reads the shortcut with the WScript.Shell COM object and returns the full path of its target.
+                    Returns $null if the shortcut can't be read or its target doesn't exist.
+
+                .PARAMETER LinkPath
+                    The path to the .lnk file.
+
+                .EXAMPLE
+                    Resolve-LnkTarget -LinkPath "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Notepad++.lnk"
+
+                    Returns the path of the program the shortcut opens.
+                #>
                 param([string]$LinkPath)
                 try {
                     $w = New-Object -ComObject WScript.Shell
@@ -220,8 +258,24 @@ function Edit-File {
             default { @('VSCode', 'Notepad++', 'Notepad') }
         }
 
-        # Helper to find detected by name substring
         function Find-DetectedByName($name) {
+            <#
+            .SYNOPSIS
+                Finds a detected editor by name.
+
+            .DESCRIPTION
+                Searches the editors that Edit-File detected earlier and returns the first one whose name
+                contains the given text, ignoring case, or whose key equals it. Returns $null when the name is
+                empty or nothing matches.
+
+            .PARAMETER name
+                The editor name, or part of it, such as code or notepad++.
+
+            .EXAMPLE
+                Find-DetectedByName -name 'notepad++'
+
+                Returns the detected Notepad++ entry, if Notepad++ was found.
+            #>
             if (-not $name) { return $null }
             $lc = $name.ToLowerInvariant()
             return $detected | Where-Object { $_.Name.ToLowerInvariant() -like "*$lc*" -or $_.Key -eq $lc } | Select-Object -First 1

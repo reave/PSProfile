@@ -109,6 +109,25 @@ Set-PSReadLineKeyHandler -Key '"', "'" `
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$ast, [ref]$tokens, [ref]$parseErrors, [ref]$null)
 
     function FindToken {
+        <#
+        .SYNOPSIS
+            Finds the token at a cursor position.
+
+        .DESCRIPTION
+            Returns the innermost token whose extent contains the cursor offset, looking inside the nested
+            tokens of expandable strings. Returns $null when no token contains the cursor.
+
+        .PARAMETER tokens
+            The tokens to search, as returned by PSConsoleReadLine.GetBufferState.
+
+        .PARAMETER cursor
+            The cursor position, as a character offset into the command line.
+
+        .EXAMPLE
+            FindToken -tokens $tokens -cursor $cursor
+
+            Returns the token under the cursor in the current command line.
+        #>
         param($tokens, $cursor)
 
         foreach ($token in $tokens) {

@@ -44,11 +44,43 @@ $PSNativeCommandUseErrorActionPreference = $false
 $RepoUrl = 'https://github.com/reave/PSProfile'
 
 function Write-SetupStep {
+    <#
+    .SYNOPSIS
+        Writes a setup progress message to the console.
+
+    .PARAMETER Message
+        The message to write. It's shown in cyan after ==>.
+
+    .EXAMPLE
+        Write-SetupStep -Message 'Cloning the repository'
+
+        Writes "==> Cloning the repository".
+    #>
     param([string]$Message)
     Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
 function Install-ViaZip {
+    <#
+    .SYNOPSIS
+        Installs PSProfile from a zip download of the repository.
+
+    .DESCRIPTION
+        Downloads a branch of the repository from GitHub as a zip file, extracts it to a temporary
+        folder, and copies its contents into InstallPath, creating the folder if needed and
+        overwriting existing files. The temporary files are removed afterwards, even if a step fails.
+
+    .PARAMETER InstallPath
+        The folder to install into.
+
+    .PARAMETER Branch
+        The branch to download, such as main.
+
+    .EXAMPLE
+        Install-ViaZip -InstallPath "$HOME\.config\powershell\PSProfile" -Branch 'main'
+
+        Installs the main branch into the default install folder.
+    #>
     param(
         [Parameter(Mandatory)][string]$InstallPath,
         [Parameter(Mandatory)][string]$Branch
@@ -218,6 +250,20 @@ $marker (https://github.com/reave/PSProfile) - edit assets/config/config.json in
             Write-SetupStep 'Populating native completions for installed tools'
             $Global:PSProfileRoot = $InstallPath
             function Get-PSProfileConfig {
+                <#
+                .SYNOPSIS
+                    Loads the installed profile's configuration.
+
+                .DESCRIPTION
+                    A minimal stand-in for the function of the same name in profile.ps1, so Update-Completions
+                    can run during setup. Reads assets\config\config.json from the install folder, or
+                    sample-config.json when there's no config.json. Returns $null if neither file exists.
+
+                .EXAMPLE
+                    Get-PSProfileConfig
+
+                    Returns the configuration that Update-Completions reads.
+                #>
                 $configPath = Join-Path $InstallPath 'assets\config\config.json'
                 $samplePath = Join-Path $InstallPath 'assets\config\sample-config.json'
                 $path = if (Test-Path -Path $configPath) { $configPath } else { $samplePath }

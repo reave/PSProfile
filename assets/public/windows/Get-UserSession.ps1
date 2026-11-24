@@ -187,8 +187,23 @@ function Get-UserSession {
                         if ($parseIdleTime) {
                             $string = $temp.idletime
 
-                            #quick function to handle minutes or hours:minutes
                             function Convert-ShortIdle {
+                                <#
+                                .SYNOPSIS
+                                    Converts an idle time from query user to a TimeSpan.
+
+                                .DESCRIPTION
+                                    Idle times that contain a colon, such as 1:05, are read
+                                    as hours and minutes. Anything else is read as minutes.
+
+                                .PARAMETER string
+                                    The idle time text, such as 45 or 1:05.
+
+                                .EXAMPLE
+                                    Convert-ShortIdle -string '1:05'
+
+                                    Returns a TimeSpan of 1 hour and 5 minutes.
+                                #>
                                 param($string)
                                 if ($string -match "\:") {
                                     [timespan]$string

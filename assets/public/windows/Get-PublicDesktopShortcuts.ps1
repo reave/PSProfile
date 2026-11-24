@@ -1,4 +1,22 @@
 ﻿function Get-PublicDesktopShortcuts {
+    <#
+    .SYNOPSIS
+        Lists the shortcuts on the user and public desktops.
+
+    .DESCRIPTION
+        Finds every shortcut (.lnk) file on the current user's desktop and the public desktop,
+        including subfolders, and returns an object for each with its Hotkey, TargetPath, LinkPath,
+        Arguments, Target, Link, WindowStyle and IconLocation.
+
+    .PARAMETER ComputerName
+        The listing runs once for each name given. The shortcuts are always read from the local
+        computer, and nothing is returned if no name is given.
+
+    .EXAMPLE
+        Get-PublicDesktopShortcuts -ComputerName $env:COMPUTERNAME
+
+        Lists the desktop shortcuts on this computer.
+    #>
     [cmdletbinding()]
     param(
         [Parameter(Mandatory = $false)]

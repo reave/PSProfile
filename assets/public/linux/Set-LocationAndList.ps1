@@ -5,14 +5,24 @@ New-Alias -Name cd -Value Set-LocationAndList -Description "Change Directory and
 function Set-LocationAndList {
     <#
     .SYNOPSIS
-        Pull a list on ever directory change
+        Changes to a folder and lists its contents.
+
     .DESCRIPTION
-        Pull a list on ever directory change
+        Resolves path, makes it the current location, and lists everything in it, including hidden
+        items. Writes an error if the path doesn't exist. This script also makes cd an alias for this
+        function.
+
+    .PARAMETER path
+        The folder to change to. Accepts pipeline input. The default is the current folder.
+
+    .EXAMPLE
+        Set-LocationAndList -path "$HOME\Documents"
+
+        Changes to your Documents folder and lists what's in it.
+
     .NOTES
         Name: Set-LocationAndList
         Author: reave (https://github.com/reave)
-    .ALIASES
-        cd
     #>
     [cmdletBinding()]
     param(
