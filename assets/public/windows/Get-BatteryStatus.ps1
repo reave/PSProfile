@@ -14,6 +14,7 @@ function Get-BatteryStatus {
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleTypes', '',
         Justification = 'SystemInformation is available on both editions once Add-Type loads System.Windows.Forms.')]
+    [CmdletBinding()]
     param()
     try {
         Add-Type -AssemblyName System.Windows.Forms
