@@ -352,7 +352,7 @@ function Invoke-IPv4PortScan {
                 $Jobs.Remove($Job)
 
                 # Check if result is null --> if not, return it
-                if ($Job_Result.Status) {
+                if (@($Job_Result).Count -gt 0) {
                     if ($AssignServiceWithPort) {
                         AssignServiceWithPort -Result $Job_Result
                     }

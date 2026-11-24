@@ -45,6 +45,9 @@ function Resolve-ShortURL {
     )
 
     begin {
+        # Windows PowerShell 5.1 doesn't load System.Net.Http by default.
+        Add-Type -AssemblyName System.Net.Http
+
         # HttpClient that does NOT follow redirects so we can observe Location headers
         $handler = New-Object System.Net.Http.HttpClientHandler
         $handler.AllowAutoRedirect = $false
@@ -79,7 +82,7 @@ function Resolve-ShortURL {
 
             if ($null -ne $resultError) {
                 [PSCustomObject]@{
-                    InputUrl   = $input
+                    InputUrl   = $uriinput
                     FinalUrl   = $null
                     StatusCode = $null
                     Redirects  = @()

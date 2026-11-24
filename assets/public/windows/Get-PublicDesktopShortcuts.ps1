@@ -4,35 +4,49 @@
         Lists the shortcuts on the user and public desktops.
 
     .DESCRIPTION
-        Finds every shortcut (.lnk) file on the current user's desktop and the public desktop,
-        including subfolders, and returns an object for each with its Hotkey, TargetPath, LinkPath,
-        Arguments, Target, Link, WindowStyle and IconLocation.
+        Finds every shortcut (.lnk) file on the desktops, including subfolders, and returns an
+        object for each with its ComputerName, Hotkey, TargetPath, LinkPath, Arguments, Target,
+        Link, WindowStyle and IconLocation. On the local computer it reads the current user's
+        desktop and the public desktop. On a remote computer it reads the public desktop through
+        the C$ administrative share, which needs administrator rights on that computer.
 
     .PARAMETER ComputerName
-        The listing runs once for each name given. The shortcuts are always read from the local
-        computer, and nothing is returned if no name is given.
+        The computers to read. The default is the local computer.
 
     .EXAMPLE
-        Get-PublicDesktopShortcuts -ComputerName $env:COMPUTERNAME
+        Get-PublicDesktopShortcuts
 
-        Lists the desktop shortcuts on this computer.
+        Lists the shortcuts on your desktop and the public desktop.
+
+    .EXAMPLE
+        Get-PublicDesktopShortcuts -ComputerName 'Server01'
+
+        Lists the shortcuts on the public desktop of Server01.
     #>
     [cmdletbinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [string[]]$ComputerName
+        [string[]]$ComputerName = $env:COMPUTERNAME
     )
 
     foreach ($Computer in $ComputerName) {
         Write-Verbose "Creating a Shell object"
         $obj = New-Object -ComObject WScript.Shell
 
-        Write-Verbose "Expanding envinronment variables for User and Public Desktop folders"
-        $pathUser = [System.Environment]::GetFolderPath('Desktop')
-        $pathCommon = $obj.SpecialFolders.Item('AllUsersDesktop')
+        if ($Computer -in $env:COMPUTERNAME, 'localhost', '.') {
+            Write-Verbose "Expanding environment variables for User and Public Desktop folders"
+            $desktopPaths = [System.Environment]::GetFolderPath('Desktop'), $obj.SpecialFolders.Item('AllUsersDesktop')
+        } else {
+            # Only the public desktop is reachable remotely: each user's desktop lives in their profile.
+            $desktopPaths = "\\$Computer\C$\Users\Public\Desktop"
+            if (-not (Test-Path -Path $desktopPaths)) {
+                Write-Error -Message "Can't read the public desktop on $Computer at $desktopPaths."
+                continue
+            }
+        }
 
-        Write-Verbose "Getting a list of all shortcuts in the user and public desktop locations"
-        $Shortcuts = Get-ChildItem -Path $pathUser, $pathCommon -Filter *.lnk -Recurse -ErrorAction SilentlyContinue
+        Write-Verbose "Getting a list of all shortcuts in $($desktopPaths -join ', ')"
+        $Shortcuts = Get-ChildItem -Path $desktopPaths -Filter *.lnk -Recurse -ErrorAction SilentlyContinue
 
         Write-Verbose "Discovered $(($Shortcuts | Measure-Object).Count) shortcuts"
 
@@ -42,6 +56,7 @@
             # Preparing Empty Hashtable for data
             Write-Verbose "Preparing Empty Hashtable for data"
             $info = @{ }
+            $info.ComputerName = $Computer
 
             # Instantiating and object from the current shortcut
             Write-Verbose "Instantiating and object from the current shortcut"

@@ -405,10 +405,10 @@
     #
 
     # Create a Byte Array for the DHCPDISCOVER packet
-    $Message = New-DhcpDiscoverPacket -Send 10 -Receive 10
+    $Message = New-DhcpDiscoverPacket -MacAddressString $MacAddressString
 
     # Create a socket
-    $UdpSocket = New-UdpSocket
+    $UdpSocket = New-UdpSocket -SendTimeOut 10 -ReceiveTimeOut 10
 
     # UDP Port 68 (Server-to-Client port)
     $EndPoint = [Net.EndPoint](

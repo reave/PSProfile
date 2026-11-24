@@ -521,7 +521,7 @@ function Invoke-IPv4NetworkScan {
                 $Jobs.Remove($Job)
 
                 # Check if result contains status
-                if ($Job_Result.Status) {
+                if (@($Job_Result).Count -gt 0) {
                     if ($AssignVendorToMAC) {
                         AssignVendorToMAC -Result $Job_Result | Select-Object -Property $PropertiesToDisplay
                     }

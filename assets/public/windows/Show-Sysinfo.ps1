@@ -39,12 +39,6 @@ function Show-Sysinfo {
             Captures the whole virtual screen, which spans every monitor, and saves it in TarPath as
             screenshot-<MM-dd-yyyy_HH_mm_ss>.png.
 
-        .PARAMETER Width
-            Not used. The size of the capture always comes from the virtual screen.
-
-        .PARAMETER Height
-            Not used. The size of the capture always comes from the virtual screen.
-
         .PARAMETER TarPath
             The folder to save the screenshot in.
 
@@ -55,8 +49,6 @@ function Show-Sysinfo {
         #>
         [CmdletBinding()]
         param(
-            [string]$Width,
-            [string]$Height,
             [string]$TarPath
         )
 
@@ -67,7 +59,7 @@ function Show-Sysinfo {
             $bounds = [Windows.Forms.SystemInformation]::VirtualScreen
             # Check Path for Trailing BackSlashes
             if ( $TarPath.EndsWith("\") ) {
-                $TarPath = $TarPath.Substring(0, $Path.Length - 1)
+                $TarPath = $TarPath.Substring(0, $TarPath.Length - 1)
             }
 
             # Define The Target Path
@@ -351,7 +343,7 @@ namespace PInvoke
     # Take Screenshot if the Parameters are assigned...
     if ( $Path ) {
         switch ($SSMode) {
-            'AllMonitors' { Save-Screenshot -Width $ScreenWidth -Height $ScreenHeight -TarPath $Path }
+            'AllMonitors' { Save-Screenshot -TarPath $Path }
             'PowerShellOnly' { Export-ActiveWindowScreenshot -wpid $(([System.Diagnostics.Process]::GetCurrentProcess()).id) -OutPath $Path }
         }
     }
