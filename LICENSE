@@ -1,0 +1,135 @@
+This repository is made up of files under four licenses:
+
+1. Everything in this repository EXCEPT the files listed in sections 2, 3
+   and 4 below is released under the Unlicense (full text below) - public
+   domain. Do whatever you want with it: use, copy, modify, merge, publish,
+   distribute, sell, or give it away, with or without attribution, for any
+   purpose.
+
+   Every file listed in sections 2-4 carries a "License:" line in its own
+   header naming its license and source repository.
+
+2. The following files are adapted from BornToBeRoot/PowerShell
+   (https://github.com/BornToBeRoot/PowerShell), which is licensed under the
+   GNU General Public License v3.0 (GPL-3.0). They remain licensed under
+   GPL-3.0, not the Unlicense - each carries a "License: GPL-3.0" line in its
+   own header alongside the rest of that file's attribution. The full GPL-3.0
+   text is included in this repository at licenses/GPL-3.0.txt (also online
+   at https://www.gnu.org/licenses/gpl-3.0.en.html).
+
+   assets/public/{windows,macos,linux}/Convert-IPv4Address.ps1
+   assets/public/{windows,macos,linux}/Convert-ROT13.ps1
+   assets/public/{windows,macos,linux}/Convert-ROT47.ps1
+   assets/public/{windows,macos,linux}/Convert-Subnetmask.ps1
+   assets/public/{windows,macos,linux}/Find-StringInFile.ps1
+   assets/public/{windows,macos,linux}/Get-ConsoleColor.ps1
+   assets/public/{windows,macos,linux}/Get-IPv4Subnet.ps1
+   assets/public/{windows,macos,linux}/Get-MACVendor.ps1
+   assets/public/{windows,macos,linux}/Get-RandomPassword.ps1
+   assets/public/{windows,macos,linux}/Get-RandomPIN.ps1
+   assets/public/{windows,macos,linux}/Invoke-IPv4NetworkScan.ps1
+   assets/public/{windows,macos,linux}/Invoke-IPv4PortScan.ps1
+   assets/public/{windows,macos,linux}/Send-WakeOnLan.ps1
+   assets/public/{windows,macos,linux}/Split-IPv4Subnet.ps1
+   assets/public/{windows,macos,linux}/Test-IsFileBinary.ps1
+   assets/public/{windows,macos,linux}/Update-StringInFile.ps1
+   assets/public/windows/Add-TrustedHost.ps1
+   assets/public/windows/Clear-ARPCache.ps1
+   assets/public/windows/Get-ARPCache.ps1
+   assets/public/windows/Get-InstalledSoftware.ps1
+   assets/public/windows/Get-MACAddress.ps1
+   assets/public/windows/Get-TrustedHost.ps1
+   assets/public/windows/Get-WindowsProductKey.ps1
+   assets/public/windows/Get-WLANProfile.ps1
+   assets/public/windows/Remove-TrustedHost.ps1
+   assets/public/windows/Set-TrustedHost.ps1
+
+3. The following files are adapted from lazywinadmin/PowerShell
+   (https://github.com/lazywinadmin/PowerShell) by Francois-Xavier Cat, which
+   is licensed under the MIT License. They remain licensed under MIT, not the
+   Unlicense. The MIT License requires its copyright and permission notice to
+   be kept with the code, so its full text is reproduced at the end of this
+   file.
+
+   assets/public/{windows,macos,linux}/ConvertFrom-Base64.ps1
+   assets/public/{windows,macos,linux}/ConvertTo-Base64.ps1
+   assets/public/{windows,macos,linux}/ConvertTo-StringList.ps1
+   assets/public/windows/Disable-RemoteDesktop.ps1
+   assets/public/windows/Enable-RemoteDesktop.ps1
+   assets/public/windows/Get-ImageInformation.ps1
+   assets/public/windows/Get-LocalAdministrator.ps1
+   assets/public/windows/Get-LocalGroup.ps1
+   assets/public/windows/Get-LocalGroupMember.ps1
+   assets/public/windows/Get-LocalUser.ps1
+   assets/public/windows/Get-Netstat.ps1
+   assets/public/windows/New-RandomPassword.ps1
+
+4. The following files are adapted from PSAppDeployToolkit
+   (https://github.com/PSAppDeployToolkit/PSAppDeployToolkit), (C)
+   PSAppDeployToolkit Team (Sean Lillis, Dan Cunningham and Muhammad
+   Mashwani), which is licensed under the GNU Lesser General Public License
+   v3.0 or later (LGPL-3.0). They remain licensed under LGPL-3.0, not the
+   Unlicense. The full LGPL-3.0 text is included in this repository at
+   licenses/LGPL-3.0.txt, and the GPL-3.0 text it builds on at
+   licenses/GPL-3.0.txt (also online at
+   https://www.gnu.org/licenses/lgpl-3.0.en.html).
+
+   assets/public/{windows,macos,linux}/Resolve-Error.ps1
+   assets/public/windows/New-ZipFile.ps1
+   assets/public/windows/Write-Log.ps1
+
+   See the README's Credits section for the rest of this repository's
+   third-party sources (PsIni, the PSReadLine sample profile, and several
+   individually-authored scripts and snippets). None of those came with a
+   license that adds conditions here, so they aren't listed above, but their
+   own file headers still name their original authors.
+
+------------------------------------------------------------------------------
+
+The Unlicense
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute
+this software, either in source code form or as a compiled binary, for any
+purpose, commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this
+software dedicate any and all copyright interest in the software to the
+public domain. We make this dedication for the benefit of the public at
+large and to the detriment of our heirs and successors. We intend this
+dedication to be an overt act of relinquishment in perpetuity of all present
+and future rights to this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <https://unlicense.org>
+
+------------------------------------------------------------------------------
+
+The MIT License (MIT) - applies to the files listed in section 3
+
+Copyright (c) 2015 Francois-Xavier Cat
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

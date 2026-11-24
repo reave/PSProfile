@@ -1,0 +1,121 @@
+{
+    "name": "PSProfile Config",
+    "version": "0.0.0.1",
+    "settings": {
+        "MaximumHistoryCount": 8192,
+        "ErrorView": "ConciseView",
+        "StrictModeVersion": "Latest",
+        "ModuleAutoLoadingPreference": "None",
+        "TelemetryOptOut": true,
+        "OneDrivePath": "",
+        "PoshTheme": "M365Princess",
+        "ShowWindowTitle": true,
+        "ShowSplashScreen": true,
+        "SplashCommand": {
+            "Windows": "winfetch",
+            "MacOS": "screenfetch -E",
+            "Linux": "screenfetch -E"
+        },
+        "ShowElevatedWarning": true,
+        "RunUpdateHelpOnElevated": true,
+        "ShowPSVersionBanner": true,
+        "DefaultParameterValues": {
+            "Export-Csv:NoTypeInformation": true,
+            "ConvertTo-Csv:NoTypeInformation": true,
+            "*-PSDrive:PSProvider": "FileSystem",
+            "Get-Help:Detailed": true,
+            "Get-Weather:APIKey": ""
+        },
+        "PSReadLine": {
+            "PredictionSource": "History",
+            "PredictionViewStyle": "ListView",
+            "EditMode": "Windows",
+            "HistorySearchArrowKeys": true,
+            "FilterSecretsFromHistory": true,
+            "Colors": {
+                "Command": "#87CEEB",
+                "Parameter": "#98FB98",
+                "Operator": "#FFB6C1",
+                "Variable": "#DDA0DD",
+                "String": "#FFDAB9",
+                "Number": "#B0E0E6",
+                "Type": "#F0E68C",
+                "Comment": "#D3D3D3",
+                "Keyword": "#8367c7",
+                "Error": "#FF6347"
+            }
+        }
+    },
+    "Aliases": [
+        {
+            "Name": "edit",
+            "Value": "Edit-File",
+            "Description": "Edit a file"
+        }
+    ],
+    "Modules": [
+        {
+            "Name": "Terminal-Icons",
+            "Description": "PowerShell module to add file icons to terminal based on file extension",
+            "PSVersionMajor": "5",
+            "OS": "All"
+        },
+        {
+            "Name": "TabExpansionPlusPlus",
+            "Description": "An enhanced tab expansion module for Windows PowerShell 5.1 - doesn't support PowerShell 7+ (Core), superseded there by native/PSReadLine completion",
+            "PSVersionMajorMax": "5",
+            "OS": "Windows"
+        },
+        {
+            "Name": "Microsoft.WinGet.CommandNotFound",
+            "Description": "PowerToys CommandNotFound module - suggests winget packages for unrecognized commands",
+            "PSVersionMajor": "5",
+            "OS": "Windows"
+        }
+    ],
+    "Packages": [
+        {
+            "Name": "speedtest",
+            "Id": "ookla.speedtest.cli",
+            "Source": "winget"
+        },
+        {
+            "Name": "speedtest",
+            "Id": "speedtest-cli",
+            "Source": "brew"
+        },
+        {
+            "Name": "speedtest",
+            "Id": "speedtest-cli",
+            "Source": "apt"
+        },
+        {
+            "Name": "speedtest",
+            "Id": "speedtest-cli",
+            "Source": "yum"
+        },
+        {
+            "Name": "speedtest",
+            "Id": "speedtest-cli",
+            "Source": "pacman"
+        }
+    ],
+    "NativeCompletions": [
+        {
+            "Name": "docker",
+            "GenerateCommand": "docker completion powershell"
+        },
+        {
+            "Name": "kubectl",
+            "GenerateCommand": "kubectl completion powershell"
+        },
+        {
+            "Name": "gh",
+            "GenerateCommand": "gh completion -s powershell"
+        },
+        {
+            "Name": "helm",
+            "GenerateCommand": "helm completion powershell"
+        }
+    ]
+}
