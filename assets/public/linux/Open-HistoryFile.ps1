@@ -29,34 +29,27 @@ function Open-HistoryFile {
                 if ($gedit) {
                     Start-Process "gedit" -ArgumentList "$HISTORY_PATH"
                     return
-                }
-                elseif ($nano) {
+                } elseif ($nano) {
                     Start-Process "nano" -ArgumentList "$HISTORY_PATH"
                     return
-                }
-                elseif ($vim) {
+                } elseif ($vim) {
                     Start-Process "vim" -ArgumentList "$HISTORY_PATH"
                     return
-                }
-                else {
+                } else {
                     Write-Error "Could not detect a text editor."
                     return
                 }
-            }
-            elseif ($IsMacOS) {
+            } elseif ($IsMacOS) {
                 Start-Process "open" -ArgumentList "$HISTORY_PATH"
                 return
-            }
-            elseif ($IsWindows) {
+            } elseif ($IsWindows) {
                 if (Get-Command "notepad" -ErrorAction SilentlyContinue) {
                     Start-Process "notepad" -ArgumentList "$HISTORY_PATH"
                     return
-                }
-                else {
+                } else {
                     Write-Error "Could not detect notepad."
                 }
-            }
-            else {
+            } else {
                 Write-Error "Could not detect host."
             }
         }

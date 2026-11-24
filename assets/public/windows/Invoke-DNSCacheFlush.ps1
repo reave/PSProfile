@@ -50,8 +50,7 @@ function Invoke-DNSCacheFlush {
         $proc = Start-Process -FilePath 'ipconfig.exe' -ArgumentList '/flushdns' -NoNewWindow -Wait -PassThru -ErrorAction Stop
         if ($proc.ExitCode -eq 0) {
             return @{ Success = $true; Method = 'ipconfig /flushdns'; Message = 'Cache flushed.' }
-        }
-        else {
+        } else {
             return @{ Success = $false; Method = 'ipconfig /flushdns'; Message = "ipconfig returned exit code $($proc.ExitCode)." }
         }
     }
@@ -72,8 +71,7 @@ function Invoke-DNSCacheFlush {
             $proc = Start-Process -FilePath 'ipconfig.exe' -ArgumentList '/flushdns' -NoNewWindow -Wait -PassThru -ErrorAction Stop
             if ($proc.ExitCode -eq 0) {
                 return @{ Success = $true; Method = 'ipconfig /flushdns'; Message = 'Cache flushed.' }
-            }
-            else {
+            } else {
                 return @{ Success = $false; Method = 'ipconfig /flushdns'; Message = "ipconfig returned exit code $($proc.ExitCode)." }
             }
         }
@@ -83,13 +81,11 @@ function Invoke-DNSCacheFlush {
                 Invoke-CimMethod -CimSession $Session -ClassName __Namespace -MethodName NonExistentMethod -ErrorAction SilentlyContinue | Out-Null
                 # Using Invoke-Command with CimSession isn't direct, so use Invoke-Command against the session's machine
                 $result = Invoke-Command -Session (New-PSSession -ComputerName $Target -ErrorAction Stop) -ScriptBlock $script -ArgumentList $Force -ErrorAction Stop
-            }
-            else {
+            } else {
                 $result = Invoke-Command -ComputerName $Target -ScriptBlock $script -ArgumentList $Force -ErrorAction Stop
             }
             return $result
-        }
-        catch {
+        } catch {
             throw $_
         }
     }
@@ -117,8 +113,7 @@ function Invoke-DNSCacheFlush {
                         Message      = $res.Message
                         TimeStamp    = (Get-Date)
                     }
-                }
-                else {
+                } else {
                     # Remote flush
                     $res = Clear-DnsCacheRemote -Target $t -Session $null
                     [PSCustomObject]@{
@@ -129,8 +124,7 @@ function Invoke-DNSCacheFlush {
                         TimeStamp    = (Get-Date)
                     }
                 }
-            }
-            catch {
+            } catch {
                 [PSCustomObject]@{
                     ComputerName = $t
                     Success      = $false

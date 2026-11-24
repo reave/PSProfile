@@ -1,22 +1,20 @@
 function Get-LastBootTime {
     [CmdletBinding()]
-    Param (
+    param (
         [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
         [string[]]$ComputerName = $env:ComputerName
     )
-    Process {
+    process {
         Write-Verbose "Getting uptime for $ComputerName"
         if ($ComputerName -eq $env:ComputerName) {
-            Try {
+            try {
                 Get-CimInstance -ClassName win32_operatingsystem -ErrorAction Stop | Select-Object @{LABEL = "ComputerName"; EXPRESSION = { $_.csname } }, LastbootUpTime
-            }
-            Catch {
+            } catch {
                 Write-Error $_.Exception.Message
             }
-        }
-        else {
-            Try { Get-CimInstance -ClassName win32_operatingsystem -ComputerName $ComputerName -ErrorAction Stop | Select-Object @{LABEL = "ComputerName"; EXPRESSION = { $_.csname } }, LastbootUpTime }
-            Catch {
+        } else {
+            try { Get-CimInstance -ClassName win32_operatingsystem -ComputerName $ComputerName -ErrorAction Stop | Select-Object @{LABEL = "ComputerName"; EXPRESSION = { $_.csname } }, LastbootUpTime }
+            catch {
                 $props = @{
                     ComputerName   = $ComputerName
                     LastbootUpTime = "Error"

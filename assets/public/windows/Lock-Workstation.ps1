@@ -1,4 +1,4 @@
-Function Lock-Workstation {
+function Lock-Workstation {
     <#
 .SYNOPSIS
     Lock the workstation

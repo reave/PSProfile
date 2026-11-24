@@ -1,4 +1,4 @@
-Function Start-Elevated {
+function Start-Elevated {
     <#
 .SYNOPSIS
     Start a process as admin
@@ -13,11 +13,11 @@ Function Start-Elevated {
     Author: Unknown
 #>
     [CmdletBinding()]
-    Param (
+    param (
         [parameter(Mandatory = $true, ValueFromPipeline = $true, Position = 0)] [String]$FilePath,
         [parameter(Mandatory = $false, ValueFromRemainingArguments = $true, Position = 1)] [String[]]$ArgumentList
     )
-    Process {
+    process {
         Start-Process -Verb RunAs @PSBoundParameters
     }
 }

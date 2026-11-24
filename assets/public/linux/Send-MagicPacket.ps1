@@ -1,4 +1,4 @@
-Function Send-MagicPacket {
+function Send-MagicPacket {
     <#PSScriptInfo
 
     .VERSION 1.0.3
@@ -55,7 +55,7 @@ Function Send-MagicPacket {
         [int32[]]$Ports = @(7..9)
     )
 
-    Process {
+    process {
         foreach ($Mac in $MacAddress) {
 
             [string]$Mac = $Mac.ToUpper() -replace "[g-z]|[^\w\d]"
@@ -69,9 +69,9 @@ Function Send-MagicPacket {
 
             $UdpClient = New-Object System.Net.Sockets.UdpClient
 
-            $Ports | Foreach-Object {
+            $Ports | ForEach-Object {
                 $UdpClient.Connect($broadcast, $_)
-                $UdpClient.Send($packet, $packet.Length) | out-null
+                $UdpClient.Send($packet, $packet.Length) | Out-Null
             }
 
             $UdpClient.Close()

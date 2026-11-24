@@ -42,7 +42,7 @@ function Get-UserSession {
 
     #>
     [cmdletbinding()]
-    Param(
+    param(
         [Parameter(
             Position = 0,
             ValueFromPipeline = $True)]
@@ -53,27 +53,27 @@ function Get-UserSession {
         [validaterange(0, 120)]
         [int]$Timeout = 15
     )
-    Process {
-        ForEach ($computer in $ComputerName) {
+    process {
+        foreach ($computer in $ComputerName) {
 
             #start query.exe using .net and cmd /c.  We do this to avoid cases where query.exe hangs
 
             #build temp file to store results.  Loop until we see the file
-            Try {
+            try {
                 $Started = Get-Date
                 $tempFile = [System.IO.Path]::GetTempFileName()
 
-                Do {
+                do {
                     Start-Sleep -Milliseconds 300
 
                     if ( ((Get-Date) - $Started).totalseconds -gt 10) {
-                        Throw "Timed out waiting for temp file '$TempFile'"
+                        throw "Timed out waiting for temp file '$TempFile'"
                     }
                 }
-                Until(Test-Path -Path $tempfile)
-            } Catch {
+                until(Test-Path -Path $tempfile)
+            } catch {
                 Write-Error "Error for '$Computer': $_"
-                Continue
+                continue
             }
 
             #Record date.  Start process to run query in cmd.  I use starttime independently of process starttime due to a few issues we ran into
@@ -89,9 +89,9 @@ function Get-UserSession {
                 $hasExited = $p.HasExited
 
                 #check if there is still a record of the process
-                Try {
+                try {
                     $proc = Get-Process -Id $p.id -ErrorAction stop
-                } Catch {
+                } catch {
                     $proc = $null
                 }
 
@@ -109,7 +109,7 @@ function Get-UserSession {
             until($hasexited -or $stopProcessing -or -not $proc)
 
             if ($stopprocessing) {
-                Continue
+                continue
             }
 
             #if we are still processing, read the output!

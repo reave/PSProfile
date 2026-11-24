@@ -15,7 +15,7 @@ Register-ArgumentCompleter -Native -CommandName yt-dlp -ScriptBlock {
     if (-not $Global:__ytdlpFlagCache) {
         $helpText = yt-dlp --help 2>$null | Out-String
         $Global:__ytdlpFlagCache = [regex]::Matches($helpText, '(?<=^|\s)(--[a-zA-Z][\w-]*)') |
-        ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+            ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
     }
 
     $Global:__ytdlpFlagCache | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {

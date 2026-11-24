@@ -1,4 +1,4 @@
-Function Set-ScreenResolution {
+function Set-ScreenResolution {
     <#
     .Synopsis
         Sets the Screen Resolution of the primary monitor

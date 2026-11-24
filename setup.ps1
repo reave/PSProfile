@@ -74,8 +74,7 @@ function Install-ViaZip {
 
         Write-SetupStep "Installing to $InstallPath"
         Copy-Item -Path (Join-Path $extractedRoot.FullName '*') -Destination $InstallPath -Recurse -Force
-    }
-    finally {
+    } finally {
         Remove-Item -Path $tempZip -Force -ErrorAction SilentlyContinue
         Remove-Item -Path $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -117,8 +116,7 @@ function Update-LegacyProfileReference {
     try {
         $stream.Write($bytes, 0, $preambleLength)
         $stream.Write($body, 0, $body.Length)
-    }
-    finally { $stream.Dispose() }
+    } finally { $stream.Dispose() }
     return $true
 }
 
@@ -133,13 +131,11 @@ try {
         Write-SetupStep "Updating existing install at $InstallPath (git pull)"
         git -C $InstallPath pull --ff-only
         if ($LASTEXITCODE -ne 0) { throw "git pull failed with exit code $LASTEXITCODE" }
-    }
-    elseif ($hasGit -and $installDirIsEmpty) {
+    } elseif ($hasGit -and $installDirIsEmpty) {
         Write-SetupStep "Cloning $RepoUrl to $InstallPath"
         git clone --branch $Branch $RepoUrl $InstallPath
         if ($LASTEXITCODE -ne 0) { throw "git clone failed with exit code $LASTEXITCODE" }
-    }
-    else {
+    } else {
         # No git, or the install directory already has non-git content in it
         # (e.g. a prior zip-based install) - overlay is always safe to re-run.
         Install-ViaZip -InstallPath $InstallPath -Branch $Branch
@@ -184,11 +180,9 @@ try {
 
         if ($migrated) {
             Write-SetupStep "Profile at $profileTarget now loads profile.ps1"
-        }
-        elseif ($existingContent -and ($existingContent.Contains($marker) -or $alreadyLoads)) {
+        } elseif ($existingContent -and ($existingContent.Contains($marker) -or $alreadyLoads)) {
             Write-SetupStep "Profile at $profileTarget already links to PSProfile - leaving it alone"
-        }
-        else {
+        } else {
             if ($existingContent) {
                 $backupPath = "$profileTarget.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
                 Write-SetupStep "Backing up existing profile to $backupPath"
@@ -231,8 +225,7 @@ $marker (https://github.com/reave/PSProfile) - edit assets/config/config.json in
             . $updateCompletionsScript
             Update-Completions
         }
-    }
-    catch {
+    } catch {
         Write-Warning "Could not populate native completions: $_"
     }
 
@@ -242,8 +235,7 @@ $marker (https://github.com/reave/PSProfile) - edit assets/config/config.json in
         Write-Host 'Restart your shell (or run ". $PROFILE") to load it.' -ForegroundColor Green
     }
     Write-Host "Edit $configPath to customize modules, packages, theme, and aliases." -ForegroundColor Green
-}
-catch {
+} catch {
     Write-Error "PSProfile setup failed: $_"
     throw
 }

@@ -1,4 +1,4 @@
-Function Send-VoiceMessage {
+function Send-VoiceMessage {
     <#
     .SYNOPSIS
         Send a message through Text to Speech
@@ -37,41 +37,39 @@ Function Send-VoiceMessage {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]$CredentialObject
     )
-    Begin {
-        If ($Credential) {
-            If (!($CredentialObject)) {
+    begin {
+        if ($Credential) {
+            if (!($CredentialObject)) {
                 $CredentialObject = (Get-Credential -Message "Please enter your credentials.")
 
-                If (!($CredentialObject -is [System.Management.Automation.PSCredential])) {
-                    Throw "Failed to create credential object."
+                if (!($CredentialObject -is [System.Management.Automation.PSCredential])) {
+                    throw "Failed to create credential object."
                 }
-            }
-            else {
-                If (!($CredentialObject -is [System.Management.Automation.PSCredential])) {
-                    Throw "Failed to create credential object."
+            } else {
+                if (!($CredentialObject -is [System.Management.Automation.PSCredential])) {
+                    throw "Failed to create credential object."
                 }
             }
 
         }
     }
-    Process {
-        If ($ComputerName -eq $env:ComputerName) {
-            If (!$Message) {
+    process {
+        if ($ComputerName -eq $env:ComputerName) {
+            if (!$Message) {
                 $Message = Read-Host 'Enter a Message'
             }
 
             [Reflection.Assembly]::LoadWithPartialName('System.Speech') | Out-Null
             $object = New-Object System.Speech.Synthesis.SpeechSynthesizer
             $object.Speak($Message)
-        }
-        Else {
-            If ($CredentialObject) {
+        } else {
+            if ($CredentialObject) {
                 $Session = New-PSSession -ComputerName $ComputerName -Credential $CredentialObject
             }
 
             $Session = New-PSSession -ComputerName $ComputerName
 
-            If (!$Message) {
+            if (!$Message) {
                 Invoke-Command -Session $Session {
                     $Message = Read-Host 'Enter Text'
 
@@ -79,10 +77,9 @@ Function Send-VoiceMessage {
                     $object = New-Object System.Speech.Synthesis.SpeechSynthesizer
                     $object.Speak($Message)
                 }
-            }
-            else {
+            } else {
                 Invoke-Command -Session $Session -ArgumentList $Message {
-                    Param($Text)
+                    param($Text)
                     [Reflection.Assembly]::LoadWithPartialName('System.Speech') | Out-Null
                     $object = New-Object System.Speech.Synthesis.SpeechSynthesizer
                     $object.Speak($Text)

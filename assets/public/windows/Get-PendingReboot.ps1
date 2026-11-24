@@ -1,4 +1,4 @@
-﻿Function Get-PendingReboot {
+﻿function Get-PendingReboot {
     <#
     .SYNOPSIS
         Gets the pending reboot status on a local or remote computer.
@@ -91,10 +91,10 @@
         [String]$ErrorLog
     )
 
-    Begin { } ## End Begin Script Block
-    Process {
-        Foreach ($Computer in $ComputerName) {
-            Try {
+    begin { } ## End Begin Script Block
+    process {
+        foreach ($Computer in $ComputerName) {
+            try {
                 ## Setting pending values to false to cut down on the number of else statements
                 $CompPendRen, $PendFileRename, $Pending, $SCCM = $false, $false, $false, $false
 
@@ -109,7 +109,7 @@
                 $WMI_Reg = [WMIClass] "\\$Computer\root\default:StdRegProv"
 
                 ## If Vista/2008 & Above query the CBS Reg Key
-                If ([Int32]$WMI_OS.BuildNumber -ge 6001) {
+                if ([Int32]$WMI_OS.BuildNumber -ge 6001) {
                     $RegSubKeysCBS = $WMI_Reg.EnumKey($HKLM, "SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\")
                     $CBSRebootPend = $RegSubKeysCBS.sNames -contains "RebootPending"
                 }
@@ -125,12 +125,12 @@
                 ## Query ComputerName and ActiveComputerName from the registry
                 $ActCompNm = $WMI_Reg.GetStringValue($HKLM, "SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName\", "ComputerName")
                 $CompNm = $WMI_Reg.GetStringValue($HKLM, "SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName\", "ComputerName")
-                If ($ActCompNm -ne $CompNm) {
+                if ($ActCompNm -ne $CompNm) {
                     $CompPendRen = $true
                 }
 
                 ## If PendingFileRenameOperations has a value set $RegValuePFRO variable to $true
-                If ($RegValuePFRO) {
+                if ($RegValuePFRO) {
                     $PendFileRename = $true
                 }
 
@@ -145,30 +145,28 @@
                     ErrorAction  = 'Stop'
                 }
                 ## Try CCMClientSDK
-                Try {
+                try {
                     $CCMClientSDK = Invoke-WmiMethod @CCMSplat
-                }
-                Catch [System.UnauthorizedAccessException] {
+                } catch [System.UnauthorizedAccessException] {
                     $CcmStatus = Get-Service -Name CcmExec -ComputerName $Computer -ErrorAction SilentlyContinue
-                    If ($CcmStatus.Status -ne 'Running') {
+                    if ($CcmStatus.Status -ne 'Running') {
                         Write-Warning "$Computer`: Error - CcmExec service is not running."
                         $CCMClientSDK = $null
                     }
-                }
-                Catch {
+                } catch {
                     $CCMClientSDK = $null
                 }
 
-                If ($CCMClientSDK) {
-                    If ($CCMClientSDK.ReturnValue -ne 0) {
+                if ($CCMClientSDK) {
+                    if ($CCMClientSDK.ReturnValue -ne 0) {
                         Write-Warning "Error: DetermineIfRebootPending returned error code $($CCMClientSDK.ReturnValue)"
                     }
-                    If ($CCMClientSDK.IsHardRebootPending -or $CCMClientSDK.RebootPending) {
+                    if ($CCMClientSDK.IsHardRebootPending -or $CCMClientSDK.RebootPending) {
                         $SCCM = $true
                     }
                 }
 
-                Else {
+                else {
                     $SCCM = $null
                 }
 
@@ -196,17 +194,16 @@
                     RebootPending      = ($CompPendRen -or $CBSRebootPend -or $WUAURebootReq -or $SCCM -or $PendFileRename)
                 } | Select-Object @SelectSplat
 
-            }
-            Catch {
+            } catch {
                 Write-Warning "$Computer`: $_"
                 ## If $ErrorLog, log the file to a user specified location/path
-                If ($ErrorLog) {
+                if ($ErrorLog) {
                     Out-File -InputObject "$Computer`,$_" -FilePath $ErrorLog -Append
                 }
             }
         } ## End Foreach ($Computer in $ComputerName)
     } ## End Process
 
-    End { } ## End End
+    end { } ## End End
 
 } ## End Function Get-PendingReboot

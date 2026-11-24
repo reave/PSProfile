@@ -1,4 +1,4 @@
-Function Get-DriveInfo {
+function Get-DriveInfo {
     <#
     .SYNOPSIS
         Returns Drive Information
@@ -30,15 +30,14 @@ Function Get-DriveInfo {
         [Alias('Hostname', 'cn', 'Name')]
         [string[]]$ComputerName = $env:COMPUTERNAME
     )
-    Process {
+    process {
         foreach ($computer in $ComputerName) {
             Write-Verbose -Message "Processing $computer"
 
-            Try {
+            try {
                 if ($computer -eq $env:COMPUTERNAME) {
                     $Session = New-CimSession -ErrorAction Stop
-                }
-                else {
+                } else {
                     $Session = New-CimSession -ComputerName $computer -ErrorAction Stop
                 }
                 $Drives = Get-CimInstance -CimSession $Session -ClassName Win32_LogicalDisk
@@ -59,8 +58,7 @@ Function Get-DriveInfo {
                     $obj = New-Object -TypeName psobject -Property $properties
                     Write-Output $obj
                 }
-            }
-            Catch {
+            } catch {
                 $properties = @{
                     ComputerName   = $computer
                     ComputerStatus = 'Could Not Connect'

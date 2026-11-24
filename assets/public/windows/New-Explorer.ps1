@@ -10,7 +10,7 @@ function New-Explorer {
     Name: New-Explorer
     Author: Unknown
 #>
-    Param(
+    param(
         [Parameter(Mandatory = $false)]
         [string]$Username
     )

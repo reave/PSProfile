@@ -1,4 +1,4 @@
-Function Get-DeviceInfo {
+function Get-DeviceInfo {
     <#
     .SYNOPSIS
         Get Operating System information
@@ -37,7 +37,7 @@ Function Get-DeviceInfo {
 
     foreach ($computer in $ComputerName) {
         Write-Verbose "Verify WSMan Connection to $computer"
-        If (Test-WSMan -ComputerName $computer -ErrorAction SilentlyContinue) {
+        if (Test-WSMan -ComputerName $computer -ErrorAction SilentlyContinue) {
             Write-Verbose "WSMan is available"
             try {
                 Write-Verbose "Creating New CimSession to $computer"
@@ -55,8 +55,7 @@ Function Get-DeviceInfo {
                     PartOfDomain              = $cs.PartOfDomain
                     TotalPhysicalMemory       = "$([math]::round(($cs.TotalPhysicalMemory / 1GB),2)) GB"
                 }
-            }
-            catch {
+            } catch {
                 Write-Error "An error occured"
                 $properties = @{
                     ComputerName              = $computer
@@ -68,13 +67,11 @@ Function Get-DeviceInfo {
                     PartOfDomain              = $Null
                     TotalPhysicalMemory       = $Null
                 }
-            }
-            finally {
+            } finally {
                 $obj = New-Object -TypeName psobject -Property $properties
                 Write-Output $obj
             }
-        }
-        Else {
+        } else {
             Write-Verbose "WSMan is not available"
             try {
                 Write-Verbose "Retrieving computer information for $computer"
@@ -89,8 +86,7 @@ Function Get-DeviceInfo {
                     PartOfDomain              = $cs.PartOfDomain
                     TotalPhysicalMemory       = "$([math]::round(($cs.TotalPhysicalMemory / 1GB),2)) GB"
                 }
-            }
-            catch {
+            } catch {
                 Write-Error "An error occured"
                 $properties = @{
                     ComputerName              = $computer
@@ -102,8 +98,7 @@ Function Get-DeviceInfo {
                     PartOfDomain              = $Null
                     TotalPhysicalMemory       = $Null
                 }
-            }
-            finally {
+            } finally {
                 $obj = New-Object -TypeName psobject -Property $properties
                 Write-Output $obj
             }

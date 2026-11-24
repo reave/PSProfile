@@ -1,4 +1,4 @@
-Function Get-OSInfo {
+function Get-OSInfo {
     <#
     .SYNOPSIS
         Get Operating System information
@@ -49,8 +49,7 @@ Function Get-OSInfo {
                     LastBootUpTime   = $os.LastBootUpTime
                     InstallDirectory = $os.WindowsDirectory
                 }
-            }
-            catch {
+            } catch {
                 Write-Error "An error occured"
                 $properties = @{
                     ComputerName     = $computer
@@ -62,13 +61,11 @@ Function Get-OSInfo {
                     LastBootUpTime   = $Null
                     InstallDirectory = $Null
                 }
-            }
-            finally {
+            } finally {
                 $obj = New-Object -TypeName psobject -Property $properties
                 Write-Output $obj
             }
-        }
-        elseif (Test-WSMan -ComputerName $computer -ErrorAction SilentlyContinue) {
+        } elseif (Test-WSMan -ComputerName $computer -ErrorAction SilentlyContinue) {
             Write-Verbose "WSMan is available"
             try {
                 Write-Verbose "Creating New CimSession to $computer"
@@ -86,8 +83,7 @@ Function Get-OSInfo {
                     LastBootUpTime   = $os.LastBootUpTime
                     InstallDirectory = $os.WindowsDirectory
                 }
-            }
-            catch {
+            } catch {
                 Write-Error "An error occured"
                 $properties = @{
                     ComputerName     = $computer
@@ -99,13 +95,11 @@ Function Get-OSInfo {
                     LastBootUpTime   = $Null
                     InstallDirectory = $Null
                 }
-            }
-            finally {
+            } finally {
                 $obj = New-Object -TypeName psobject -Property $properties
                 Write-Output $obj
             }
-        }
-        Else {
+        } else {
             Write-Verbose "WSMan is not available"
             try {
                 Write-Verbose "Retrieving Opearting System Information information for $computer"
@@ -120,8 +114,7 @@ Function Get-OSInfo {
                     LastBootUpTime   = $os.ConvertToDateTime($os.LastBootUpTime)
                     InstallDirectory = $os.WindowsDirectory
                 }
-            }
-            catch {
+            } catch {
                 Write-Error "An error occured"
                 $properties = @{
                     ComputerName     = $computer
@@ -133,8 +126,7 @@ Function Get-OSInfo {
                     LastBootUpTime   = $Null
                     InstallDirectory = $Null
                 }
-            }
-            finally {
+            } finally {
                 $obj = New-Object -TypeName psobject -Property $properties
                 Write-Output $obj
             }

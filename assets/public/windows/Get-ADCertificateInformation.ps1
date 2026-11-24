@@ -1,4 +1,4 @@
-Function Get-ADCertificateInformation {
+function Get-ADCertificateInformation {
     <#
     .SYNOPSIS
         Get Certificate information for a user in Active Directory
@@ -21,7 +21,7 @@ Function Get-ADCertificateInformation {
     #>
 
     [CmdletBinding()]
-    Param(
+    param(
         [Parameter(
             Mandatory = $True,
             ValueFromPipeline = $true,
@@ -34,8 +34,8 @@ Function Get-ADCertificateInformation {
         [string[]]$UserName
     )
 
-    Process {
-        Foreach ($userID in $UserName) {
+    process {
+        foreach ($userID in $UserName) {
             Write-Verbose "Retrieving Certificates for $userID"
             $user = Get-ADUser -Identity $userID -Properties "Certificates"
 
@@ -52,8 +52,8 @@ Function Get-ADCertificateInformation {
             }
 
             Write-Verbose "Discovered $($user.Certificates.Count) certificates"
-            Foreach ($Certificate in $user.Certificates) {
-                Try {
+            foreach ($Certificate in $user.Certificates) {
+                try {
                     $Cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $Certificate
                     $properties = @{
                         EnhancedKeyUsageList = $cert.EnhancedKeyUsageList
@@ -64,8 +64,7 @@ Function Get-ADCertificateInformation {
                         IssuedBy             = $cert.Issuer
                         Thumbprint           = $cert.Thumbprint
                     }
-                }
-                Catch {
+                } catch {
                     $properties = @{
                         EnhancedKeyUsageList = $null
                         Identity             = $userID
@@ -75,8 +74,7 @@ Function Get-ADCertificateInformation {
                         IssuedBy             = $null
                         Thumbprint           = $null
                     }
-                }
-                Finally {
+                } finally {
                     $CertObject = New-Object -TypeName psobject -Property $properties
                     if (!($CertObject)) { Write-Output $CertObject }
                     try {
@@ -89,8 +87,7 @@ Function Get-ADCertificateInformation {
                             EnhancedKeyUsageList = $CertObject.EnhancedKeyUsageList
                             Thumbprint           = $CertObject.Thumbprint
                         }
-                    }
-                    catch {
+                    } catch {
                         $properties = @{
                             Identity             = $userID
                             IssuedOn             = $null
@@ -100,8 +97,7 @@ Function Get-ADCertificateInformation {
                             EnhancedKeyUsageList = $null
                             Thumbprint           = $null
                         }
-                    }
-                    finally {
+                    } finally {
                         $obj = New-Object -TypeName psobject -Property $properties
                         Write-Output $obj
                     }

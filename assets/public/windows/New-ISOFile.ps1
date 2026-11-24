@@ -37,7 +37,7 @@ function New-IsoFile {
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Source')]
-    Param(
+    param(
         [Parameter( Position = 1,
             Mandatory = $true,
             ValueFromPipeline = $true,
@@ -61,8 +61,8 @@ function New-IsoFile {
         [switch]$FromClipboard
     )
 
-    Begin {
-        ($cp = new-object System.CodeDom.Compiler.CompilerParameters).CompilerOptions = '/unsafe'
+    begin {
+        ($cp = New-Object System.CodeDom.Compiler.CompilerParameters).CompilerOptions = '/unsafe'
         if (!( 'ISOFile' -as [type] )) {
             Add-Type -CompilerParameters $cp -TypeDefinition @'
     public class ISOFile
@@ -126,7 +126,7 @@ function New-IsoFile {
         }
     }
 
-    Process {
+    process {
         if ( $FromClipboard ) {
             if ( $PSVersionTable.PSVersion.Major -lt 5 ) {
                 Write-Error -Message 'The -FromClipboard parameter is only supported on PowerShell v5 or higher'
@@ -148,7 +148,7 @@ function New-IsoFile {
         }
     }
 
-    End {
+    end {
         if ($Boot) { $Image.BootImageOptions = $Boot }
 
         $Result = $Image.CreateResultImage()

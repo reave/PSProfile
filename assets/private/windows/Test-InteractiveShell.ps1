@@ -22,8 +22,7 @@ function Test-InteractiveShell {
         return $Host.Name -eq 'ConsoleHost' -and
         -not [Console]::IsInputRedirected -and
         -not [Console]::IsOutputRedirected
-    }
-    catch {
+    } catch {
         return $false
     }
 }

@@ -1,4 +1,4 @@
-﻿Function Get-InactiveADComputers {
+﻿function Get-InactiveADComputers {
     <#
     .SYNOPSIS
     Retrieve all Inactive AD Computers
@@ -17,10 +17,10 @@
     Get-InactiveComputers
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [int]$DaysInactive = 30
     )
-    Process {
+    process {
         Get-ADComputer -Filter { LastLogonTimeStamp -lt $DaysInactive -and OperatingSystem -NotLike "*server*" -and OperatingSystem -Like "*Windows*" -or OperatingSystem -Like "*Mac*" } -Properties LastLogonTimeStamp, DNSHostName, OperatingSystem
     }
 }

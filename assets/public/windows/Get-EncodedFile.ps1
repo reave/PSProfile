@@ -1,4 +1,4 @@
-Function Get-EncodedFile {
+function Get-EncodedFile {
     <#
     .DESCRIPTION
         Encode a file byte by byte into a base64 string and save the output to a file
@@ -29,48 +29,43 @@ Function Get-EncodedFile {
         [Parameter(Mandatory = $false)]
         [switch]$Force
     )
-    Begin {
+    begin {
         $outPath = Split-Path -Path $outFile -Parent
-        If (!(Test-Path -Path $outPath)) {
-            Try { New-Item -ItemType Directory -Path $outPath -Force | Out-Null }
-            Catch { Throw "Failed to create directory $($outPath)." }
+        if (!(Test-Path -Path $outPath)) {
+            try { New-Item -ItemType Directory -Path $outPath -Force | Out-Null }
+            catch { throw "Failed to create directory $($outPath)." }
 
-        }
-        else {
-            If (!($Force)) {
-                If (Test-Path -Path $outFile) {
-                    Try { Rename-Item -Path $outFile -NewName "$($outFile).BAK$(Get-Random)" }
-                    Catch { Throw "Failed to rename existing $($outFile). Choose a different out file or pass the force parameter to overwrite the exising file." }
+        } else {
+            if (!($Force)) {
+                if (Test-Path -Path $outFile) {
+                    try { Rename-Item -Path $outFile -NewName "$($outFile).BAK$(Get-Random)" }
+                    catch { throw "Failed to rename existing $($outFile). Choose a different out file or pass the force parameter to overwrite the exising file." }
                 }
             }
         }
     }
 
-    Process {
-        Try {
+    process {
+        try {
             $Content = Get-Content -Path "$inputFile" -Encoding Byte
-        }
-        Catch {
-            Throw "Failed to encode $($inputFile) into [System.Byte]."
+        } catch {
+            throw "Failed to encode $($inputFile) into [System.Byte]."
         }
 
-        Try {
+        try {
             $Base64 = [System.Convert]::ToBase64String($Content)
-        }
-        Catch {
-            Throw "Failed to convert [System.Byte] data to a Base64 string."
+        } catch {
+            throw "Failed to convert [System.Byte] data to a Base64 string."
         }
 
-        Try {
-            If ($Force) {
+        try {
+            if ($Force) {
                 $Base64 | Out-File -FilePath $outFile -Force
-            }
-            else {
+            } else {
                 $Base64 | Out-File -FilePath $outFile
             }
-        }
-        Catch {
-            Throw "Failed to write the Base64 string to $($outFile)."
+        } catch {
+            throw "Failed to write the Base64 string to $($outFile)."
         }
     }
 }

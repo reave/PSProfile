@@ -1,4 +1,4 @@
-Function Set-RegValue {
+function Set-RegValue {
     <#
         .SYNOPSIS
         Create or Modify a specific registry key or value
@@ -30,7 +30,7 @@ Function Set-RegValue {
 
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $True)]
         [ValidateSet('HKEY_LOCAL_MACHINE', 'HKEY_CLASSES_ROOT', 'HKEY_CURRENT_USER', 'HKEY_USERS')]
         [string]$RegHive,
@@ -45,8 +45,8 @@ Function Set-RegValue {
         [string]$RegValueData
     )
 
-    Begin {
-        Switch ($RegHive) {
+    begin {
+        switch ($RegHive) {
             'HKEY_LOCAL_MACHINE' {
                 $RegPath = "HKLM:\$($RegKey)"
             }
@@ -63,35 +63,33 @@ Function Set-RegValue {
 
         Write-Output ''
     }
-    Process {
+    process {
         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Checking that $RegPath exists."
 
-        If (Get-Item -Path $RegPath -ErrorAction SilentlyContinue) {
+        if (Get-Item -Path $RegPath -ErrorAction SilentlyContinue) {
             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: $RegPath exists and is readable."
 
-            If ($RegValueName) {
+            if ($RegValueName) {
                 Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Checking that $RegValueName exists in $RegPath."
-                If (Get-ItemProperty -Path $RegPath -Name $RegValueName -ErrorAction SilentlyContinue) {
+                if (Get-ItemProperty -Path $RegPath -Name $RegValueName -ErrorAction SilentlyContinue) {
                     Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: $RegValueName exists in $RegPath."
 
-                    If ($RegValueType) {
+                    if ($RegValueType) {
                         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Checking registry data type of $RegValueName."
                         $CurrentRegValueType = Get-Item -Path $RegPath -ErrorAction SilentlyContinue
                         $TestRegType = $CurrentRegValueType.GetValueKind("$($RegValueName)")
 
-                        If ($RegValueType -eq $TestRegType) {
+                        if ($RegValueType -eq $TestRegType) {
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: $RegValueName is already set to $RegValueType"
-                        }
-                        Else {
+                        } else {
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Registry Type is currently $TestRegType, not $RegValueType."
 
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Updating Registry Value Type to $RegValueType."
 
-                            Try {
+                            try {
                                 Remove-ItemProperty -Path $RegPath -Name $RegValueName -Force -ErrorAction SilentlyContinue | Out-Null
                                 New-ItemProperty -Path $RegPath -Name $RegValueName -Type $RegValueType -Force -ErrorAction SilentlyContinue | Out-Null
-                            }
-                            Catch {
+                            } catch {
                                 Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: ERROR :: Failed to Set Registry Value Type of $RegValueType."
                             }
 
@@ -99,68 +97,60 @@ Function Set-RegValue {
 
                     }
 
-                    If ($RegValueData) {
+                    if ($RegValueData) {
                         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Checking that $RegValueName has the correct value."
 
-                        If ((Get-ItemProperty -Path $RegPath -ErrorAction SilentlyContinue).$($RegValueName) -eq $RegValueData) {
+                        if ((Get-ItemProperty -Path $RegPath -ErrorAction SilentlyContinue).$($RegValueName) -eq $RegValueData) {
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: $RegValueName is already at the passed value of $RegValueData."
-                        }
-                        Else {
+                        } else {
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: WARNING :: $RegValueName is not currently set to the passed value of $RegValueData. Current Value is $((Get-ItemProperty -Path $RegPath -ErrorAction SilentlyContinue).$($RegValueName))"
 
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Setting New Registry Value Data of $RegValueName to $RegValueData"
 
-                            Try {
+                            try {
                                 Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
-                            }
-                            Catch {
+                            } catch {
                                 Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: ERROR :: Failed to Set Registry Value Data of $RegValueName to $RegValueData."
                             }
                         }
-                    }
-                    Else {
+                    } else {
                         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: No Reg Value Data was passed. Will erase the currently set data from the value."
 
                         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Setting New Registry Value Data of $RegValueName to $RegValueData"
 
-                        Try {
+                        try {
                             Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
-                        }
-                        Catch {
+                        } catch {
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: ERROR :: Failed to Set Registry Value Data of $RegValueName to $RegValueData."
                         }
                     }
-                }
-                Else {
+                } else {
                     Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: WARNING :: Cannot find $RegValueName in $RegPath."
 
                     Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Setting New Registry value $RegValueName at $RegPath"
 
-                    Try {
+                    try {
                         Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
-                    }
-                    Catch {
+                    } catch {
                         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: ERROR :: Failed to create Registry value $RegValueName at $RegPath "
                     }
 
-                    If ($RegValueType) {
+                    if ($RegValueType) {
                         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Checking registry data type of $RegValueName."
                         $CurrentRegValueType = Get-Item -Path $RegPath -ErrorAction SilentlyContinue
                         $TestRegType = $CurrentRegValueType.GetValueKind("$($RegValueName)")
 
-                        If ($RegValueType -eq $TestRegType) {
+                        if ($RegValueType -eq $TestRegType) {
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: $RegValueName is already set to $RegValueType"
-                        }
-                        Else {
+                        } else {
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Registry Type is currently $TestRegType, not $RegValueType."
 
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Updating Registry Value Type to $RegValueType."
 
-                            Try {
+                            try {
                                 Remove-ItemProperty -Path $RegPath -Name $RegValueName -Force -ErrorAction SilentlyContinue | Out-Null
                                 New-ItemProperty -Path $RegPath -Name $RegValueName -Type $RegValueType -Force -ErrorAction SilentlyContinue | Out-Null
-                            }
-                            Catch {
+                            } catch {
                                 Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: ERROR :: Failed to Set Registry Value Type of $RegValueType."
                             }
 
@@ -168,26 +158,23 @@ Function Set-RegValue {
 
                     }
 
-                    If ($RegValueData) {
+                    if ($RegValueData) {
                         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Setting Registry value Data of $RegValueName to $RegValueData"
 
-                        Try {
+                        try {
                             Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
-                        }
-                        Catch {
+                        } catch {
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: ERROR :: Failed to Set Registry value Data of $RegValueName to $RegValueData."
                         }
 
-                    }
-                    Else {
+                    } else {
                         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: No Reg Value Data was passed. Will erase the currently set data from the value."
 
                         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Setting New Registry Value Data of $RegValueName to $RegValueData"
 
-                        Try {
+                        try {
                             Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
-                        }
-                        Catch {
+                        } catch {
                             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: ERROR :: Failed to Set Registry Value Data of $RegValueName to $RegValueData."
                         }
                     }
@@ -196,54 +183,49 @@ Function Set-RegValue {
 
         }
 
-        Else {
+        else {
             # Write RegPath if Registry path does not exist.
             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: WARNING :: Cannot find $RegPath."
 
             Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Creating $RegPath"
-            Try {
+            try {
                 New-Item -Path $RegPath -Force -ErrorAction SilentlyContinue | Out-Null
-            }
-            Catch {
+            } catch {
                 Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: ERROR ::  Failed to create $RegPath"
             }
 
-            If ($RegValueName) {
+            if ($RegValueName) {
                 Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Creating Registry Value $($RegValueName) with type of $($RegValueType)."
 
-                Try {
+                try {
                     New-ItemProperty -Path $RegPath -Name $RegValueName -Type $RegValueType -Force -ErrorAction SilentlyContinue | Out-Null
-                }
-                Catch {
+                } catch {
                     Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: ERROR :: Failed to Set Registry Value $($RegValueName) with type of $($RegValueType)."
                 }
             }
 
-            If ($RegValueData) {
+            if ($RegValueData) {
                 Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Setting Registry value Data of $RegValueName to $RegValueData"
 
-                Try {
+                try {
                     Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
-                }
-                Catch {
+                } catch {
                     Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: ERROR :: Failed to Set Registry value Data of $RegValueName to $RegValueData."
                 }
-            }
-            Else {
+            } else {
                 Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: No Reg Value Data was passed. Will erase the currently set data from the value."
 
                 Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Setting New Registry Value Data of $RegValueName to $RegValueData"
 
-                Try {
+                try {
                     Set-ItemProperty -Path $RegPath -Name $RegValueName -Value $RegValueData -Force
-                }
-                Catch {
+                } catch {
                     Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: ERROR :: Failed to Set Registry Value Data of $RegValueName to $RegValueData."
                 }
             }
         }
     }
-    End {
+    end {
         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Ending Script Execution."
     }
 }

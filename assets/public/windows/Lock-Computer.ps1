@@ -1,16 +1,16 @@
-Function Lock-Computer {
-	<#
-		.DESCRIPTION
-		Function to Lock your computer
-		.SYNOPSIS
-		Function to Lock your computer
-	#>
+function Lock-Computer {
+    <#
+        .DESCRIPTION
+        Function to Lock your computer
+        .SYNOPSIS
+        Function to Lock your computer
+    #>
 
-	$signature = @"
+    $signature = @"
 [DllImport("user32.dll", SetLastError = true)]
 public static extern bool LockWorkStation();
 "@
 
-	$LockComputer = Add-Type -memberDefinition $signature -name "Win32LockWorkStation" -namespace Win32Functions -passthru
-	$LockComputer::LockWorkStation() | Out-Null
+    $LockComputer = Add-Type -MemberDefinition $signature -Name "Win32LockWorkStation" -Namespace Win32Functions -PassThru
+    $LockComputer::LockWorkStation() | Out-Null
 }

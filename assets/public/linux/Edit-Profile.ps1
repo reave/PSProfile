@@ -1,4 +1,4 @@
-Function Edit-Profile {
+function Edit-Profile {
     <#
     .SYNOPSIS
         Edit the powershell profile of the current powershell user
@@ -8,12 +8,12 @@ Function Edit-Profile {
         Author: reave (https://github.com/reave)
     #>
     [CmdletBinding()]
-    Param()
-    Begin {
+    param()
+    begin {
         Write-Verbose "Profile Path: $PROFILE"
     }
-    Process {
-        Switch ((Get-Host).Name) {
+    process {
+        switch ((Get-Host).Name) {
             'Visual Studio Code Host' { Open-EditorFile "$PROFILE" }
             'Windows PowerShell ISE Host' { psedit "$PROFILE" }
             default {
@@ -25,34 +25,27 @@ Function Edit-Profile {
                     if ($gedit) {
                         Start-Process "gedit" -ArgumentList "$PROFILE"
                         return
-                    }
-                    elseif ($nano) {
+                    } elseif ($nano) {
                         Start-Process "nano" -ArgumentList "$PROFILE"
                         return
-                    }
-                    elseif ($vim) {
+                    } elseif ($vim) {
                         Start-Process "vim" -ArgumentList "$PROFILE"
                         return
-                    }
-                    else {
+                    } else {
                         Write-Error "Could not detect a text editor."
                         return
                     }
-                }
-                elseif ($IsMacOS) {
+                } elseif ($IsMacOS) {
                     Start-Process "open" -ArgumentList "$PROFILE"
                     return
-                }
-                elseif ($IsWindows) {
+                } elseif ($IsWindows) {
                     if (Get-Command "notepad" -ErrorAction SilentlyContinue) {
                         Start-Process "notepad" -ArgumentList "$PROFILE"
                         return
-                    }
-                    else {
+                    } else {
                         Write-Error "Could not detect notepad."
                     }
-                }
-                else {
+                } else {
                     Write-Error "Could not detect host."
                 }
             }

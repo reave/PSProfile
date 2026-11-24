@@ -1,4 +1,4 @@
-﻿Function Get-RandomString {
+﻿function Get-RandomString {
     <#
     .SYNOPSIS
     Generate a random string of alphanumeric characters

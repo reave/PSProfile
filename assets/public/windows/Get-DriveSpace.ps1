@@ -19,14 +19,13 @@ function Get-DriveSpace {
         [Alias('Name')]
         [string]$Computer = $env:COMPUTERNAME
     )
-    Begin { Write-Verbose "Beginning Execution" }
-    Process {
+    begin { Write-Verbose "Beginning Execution" }
+    process {
         Write-Verbose "Determining Version of PowerShell"
-        If ($PSVersionTable.PSVersion.Major -lt 4) {
+        if ($PSVersionTable.PSVersion.Major -lt 4) {
             Write-Verbose "PowerShell Version is less than 4. Using Get-WMIObject instead of Get-CIMInstance"
-            $DriveInfo = Get-WMIObject -Class Win32_LogicalDisk -Filter { DriveType = 3 } -ErrorAction SilentlyContinue
-        }
-        Else {
+            $DriveInfo = Get-WmiObject -Class Win32_LogicalDisk -Filter { DriveType = 3 } -ErrorAction SilentlyContinue
+        } else {
             Write-Verbose "PowerShell Version is greater than 4. Using Get-CIMInstance"
             $DriveInfo = Get-CimInstance -ClassName Win32_LogicalDisk -Filter 'DriveType = 3' -ErrorAction SilentlyContinue
         }
@@ -36,7 +35,7 @@ function Get-DriveSpace {
 
         if ($count -gt 0) {
             Write-Verbose "Iterating through returned data"
-            Foreach ($Drive in $DriveInfo) {
+            foreach ($Drive in $DriveInfo) {
                 Write-Verbose "Processing Drive $($i) of $($count)"
                 $Properties = @{
                     Drive       = $Drive.DeviceID
@@ -49,10 +48,9 @@ function Get-DriveSpace {
                 $OutputObject = New-Object -TypeName psobject -Property $Properties
                 Write-Output $OutputObject
             }
-        }
-        Else {
+        } else {
             Write-Output 'No drives found of type 3.'
         }
     }
-    End { }
+    end { }
 } #close drivespace

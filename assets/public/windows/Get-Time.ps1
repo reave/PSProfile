@@ -12,17 +12,17 @@ function Get-Time {
     .NOTES
     #>
     [cmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $false)]
         [ValidateSet('Short', 'Long', 'Universal', 'File', 'OLEAutomation')]
         [string]$Format = 'Long'
     )
 
-    Process {
+    process {
 
         Write-Verbose "Current Date and Time: $(Get-Date)"
 
-        Switch ($Format) {
+        switch ($Format) {
             'Short' {
                 Write-Verbose "Converting to Short Time"
                 $Outstring = $(Get-Date | ForEach-Object { $_.ToShortTimeString() } )

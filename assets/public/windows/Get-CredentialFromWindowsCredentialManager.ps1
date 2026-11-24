@@ -1,4 +1,4 @@
-﻿Function Get-CredentialFromWindowsCredentialManager {
+﻿function Get-CredentialFromWindowsCredentialManager {
     <#
     .SYNOPSIS
     Gets a PowerShell Credential (PSCredential) from the Windows Credential Manager
@@ -151,9 +151,8 @@ public static extern bool CredFree([In] IntPtr cred);
         $username = $cred.UserName
         $securePassword = $cred.CredentialBlob | ConvertTo-SecureString -AsPlainText -Force
         $cred = $null
-        return new-object System.Management.Automation.PSCredential $username, $securePassword
-    }
-    else {
+        return New-Object System.Management.Automation.PSCredential $username, $securePassword
+    } else {
         Write-Error "No credentials where found in Windows Credential Manager for TargetName: $TargetName"
     }
 }

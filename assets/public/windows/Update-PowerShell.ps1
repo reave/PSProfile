@@ -37,8 +37,7 @@ function Update-PowerShell {
             }
             Write-Host 'PowerShell has been updated. Restart your shell to use the new version.' -ForegroundColor Magenta
         }
-    }
-    catch {
+    } catch {
         Write-Error "Failed to update PowerShell. Error: $_"
     }
 }

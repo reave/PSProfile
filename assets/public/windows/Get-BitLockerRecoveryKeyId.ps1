@@ -1,12 +1,12 @@
-﻿Function Get-BitLockerRecoveryKeyId {
+﻿function Get-BitLockerRecoveryKeyId {
     <#
-	.SYNOPSIS
-		This returns the Bitlocker key protector id.
+    .SYNOPSIS
+        This returns the Bitlocker key protector id.
 
-	.DESCRIPTION
+    .DESCRIPTION
         The key protectorID is retrived either according to the protector type, or simply all of them.
 
-	.PARAMETER KeyProtectorType
+    .PARAMETER KeyProtectorType
 
     The key protector type can have one of the following values :
         *TPM
@@ -32,24 +32,24 @@
         Returns the ID(s) of type NumericPassword
 
 
-	.NOTES
-		Version: 1.0
+    .NOTES
+        Version: 1.0
         Author: Stephane van Gulick
         Creation date:12.08.2014
         Last modification date: 12.08.2014
 
-	.LINK
-		www.powershellDistrict.com
+    .LINK
+        www.powershellDistrict.com
 
-	.LINK
-		http://social.technet.microsoft.com/profile/st%C3%A9phane%20vg/
+    .LINK
+        http://social.technet.microsoft.com/profile/st%C3%A9phane%20vg/
 
     .LINK
         #http://msdn.microsoft.com/en-us/library/windows/desktop/aa376441(v=vs.85).aspx
 
 #>
     [cmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $false, ValueFromPipeLine = $false)]
         [ValidateSet("Alltypes", "TPM", "ExternalKey", "NumericPassword", "TPMAndPin", "TPMAndStartUpdKey", "TPMAndPinAndStartUpKey", "PublicKey", "PassPhrase", "TpmCertificate", "SID")]
         $KeyProtectorType

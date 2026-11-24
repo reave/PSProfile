@@ -56,8 +56,7 @@ function Update-Completions {
             Set-Content -Path $outPath -Value $script -Force -Encoding utf8
             . $outPath
             Write-Host "Updated completion: $($nc.Name)" -ForegroundColor Green
-        }
-        catch {
+        } catch {
             Write-Error "Failed to generate completion for $($nc.Name): $_"
         }
     }

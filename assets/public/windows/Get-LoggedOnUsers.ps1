@@ -1,4 +1,4 @@
-﻿Function Get-LoggedOnUsers {
+﻿function Get-LoggedOnUsers {
     <#
     .SYNOPSIS
         Retrieve currently logged on users of a device
@@ -14,11 +14,11 @@
         Retrieves logged on users for Test-Computer passed through the pipeline
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
         [string]$ComputerName = $ENV:COMPUTERNAME
     )
-    Begin {
+    begin {
         Write-Verbose "Building Regex for user identification"
         $regexa = '.+Domain="(.+)",Name="(.+)"$'
         $regexd = '.+LogonId="(\d+)"$'
@@ -38,16 +38,16 @@
         }
 
         Write-Verbose "Retrieving Logged on Sessions"
-        $logon_sessions = Get-WMIObject -Class Win32_logonsession -ComputerName $computername -ErrorAction SilentlyContinue
+        $logon_sessions = Get-WmiObject -Class Win32_logonsession -ComputerName $computername -ErrorAction SilentlyContinue
 
         Write-Verbose "Retrieving Logged on Users"
-        $logon_users = Get-WMIObject -Class Win32_loggedonuser -ComputerName $computername -ErrorAction SilentlyContinue
+        $logon_users = Get-WmiObject -Class Win32_loggedonuser -ComputerName $computername -ErrorAction SilentlyContinue
     }
-    Process {
+    process {
         $session_user = @{ }
 
         Write-Verbose "Building logon principal name for each discovered user"
-        Foreach ($logon_user in $logon_users) {
+        foreach ($logon_user in $logon_users) {
             $logon_user.antecedent -match $regexa > $nul
             $username = $matches[1] + "\" + $matches[2]
             $logon_user.dependent -match $regexd > $nul
@@ -58,7 +58,7 @@
         }
 
         Write-Verbose "Processing each session"
-        Foreach ($session in $logon_sessions) {
+        foreach ($session in $logon_sessions) {
             Write-Verbose "Calculating session start time"
             $starttime = [management.managementdatetimeconverter]::todatetime($session.starttime)
 

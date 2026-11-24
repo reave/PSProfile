@@ -110,8 +110,7 @@ function Get-PSProfileConfig {
 
     try {
         return Get-Content -Path $path -Raw | ConvertFrom-Json
-    }
-    catch {
+    } catch {
         Write-Error "Failed to load profile config from $path`: $_"
         return $null
     }
@@ -176,16 +175,16 @@ $OSFolder = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } elseif (
 
 #- Dot Source Public Functions (assets\public\<windows|macos|linux>\*.ps1)
 $functions = Get-ChildItem -Path "$PSScriptRoot\assets\public\$OSFolder\*.ps1" -ErrorAction SilentlyContinue
-Foreach ($function in $functions) {
+foreach ($function in $functions) {
     try { . $function.FullName }
-    Catch { Write-Error -Message "Failed to import $($function.Name)" }
+    catch { Write-Error -Message "Failed to import $($function.Name)" }
 }
 
 #- Dot Source Private Functions (assets\private\<windows|macos|linux>\*.ps1)
 $functions = Get-ChildItem -Path "$PSScriptRoot\assets\private\$OSFolder\*.ps1" -ErrorAction SilentlyContinue
-Foreach ($function in $functions) {
+foreach ($function in $functions) {
     try { . $function.FullName }
-    Catch { Write-Error -Message "Failed to import $($function.Name)" }
+    catch { Write-Error -Message "Failed to import $($function.Name)" }
 }
 
 Enable-Tls12
@@ -200,14 +199,11 @@ Set-Variable -Name MyDocs -Value ([Environment]::GetFolderPath([Environment+Spec
 $configuredOneDrivePath = $PSProfileSettings.OneDrivePath
 if ($configuredOneDrivePath -and (Test-Path -Path $configuredOneDrivePath -ErrorAction SilentlyContinue)) {
     [string]$OneDriveRoot = $configuredOneDrivePath
-}
-elseif ($IsWindows -and (Test-Path -Path $env:USERPROFILE\OneDrive -ErrorAction SilentlyContinue)) {
+} elseif ($IsWindows -and (Test-Path -Path $env:USERPROFILE\OneDrive -ErrorAction SilentlyContinue)) {
     [string]$OneDriveRoot = "$env:USERPROFILE\OneDrive"
-}
-elseif (-not $IsWindows -and (Test-Path -Path "$env:HOME/OneDrive" -ErrorAction SilentlyContinue)) {
+} elseif (-not $IsWindows -and (Test-Path -Path "$env:HOME/OneDrive" -ErrorAction SilentlyContinue)) {
     [string]$OneDriveRoot = "$env:HOME/OneDrive"
-}
-else {
+} else {
     [string]$OneDriveRoot = "OneDrive is not configured"
 }
 
@@ -237,8 +233,7 @@ foreach ($module in $PSProfileConfig.Modules) {
                 # once; the module regenerates its built-in themes on import.
                 $themeCacheBase = if ($IsLinux -or $IsMacOS) {
                     if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { [IO.Path]::Combine($HOME, '.local', 'share') }
-                }
-                else { $env:APPDATA }
+                } else { $env:APPDATA }
                 $themeCachePath = [IO.Path]::Combine($themeCacheBase, 'powershell', 'Community', 'Terminal-Icons')
                 foreach ($themeFile in Get-ChildItem -Path $themeCachePath -Filter '*.xml' -ErrorAction SilentlyContinue) {
                     try { $null = Import-Clixml -Path $themeFile.FullName -ErrorAction Stop }
@@ -246,24 +241,20 @@ foreach ($module in $PSProfileConfig.Modules) {
                 }
                 Import-Module -Name $module.Name -ErrorAction Stop
             }
-        }
-        catch { Write-Error "Unable to import $($module.Name) module: $($_.Exception.Message)" }
+        } catch { Write-Error "Unable to import $($module.Name) module: $($_.Exception.Message)" }
         finally { if ($hasImportMutex) { $moduleImportMutex.ReleaseMutex() } }
-    }
-    else {
+    } else {
         try {
             Install-Module -Name $module.Name -Force -ErrorAction Stop
             Import-Module -Name $module.Name -ErrorAction Stop
-        }
-        catch { Write-Error "Unable to install $($module.Name) module" }
+        } catch { Write-Error "Unable to install $($module.Name) module" }
     }
 }
 $moduleImportMutex.Dispose()
 
 $IsElevated = if ($IsWindows) {
     ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-}
-else {
+} else {
     try { (id -u) -eq '0' } catch { $false }
 }
 
@@ -289,8 +280,7 @@ foreach ($package in $PSProfileConfig.Packages) {
                     Import-Module -Name Microsoft.WinGet.Client -ErrorAction Stop
                 }
                 Install-WinGetPackage -Id $package.Id -Mode Silent -ErrorAction Stop
-            }
-            catch { Write-Error "Unable to install $($package.Id) via winget" }
+            } catch { Write-Error "Unable to install $($package.Id) via winget" }
         }
         'brew' {
             if (-not (Get-Command -Name brew -ErrorAction SilentlyContinue)) { continue }
@@ -356,8 +346,7 @@ if ($IsInteractiveShell -and $readlineConfig -and (Get-Module -Name PSReadLine -
             foreach ($colorProperty in $readlineConfig.Colors.PSObject.Properties) { $colorTable[$colorProperty.Name] = $colorProperty.Value }
             Set-PSReadLineOption -Colors $colorTable -ErrorAction Stop
         }
-    }
-    catch { Write-Verbose "Skipping PSReadLine configuration: $_" }
+    } catch { Write-Verbose "Skipping PSReadLine configuration: $_" }
 }
 
 #---------------------------------------------------------------
@@ -393,8 +382,7 @@ if ($IsWindows -and $IsInteractiveShell) {
         $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
         if ($themePath) {
             oh-my-posh init pwsh --config $themePath | Invoke-Expression
-        }
-        else {
+        } else {
             oh-my-posh init pwsh | Invoke-Expression
         }
     }
@@ -402,7 +390,7 @@ if ($IsWindows -and $IsInteractiveShell) {
 #---------------------------------------------------------------
 # macOS Section
 #---------------------------------------------------------------
-ElseIf ($IsMacOS -and $IsInteractiveShell) {
+elseif ($IsMacOS -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowWindowTitle) {
         Set-ProfileWindowTitle
     }
@@ -432,8 +420,7 @@ ElseIf ($IsMacOS -and $IsInteractiveShell) {
         $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
         if ($themePath) {
             oh-my-posh init pwsh --config $themePath | Invoke-Expression
-        }
-        else {
+        } else {
             oh-my-posh init pwsh | Invoke-Expression
         }
     }
@@ -441,7 +428,7 @@ ElseIf ($IsMacOS -and $IsInteractiveShell) {
 #---------------------------------------------------------------
 # Linux Section
 #---------------------------------------------------------------
-ElseIf ($IsLinux -and $IsInteractiveShell) {
+elseif ($IsLinux -and $IsInteractiveShell) {
     if ($PSProfileSettings.ShowWindowTitle) {
         Set-ProfileWindowTitle
     }
@@ -471,8 +458,7 @@ ElseIf ($IsLinux -and $IsInteractiveShell) {
         $themePath = Resolve-PoshTheme -PoshTheme $PSProfileSettings.PoshTheme
         if ($themePath) {
             oh-my-posh init pwsh --config $themePath | Invoke-Expression
-        }
-        else {
+        } else {
             oh-my-posh init pwsh | Invoke-Expression
         }
     }

@@ -68,8 +68,7 @@ function Update-Profile {
                 if (-not $SkipCompletions) {
                     Update-Completions
                 }
-            }
-            else {
+            } else {
                 Write-Warning "Could not find $profileTarget to reload. Restart your shell to pick up the update."
             }
         }

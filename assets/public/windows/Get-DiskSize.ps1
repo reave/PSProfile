@@ -30,9 +30,8 @@ function Get-DiskSize {
 
     try {
         $logicalDisks = Get-CimInstance -ClassName Win32_LogicalDisk -ErrorAction Stop |
-        Where-Object { $null -ne $_.Size }  # only drives that report size
-    }
-    catch {
+            Where-Object { $null -ne $_.Size }  # only drives that report size
+    } catch {
         Write-Error "Failed to enumerate logical disks: $_"
         return
     }
@@ -46,20 +45,18 @@ function Get-DiskSize {
         $mediaName = $null
         try {
             $partition = Get-CimAssociatedInstance -InputObject $ld -Association Win32_LogicalDiskToPartition -ErrorAction SilentlyContinue |
-            Select-Object -First 1
+                Select-Object -First 1
             if ($partition) {
                 $diskDrive = Get-CimAssociatedInstance -InputObject $partition -Association Win32_DiskDriveToDiskPartition -ErrorAction SilentlyContinue |
-                Select-Object -First 1
+                    Select-Object -First 1
                 if ($diskDrive -and $diskDrive.MediaType) {
                     $mediaName = $diskDrive.MediaType
-                }
-                elseif ($diskDrive -and $diskDrive.InterfaceType) {
+                } elseif ($diskDrive -and $diskDrive.InterfaceType) {
                     # Fallback: use interface type (e.g., IDE, SCSI, USB) with a hint
                     $mediaName = "$($diskDrive.InterfaceType) (physical)"
                 }
             }
-        }
-        catch {
+        } catch {
             # ignore association errors and fall back to DriveType
         }
 

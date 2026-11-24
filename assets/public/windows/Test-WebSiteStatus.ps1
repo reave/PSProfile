@@ -1,4 +1,4 @@
-Function Test-WebSiteStatus {
+function Test-WebSiteStatus {
     <#
     .SYNOPSIS
         Perform a web request
@@ -21,18 +21,17 @@ Function Test-WebSiteStatus {
         [Parameter(Mandatory = $true)]
         [string]$URI
     )
-    Begin {
+    begin {
         Write-Verbose "Building the Web Request"
         $HTTP_Request = [System.Net.WebRequest]::Create($URI)
         $HTTP_Request.UseDefaultCredentials = $true
     }
-    Process {
+    process {
         Write-Verbose "Intiating web request"
-        Try {
+        try {
             $HTTP_Response = $HTTP_Request.GetResponse()
             $HTTP_Status = $HTTP_Response
-        }
-        Catch [System.Net.WebException] {
+        } catch [System.Net.WebException] {
             # Crap we got a code other than 200 and PowerShell 2.0
             # doesn't know what he heck to do with it... so we throw
             # an exception with the code in it ><
@@ -42,7 +41,7 @@ Function Test-WebSiteStatus {
             $HTTP_Status = New-Object -TypeName PsObject -Property $props
         }
 
-        If ($HTTP_Response) { $HTTP_Response.Close() }
+        if ($HTTP_Response) { $HTTP_Response.Close() }
 
         Write-Output $HTTP_Status
     }

@@ -46,8 +46,7 @@ function Get-CodeSignCert {
     process {
         try {
             $certs = Get-ChildItem -Path $storePath -ErrorAction Stop
-        }
-        catch {
+        } catch {
             Write-Error "Unable to enumerate certificates in $storePath. $_"
             return
         }
@@ -75,8 +74,7 @@ function Get-CodeSignCert {
                                 break
                             }
                         }
-                    }
-                    catch {
+                    } catch {
                         # ignore parse errors and continue
                     }
                 }
@@ -101,8 +99,7 @@ function Get-CodeSignCert {
         if ($Latest) {
             $latestMatch = $allMatches | Sort-Object NotAfter -Descending | Select-Object -First 1
             $latestMatch
-        }
-        else {
+        } else {
             $allMatches
         }
     }

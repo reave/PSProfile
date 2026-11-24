@@ -1,4 +1,4 @@
-Function Get-IniContent {
+function Get-IniContent {
     <#
     .Synopsis
         Gets the content of an INI file
@@ -48,18 +48,18 @@ Function Get-IniContent {
     #>
 
     [CmdletBinding()]
-    Param(
+    param(
         [ValidateNotNullOrEmpty()]
         [ValidateScript( { (Test-Path $_) -and ((Get-Item $_).Extension -eq ".ini") })]
         [Parameter(ValueFromPipeline = $True, Mandatory = $True)]
         [string]$FilePath
     )
 
-    Begin {
+    begin {
         Write-Verbose "$($MyInvocation.MyCommand.Name):: Function started"
     }
 
-    Process {
+    process {
         Write-Verbose "$($MyInvocation.MyCommand.Name):: Processing file: $Filepath"
 
         $ini = @{ }
@@ -92,10 +92,10 @@ Function Get-IniContent {
             }
         }
         Write-Verbose "$($MyInvocation.MyCommand.Name):: Finished Processing file: $FilePath"
-        Return $ini
+        return $ini
     }
 
-    End {
+    end {
         Write-Verbose "$($MyInvocation.MyCommand.Name):: Function ended"
     }
 }

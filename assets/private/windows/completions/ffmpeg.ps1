@@ -15,7 +15,7 @@ Register-ArgumentCompleter -Native -CommandName ffmpeg -ScriptBlock {
     if (-not $Global:__ffmpegFlagCache) {
         $helpText = ffmpeg -hide_banner -h long 2>$null | Out-String
         $Global:__ffmpegFlagCache = [regex]::Matches($helpText, '(?<=^|\s)(-[a-zA-Z_][\w_]*)') |
-        ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+            ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
     }
 
     $Global:__ffmpegFlagCache | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {

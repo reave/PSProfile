@@ -1,4 +1,4 @@
-﻿Function Get-DiskInfo {
+﻿function Get-DiskInfo {
     <#
     .SYNOPSIS
     Get Disk Information
@@ -25,10 +25,10 @@
         [Alias('Hostname', 'cn', 'Name')]
         [string[]]$ComputerName = $env:COMPUTERNAME
     )
-    Process {
+    process {
         foreach ($computer in $ComputerName) {
             Write-Verbose "Verify WSMan Connection to $computer"
-            If (Test-WSMan -ComputerName $computer -ErrorAction SilentlyContinue) {
+            if (Test-WSMan -ComputerName $computer -ErrorAction SilentlyContinue) {
                 Write-Verbose "WSMan is available"
                 try {
                     Write-Verbose "Creating New CimSession to $computer"
@@ -53,8 +53,7 @@
                         $obj = New-Object -TypeName psobject -Property $properties
                         Write-Output $obj
                     }
-                }
-                catch {
+                } catch {
                     Write-Error "An error occured"
                     $properties = @{
                         ComputerName   = $computer
@@ -71,12 +70,11 @@
                     $obj = New-Object -TypeName psobject -Property $properties
                     Write-Output $obj
                 }
-            }
-            Else {
+            } else {
                 Write-Verbose "WSMan is not available"
                 try {
                     Write-Verbose "Retrieving disk information for $computer"
-                    $Drives = Get-WMIObject -ClassName Win32_LogicalDisk -ComputerName $computer -ErrorAction Stop -Filter 'DriveType=3'
+                    $Drives = Get-WmiObject -ClassName Win32_LogicalDisk -ComputerName $computer -ErrorAction Stop -Filter 'DriveType=3'
 
                     foreach ($drive in $Drives) {
                         $properties = @{
@@ -94,8 +92,7 @@
                         $obj = New-Object -TypeName psobject -Property $properties
                         Write-Output $obj
                     }
-                }
-                catch {
+                } catch {
                     Write-Error "An error occured"
                     $properties = @{
                         ComputerName   = $computer

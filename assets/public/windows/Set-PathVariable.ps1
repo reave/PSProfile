@@ -1,4 +1,4 @@
-Function Set-PathVariable {
+function Set-PathVariable {
     param (
         [string]$AddPath,
         [string]$RemovePath,
@@ -30,8 +30,7 @@ Function Set-PathVariable {
     # Read current PATH for the chosen target
     if ($Scope -eq 'Process') {
         $currentPathString = $env:Path
-    }
-    else {
+    } else {
         $currentPathString = [Environment]::GetEnvironmentVariable('Path', $target)
     }
     if ($null -eq $currentPathString) { $currentPathString = '' }
@@ -55,8 +54,7 @@ Function Set-PathVariable {
             if ($map.ContainsKey($removeNorm)) {
                 $map.Remove($removeNorm) | Out-Null
                 $changed = $true
-            }
-            else {
+            } else {
                 # Also try matching without expanding variables if user passed literal env var form
                 $literalMatches = $currentEntries | Where-Object { $_ -ieq $RemovePath }
                 foreach ($lm in $literalMatches) {
@@ -100,8 +98,7 @@ Function Set-PathVariable {
 
         if ($Scope -eq 'Process') {
             $env:Path = $newPathString
-        }
-        else {
+        } else {
             [Environment]::SetEnvironmentVariable('Path', $newPathString, $target)
             # Broadcast WM_SETTINGCHANGE so other processes know environment changed
             $signature = @"
@@ -122,8 +119,7 @@ public static class EnvNotify {
         }
 
         Write-Output "PATH updated for scope '$Scope'. Added: '$AddPath', Removed: '$RemovePath'."
-    }
-    else {
+    } else {
         Write-Output "No changes required to PATH for scope '$Scope'."
     }
 }

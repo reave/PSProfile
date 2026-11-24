@@ -18,8 +18,7 @@ function Set-ProfileWindowTitle {
     try {
         $suffix = if ($IsElevated) { if ($IsWindows -or $null -eq $IsWindows) { ' [ADMIN]' } else { ' [ROOT]' } } else { '' }
         $Host.UI.RawUI.WindowTitle = "PowerShell $($PSVersionTable.PSVersion)$suffix"
-    }
-    catch {
+    } catch {
         Write-Verbose "Unable to set console title: $_"
     }
 }

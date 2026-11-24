@@ -59,7 +59,7 @@ function ConvertTo-NatoAlphabet {
     )
     begin {
         if ($TextToSpeech) {
-            Try {
+            try {
                 # Load the System.Speech assembly
                 Add-Type -AssemblyName System.Speech -ErrorAction Stop
 
@@ -71,14 +71,12 @@ function ConvertTo-NatoAlphabet {
                 if ($voice) {
                     Write-Verbose "Using voice: $($voice.Name)"
                     $Speech.SelectVoice($voice.Name)
-                }
-                else {
+                } else {
                     Write-Verbose "Zira voice not found, using default voice"
                 }
 
                 Write-Verbose "Text to Speech is enabled"
-            }
-            Catch {
+            } catch {
                 Write-Warning "Failed to initialize Text to Speech. Disabling Text to Speech."
                 $TextToSpeech = $false
             }
@@ -132,8 +130,7 @@ function ConvertTo-NatoAlphabet {
                     Write-Verbose "Adding nato alphabet for character: $_"
                     # add the nato alphabet for the letter to the array
                     $natoAlphabetArray += $natoAlphabet[$_.ToString().ToUpper()]
-                }
-                else {
+                } else {
                     Write-Verbose "Skipping character: $_"
                     $_
                 }
@@ -158,7 +155,7 @@ function ConvertTo-NatoAlphabet {
             $outputObject
         }
     }
-    End {
+    end {
         if ($TextToSpeech) {
             Write-Verbose "Disposing of Speech Synthesizer"
             $Speech.Dispose()

@@ -1,4 +1,4 @@
-Function Set-Console {
+function Set-Console {
     <#
     .SYNOPSIS
         Configures the PowerShell Console
@@ -13,26 +13,26 @@ Function Set-Console {
         LastModified: 07/15/2016
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $false)]
         [switch]$WindowTitle
     )
 
-    Process {
-        If ($WindowTitle) {
-            If ($PSVersionTable.PSVersion.Major -ge 4) {
+    process {
+        if ($WindowTitle) {
+            if ($PSVersionTable.PSVersion.Major -ge 4) {
                 $UserInfo = Get-CimInstance -ClassName Win32_NetworkLoginProfile | Where-Object { $_.Caption -eq $env:USERNAME }
-            } Else {
-                $UserInfo = Get-WMIObject -Class Win32_NetworkLoginProfile | Where-Object { $_.Caption -eq $env:USERNAME }
+            } else {
+                $UserInfo = Get-WmiObject -Class Win32_NetworkLoginProfile | Where-Object { $_.Caption -eq $env:USERNAME }
             }
 
-            If (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+            if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
                 $host.ui.rawui.WindowTitle = "$($host.ui.rawui.WindowTitle) - Welcome $($UserInfo.FullName). Have a great day!"
-            } Else {
+            } else {
                 $host.ui.rawui.WindowTitle = "$($host.ui.rawui.WindowTitle) - Elevated Console for $($UserInfo.FullName)."
             }
 
         }
     }
-    End { Clear-Host }
+    end { Clear-Host }
 }

@@ -1,4 +1,4 @@
-﻿Function New-Shortcut {
+﻿function New-Shortcut {
     <#
     .SYNOPSIS
         Create a shortcut on Public Desktop and or the Public Start Menu.
@@ -74,7 +74,7 @@
         Will create a shortcut called "TestShortcut.lnk" on the %PUBLIC%\Desktop pointing to ProgramFiles\TestApplication\TestApp.exe and log the output of the script to C:\Test\Log.Log
     #>
     [cmdletbinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $false)]
         [string]$Name,
         [Parameter(Mandatory = $false)]
@@ -93,29 +93,27 @@
         [ValidateSet('Desktop', 'StartMenu', 'Both')]
         [string]$SaveLocation
     )
-    Begin {
+    begin {
         Write-Verbose 'Creating WScript.Shell object'
         $objShell = New-Object -ComObject WScript.Shell
     }
-    Process {
-        Switch ($SaveLocation) {
+    process {
+        switch ($SaveLocation) {
             'StartMenu' {
                 if (($Name.ToLower()).EndsWith('url')) {
-                    If ($StartMenuFolder) {
+                    if ($StartMenuFolder) {
                         Write-Verbose "A Start folder was specified"
                         $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
-                        If (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
+                        if (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
                             Write-Verbose "Specified start folder doesn't exist. Creating it."
-                            Try {
+                            try {
                                 New-Item -Path $sFolder -ItemType Directory -Force -ErrorAction SilentlyContinue
-                            }
-                            Catch {
+                            } catch {
                                 Write-Error "Failed to create the start menu folder: $($Name)"
-                                Exit(10004)
+                                exit(10004)
                             }
                         }
-                    }
-                    Else {
+                    } else {
                         Write-Verbose "No Start folder was specified. Will put the shortcut in the root of programs."
                         $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs"
                     }
@@ -128,32 +126,28 @@
                     Write-Verbose "Shortcut $($Name) will be created in $($sFolder)"
                     Write-Verbose "Shorcut $($Name) has a target of $($Target)."
 
-                    Try {
+                    try {
                         $Shortcut.Save()
                         Write-Output "Successfully created the start menu shortcut $($Name)."
-                        Exit(0)
-                    }
-                    Catch {
+                        exit(0)
+                    } catch {
                         Write-Error "Failed to create start menu shortcut: $($Name)"
-                        Exit(10005)
+                        exit(10005)
                     }
-                }
-                else {
-                    If ($StartMenuFolder) {
+                } else {
+                    if ($StartMenuFolder) {
                         Write-Verbose "A Start folder was specified"
                         $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
-                        If (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
+                        if (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
                             Write-Verbose "Specified start folder doesn't exist. Creating it."
-                            Try {
+                            try {
                                 New-Item -Path $sFolder -ItemType Directory -Force -ErrorAction SilentlyContinue
-                            }
-                            Catch {
+                            } catch {
                                 Write-Error "Failed to create the start menu folder: $($Name)"
-                                Exit(10004)
+                                exit(10004)
                             }
                         }
-                    }
-                    Else {
+                    } else {
                         Write-Verbose "No Start folder was specified. Will put the shortcut in the root of programs."
                         $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs"
                     }
@@ -190,14 +184,13 @@
                         Write-Verbose $WorkingDirectory
                     }
 
-                    Try {
+                    try {
                         $Shortcut.Save()
                         Write-Output "Successfully created the start menu shortcut $($Name)."
-                        Exit(0)
-                    }
-                    Catch {
+                        exit(0)
+                    } catch {
                         Write-Error "Failed to create start menu shortcut: $($Name)"
-                        Exit(10005)
+                        exit(10005)
                     }
                 }
             }
@@ -212,17 +205,15 @@
                     Write-Verbose "Shortcut $($Name) will be created in $($env:PUBLIC)\Desktop"
                     Write-Verbose "Shorcut $($Name) has a target of $($Target)."
 
-                    Try {
+                    try {
                         $Shortcut.Save()
                         Write-Output "Successfully created the desktop shortcut: $($Name)."
-                        Exit(0)
-                    }
-                    Catch {
+                        exit(0)
+                    } catch {
                         Write-Error "Failed to create the desktop shortcut: $($Name)"
-                        Exit(10006)
+                        exit(10006)
                     }
-                }
-                else {
+                } else {
                     $sSPath = Join-Path -Path "$env:PUBLIC\Desktop" -ChildPath $Name
                     $Shortcut = $objShell.CreateShortcut("$sSPath")
                     $Shortcut.TargetPath = $Target
@@ -255,35 +246,32 @@
                         Write-Verbose $WorkingDirectory
                     }
 
-                    Try {
+                    try {
                         $Shortcut.Save()
                         Write-Output "Successfully created the desktop shortcut: $($Name)."
-                        Exit(0)
-                    }
-                    Catch {
+                        exit(0)
+                    } catch {
                         Write-Error "Failed to create the desktop shortcut: $($Name)"
-                        Exit(10006)
+                        exit(10006)
                     }
                 }
             }
 
             'Both' {
                 if (($Name.ToLower()).EndsWith('url')) {
-                    If ($StartMenuFolder) {
+                    if ($StartMenuFolder) {
                         Write-Verbose "A Start folder was specified"
                         $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
-                        If (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
+                        if (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
                             Write-Verbose "Specified start folder doesn't exist. Creating it."
-                            Try {
+                            try {
                                 New-Item -Path $sFolder -ItemType Directory -Force -ErrorAction SilentlyContinue
-                            }
-                            Catch {
+                            } catch {
                                 Write-Error "Failed to create the start menu folder: $($Name)"
-                                Exit(10004)
+                                exit(10004)
                             }
                         }
-                    }
-                    Else {
+                    } else {
                         Write-Verbose "No Start folder was specified. Will put the shortcut in the root of programs."
                         $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs"
                     }
@@ -299,54 +287,48 @@
                     Write-Verbose "Shortcut $($Name) will be created in $($env:PUBLIC)\Desktop"
                     Write-Verbose "Shorcut $($Name) has a target of $($Target)."
 
-                    Try {
+                    try {
                         $ShortcutS.Save()
                         Write-Output "Successfully created shortcut $($Name) in the Start Menu."
 
                         $ShortcutD.Save()
                         Write-Output "Successfully created shortcut $($Name) in on the Desktop."
-                        Exit(0)
-                    }
-                    Catch {
-                        If (Test-Path -Path $sSPath) {
-                            If (Test-Path $sDPath) {
+                        exit(0)
+                    } catch {
+                        if (Test-Path -Path $sSPath) {
+                            if (Test-Path $sDPath) {
                                 Write-Warning "Both shortcuts appear to have been created but an exception was thrown. Verify the shorctus are correct."
-                                Exit(0)
-                            }
-                            else {
+                                exit(0)
+                            } else {
                                 Write-Error "Failed to create shorcut $($Name) on the desktop."
-                                Exit(10006)
+                                exit(10006)
                             }
-                        }
-                        else {
-                            If (Test-Path -Path $sDPath) {
+                        } else {
+                            if (Test-Path -Path $sDPath) {
                                 Write-Error "Failed to create shortcut $($Name) in the Start Menu."
-                                Exit(10005)
-                            }
-                            else {
+                                exit(10005)
+                            } else {
                                 Write-Error "Failed to create either shorcut."
-                                Exit(10007)
+                                exit(10007)
                             }
                         }
                     }
                 }
 
                 else {
-                    If ($StartMenuFolder) {
+                    if ($StartMenuFolder) {
                         Write-Verbose "A Start folder was specified"
                         $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs\$($StartMenuFolder)"
-                        If (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
+                        if (!(Test-Path -Path $sFolder -ErrorAction SilentlyContinue)) {
                             Write-Verbose "Specified start folder doesn't exist. Creating it."
-                            Try {
+                            try {
                                 New-Item -Path $sFolder -ItemType Directory -Force -ErrorAction SilentlyContinue
-                            }
-                            Catch {
+                            } catch {
                                 Write-Error "Failed to create the start menu folder:  $($Name)"
-                                Exit(10004)
+                                exit(10004)
                             }
                         }
-                    }
-                    Else {
+                    } else {
                         Write-Verbose "No Start folder was specified. Will put the shortcut in the root of programs."
                         $sFolder = Join-Path -Path $env:ALLUSERSPROFILE -ChildPath "Microsoft\Windows\Start Menu\Programs"
                     }
@@ -392,33 +374,29 @@
                     }
 
 
-                    Try {
+                    try {
                         $ShortcutS.Save()
                         Write-Output "Successfully created shortcut $($Name) in the Start Menu."
 
                         $ShortcutD.Save()
                         Write-Output "Successfully created shortcut $($Name) in on the Desktop."
-                        Exit(0)
-                    }
-                    Catch {
-                        If (Test-Path -Path $sSPath) {
-                            If (Test-Path $sDPath) {
+                        exit(0)
+                    } catch {
+                        if (Test-Path -Path $sSPath) {
+                            if (Test-Path $sDPath) {
                                 Write-Warning "Both shortcuts appear to have been created but an exception was thrown. Verify the shorctus are correct."
-                                Exit(0)
-                            }
-                            else {
+                                exit(0)
+                            } else {
                                 Write-Error "Failed to create shorcut $($Name) on the desktop."
-                                Exit(10006)
+                                exit(10006)
                             }
-                        }
-                        else {
-                            If (Test-Path -Path $sDPath) {
+                        } else {
+                            if (Test-Path -Path $sDPath) {
                                 Write-Error "Failed to create shortcut $($Name) in the Start Menu."
-                                Exit(10005)
-                            }
-                            else {
+                                exit(10005)
+                            } else {
                                 Write-Error "Failed to create either shorcut."
-                                Exit(10007)
+                                exit(10007)
                             }
                         }
                     }
@@ -426,7 +404,7 @@
             }
         }
     }
-    End {
+    end {
 
     }
 }

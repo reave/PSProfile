@@ -35,13 +35,11 @@ function Resolve-ShortURL {
             try {
                 $uri = [Uri]::new($raw)
                 if (-not $uri.Scheme) { throw "no scheme" }
-            }
-            catch {
+            } catch {
                 try {
                     $raw = "https://$raw"
                     $uri = [Uri]::new($raw)
-                }
-                catch {
+                } catch {
                     $resultError = "Invalid URI"
                 }
             }
@@ -66,8 +64,7 @@ function Resolve-ShortURL {
                     $httpMethod = [System.Net.Http.HttpMethod]::new($method)
                     $req = [System.Net.Http.HttpRequestMessage]::new($httpMethod, $current)
                     $resp = $client.SendAsync($req).GetAwaiter().GetResult()
-                }
-                catch {
+                } catch {
                     # If HEAD fails (some servers don't allow HEAD), retry once with GET
                     if ($method -eq "Head") {
                         $method = "Get"
@@ -75,13 +72,11 @@ function Resolve-ShortURL {
                             $httpMethod = [System.Net.Http.HttpMethod]::new($method)
                             $req = [System.Net.Http.HttpRequestMessage]::new($httpMethod, $current)
                             $resp = $client.SendAsync($req).GetAwaiter().GetResult()
-                        }
-                        catch {
+                        } catch {
                             $resultError = $_.Exception.Message
                             break
                         }
-                    }
-                    else {
+                    } else {
                         $resultError = $_.Exception.Message
                         break
                     }
@@ -96,8 +91,7 @@ function Resolve-ShortURL {
                         try {
                             $baseUri = [Uri]::new($current)
                             $loc = [Uri]::new($baseUri, $loc)
-                        }
-                        catch {
+                        } catch {
                             $resultError = "Failed to resolve relative Location header: $($_.Exception.Message)"
                             break
                         }

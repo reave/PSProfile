@@ -22,13 +22,12 @@ function Set-LocationAndList {
         )]
         [string]$path = "."
     )
-    Process {
+    process {
         if (Test-Path $path) {
             $path = Resolve-Path $path
             Set-Location $path
             Get-ChildItem -Path $path -Force
-        }
-        else {
+        } else {
             Write-Error "Could not find path $path"
         }
     }

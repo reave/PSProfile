@@ -1,4 +1,4 @@
-Function Get-QuoteOfTheDay {
+function Get-QuoteOfTheDay {
     <#
     .SYNOPSIS
         Grab a quote of the day
@@ -16,46 +16,43 @@ Function Get-QuoteOfTheDay {
         Name: Get-QOTD
     #>
     [cmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $false)]
         [string]$url = 'http://feeds.feedburner.com/brainyquote/QUOTEBR',
         [Parameter(Mandatory = $false)]
         [switch]$random
     )
 
-    Begin {
+    begin {
         Write-Verbose "Creating webclient object"
         $webclient = New-Object System.Net.WebClient
     }
 
-    Process {
+    process {
         Write-Verbose "Connecting to $url"
-        Try {
+        try {
             [xml]$data = $webclient.downloadstring($url)
 
-            If ($random) {
+            if ($random) {
                 $options = $data.rss.channel.item
                 $quote = $options | Get-Random -Count 1
-            }
-            else {
+            } else {
                 $quote = $data.rss.channel.item[0]
             }
 
             if ($quote) {
                 Write-Verbose $quote.OrigLink
                 Write-Output "$($quote.Description) - $($quote.Title)"
-            }
-            else {
+            } else {
                 Write-Warning "Failed to parse data from $url"
             }
-        }
-        Catch {
+        } catch {
             Write-Error "There was an error connecting to $url"
-            Throw $_.Exception.Message
+            throw $_.Exception.Message
         }
     }
 
-    End {
+    end {
         Write-Verbose "Ending Get-QOTD"
     }
 }

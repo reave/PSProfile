@@ -23,11 +23,9 @@ function Initialize-HomebrewPath {
 
     $candidates = if ($IsMacOS) {
         '/opt/homebrew/bin/brew', '/usr/local/bin/brew'
-    }
-    elseif ($IsLinux) {
+    } elseif ($IsLinux) {
         '/home/linuxbrew/.linuxbrew/bin/brew', (Join-Path $HOME '.linuxbrew/bin/brew')
-    }
-    else {
+    } else {
         @()
     }
 

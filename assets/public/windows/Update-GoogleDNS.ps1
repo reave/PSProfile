@@ -1,4 +1,4 @@
-﻿Function Update-GoogleDNS {
+﻿function Update-GoogleDNS {
     <#
     .SYNOPSIS
         Update Google Dynamic DNS
@@ -20,7 +20,7 @@
 
     #>
     [CmdLetBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $false)]
         [string]$Username,
         [Parameter(Mandatory = $false)]
@@ -30,20 +30,19 @@
         [Parameter(Mandatory = $false)]
         [string]$IPAddress
     )
-    Begin {
+    begin {
         $URI = "https://domains.google.com/nic/update?hostname=$($DomainName)&myip=$($IPAddress)"
         Write-Verbose "API URL Endpoint Updated to: $URI"
     }
-    Process {
-        Try {
+    process {
+        try {
             $Credentials = New-Object System.Management.Automation.PSCredential($Username, $Password)
             Write-Verbose "Created credential object."
             $Result = Invoke-WebRequest -Uri $URI -Credential $Credentials
             Write-Output "Update Complete."
             $Result
-        }
-        Catch {
-            Throw "Failed to update Dynamic DNS Record for $($DomainName)."
+        } catch {
+            throw "Failed to update Dynamic DNS Record for $($DomainName)."
         }
     }
 }

@@ -1,11 +1,11 @@
 ﻿function Get-PublicDesktopShortcuts {
     [cmdletbinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $false)]
         [string[]]$ComputerName
     )
 
-    Foreach ($Computer in $ComputerName) {
+    foreach ($Computer in $ComputerName) {
         Write-Verbose "Creating a Shell object"
         $obj = New-Object -ComObject WScript.Shell
 
@@ -19,7 +19,7 @@
         Write-Verbose "Discovered $(($Shortcuts | Measure-Object).Count) shortcuts"
 
         $counter = 1
-        ForEach ($Shortcut in $Shortcuts) {
+        foreach ($Shortcut in $Shortcuts) {
             Write-Verbose "Processing shortcut number $($counter)"
             # Preparing Empty Hashtable for data
             Write-Verbose "Preparing Empty Hashtable for data"

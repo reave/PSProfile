@@ -94,8 +94,8 @@ function Get-Weather {
         [string]$APIKey = ""
     )
 
-    Begin {
-        Switch ($Unit) {
+    begin {
+        switch ($Unit) {
             'Metric' {
                 $u = 'metric'
             }
@@ -112,14 +112,14 @@ function Get-Weather {
         } elseif ($City -eq '' -and $ZipCode -ne '') {
             $APIPath = "http://api.openweathermap.org/data/2.5/weather?zip=$ZipCode,$Country&APPID=$APIKey&units=$u&mode=xml"
         } else {
-            Try {
+            try {
                 $MyPublicIP = (Invoke-WebRequest 'http://myip.dnsomatic.com' -UseBasicParsing).Content
                 $html = Invoke-WebRequest -Uri "http://freegeoip.net/xml/$myPublicIP" -UseBasicParsing
                 $content = [xml]$html.Content
                 $ZipCode = $content.response.ZipCode
                 $Country = $content.response.CountryCode
 
-                If ($ZipCode -ne '' -and $Country -ne '') {
+                if ($ZipCode -ne '' -and $Country -ne '') {
                     $APIPath = "http://api.openweathermap.org/data/2.5/weather?zip=$ZipCode,$Country&APPID=$APIKey&units=$u&mode=xml"
                 } else {
                     $Properties = @{City = $Null
@@ -142,9 +142,9 @@ function Get-Weather {
                     }
                     $obj = New-Object -TypeName psobject -Property $properties
                     Write-Output $obj
-                    Throw "No ZipCode or City specified or couldn't determine your GEOLocation. Exiting"
+                    throw "No ZipCode or City specified or couldn't determine your GEOLocation. Exiting"
                 }
-            } Catch {
+            } catch {
                 $Properties = @{City = $Null
                     Country          = $Null
                     Latitude         = $Null
@@ -165,17 +165,17 @@ function Get-Weather {
                 }
                 $obj = New-Object -TypeName psobject -Property $properties
                 Write-Output $obj
-                Throw "No ZipCode or City specified or couldn't determine your GEOLocation. Exiting"
+                throw "No ZipCode or City specified or couldn't determine your GEOLocation. Exiting"
 
             }
         }
     }
-    Process {
-        Try {
+    process {
+        try {
             [xml]$APIRequest = Invoke-WebRequest -Uri $APIPath
             $Response = $APIRequest.current
 
-            If ($Unit -eq 'Imperial') {
+            if ($Unit -eq 'Imperial') {
                 $NowTemp = "$($Response.temperature.value)*F"
                 $HighTemp = "$($Response.temperature.max)*F"
                 $LowTemp = "$($Response.temperature.min)*F"
@@ -212,7 +212,7 @@ function Get-Weather {
                 Pressure        = "$($Response.pressure.value) $($Response.pressure.unit)"
             }
 
-        } Catch {
+        } catch {
             $ErrorMessage = $_.Exception.Message
             $FailedItem = $_.Exception.ItemName
             Write-Output $Response.ChildNodes
@@ -236,7 +236,7 @@ function Get-Weather {
                 WindDirection   = $Null
                 Pressure        = $Null
             }
-        } Finally {
+        } finally {
             $obj = New-Object -TypeName psobject -Property $properties
             Write-Output $obj
         }

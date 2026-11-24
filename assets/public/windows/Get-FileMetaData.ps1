@@ -37,7 +37,7 @@ function Get-FileMetaData {
         [Parameter(Mandatory = $true)]
         [string]$Path
     )
-    Begin {
+    begin {
         try {
             # Initialize the COM objects required for accessing file metadata.
             Write-Verbose "Initializing COM objects for file metadata retrieval."
@@ -58,7 +58,7 @@ function Get-FileMetaData {
             throw
         }
     }
-    Process {
+    process {
         $props = @{} # Initialize an empty hashtable to store metadata properties.
         try {
             Write-Verbose "Retrieving metadata properties."
@@ -78,7 +78,7 @@ function Get-FileMetaData {
             throw
         }
     }
-    End {
+    end {
         try {
             # Return the collected metadata properties.
             Write-Verbose "Returning metadata properties."

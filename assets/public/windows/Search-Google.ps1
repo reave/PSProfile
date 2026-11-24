@@ -1,19 +1,19 @@
 function Search-Google {
     [CmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $false)]
         [string]$Query
     )
 
-    Begin {
+    begin {
         $uri = 'https://www.google.com/search?q='
     }
-    Process {
+    process {
         Write-Verbose "Search query = $($Query)"
         $url = "$($uri)$($Query)"
         Write-Verbose "Complete URL = $($url)"
     }
-    End {
+    end {
         Write-Verbose "Launching default browser and navigating to: $($url)"
         Start-Process "$url"
     }
