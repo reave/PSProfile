@@ -85,7 +85,15 @@ function Invoke-IvantiInventoryScan {
                     $pssession = New-PSSession -ComputerName $computer -ErrorAction Stop
 
                     Write-Verbose "Invoking Inventory Scanner"
-                    $Process = Invoke-Command -Session $pssession -ScriptBlock { param ($FilePath, $MyArgs) Start-Process -FilePath "$($FilePath)" -ArgumentList $($MyArgs) -PassThru -WindowStyle Hidden } -ArgumentList $LDInventoryScanner, $LDInventoryArguments
+                    $Process = Invoke-Command -Session $pssession -ScriptBlock {
+                        $startParams = @{
+                            FilePath = $using:LDInventoryScanner
+                            ArgumentList = $using:LDInventoryArguments
+                            PassThru = $true
+                            WindowStyle = 'Hidden'
+                        }
+                        Start-Process @startParams
+                    }
                     if ($Process) {
                         Write-Verbose "Inventory scan has begun. Outputting Process object."
                         Write-Output $Process

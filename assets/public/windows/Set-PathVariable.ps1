@@ -40,7 +40,7 @@ function Set-PathVariable {
         [string]$Scope = 'User'
     )
 
-    function Normalize-PathEntry {
+    function ConvertTo-NormalizedPathEntry {
         <#
         .SYNOPSIS
             Normalizes a PATH entry for comparison.
@@ -53,7 +53,7 @@ function Set-PathVariable {
             The PATH entry to normalize.
 
         .EXAMPLE
-            Normalize-PathEntry -p '%USERPROFILE%\bin\'
+            ConvertTo-NormalizedPathEntry -p '%USERPROFILE%\bin\'
 
             Returns the expanded folder path without the trailing backslash.
         #>
@@ -90,7 +90,7 @@ function Set-PathVariable {
     # Build mapping of normalized -> original (preserve original formatting when writing back)
     $map = @{}
     foreach ($e in $currentEntries) {
-        $norm = Normalize-PathEntry $e
+        $norm = ConvertTo-NormalizedPathEntry $e
         if ($norm -and -not $map.ContainsKey($norm)) {
             $map[$norm] = $e
         }
@@ -99,7 +99,7 @@ function Set-PathVariable {
     $changed = $false
 
     if ($PSBoundParameters.Keys -contains 'RemovePath' -and $RemovePath) {
-        $removeNorm = Normalize-PathEntry $RemovePath
+        $removeNorm = ConvertTo-NormalizedPathEntry $RemovePath
         if ($removeNorm) {
             if ($map.ContainsKey($removeNorm)) {
                 $map.Remove($removeNorm) | Out-Null
@@ -108,7 +108,7 @@ function Set-PathVariable {
                 # Also try matching without expanding variables if user passed literal env var form
                 $literalMatches = $currentEntries | Where-Object { $_ -ieq $RemovePath }
                 foreach ($lm in $literalMatches) {
-                    $ln = Normalize-PathEntry $lm
+                    $ln = ConvertTo-NormalizedPathEntry $lm
                     if ($map.ContainsKey($ln)) {
                         $map.Remove($ln) | Out-Null
                         $changed = $true
@@ -119,7 +119,7 @@ function Set-PathVariable {
     }
 
     if ($PSBoundParameters.Keys -contains 'AddPath' -and $AddPath) {
-        $addNorm = Normalize-PathEntry $AddPath
+        $addNorm = ConvertTo-NormalizedPathEntry $AddPath
         if ($addNorm) {
             if (-not $map.ContainsKey($addNorm)) {
                 # Add to end using the original AddPath text (preserve env var form if provided)
@@ -137,7 +137,7 @@ function Set-PathVariable {
         # Start with original entries order, then append any new entries that weren't present
         $finalList = [System.Collections.Generic.List[string]]::new()
         foreach ($orig in $currentEntries) {
-            $n = Normalize-PathEntry $orig
+            $n = ConvertTo-NormalizedPathEntry $orig
             if ($n -and $map.ContainsKey($n) -and -not $finalList.Contains($map[$n])) {
                 $finalList.Add($map[$n])
             }

@@ -12,6 +12,8 @@ function Get-BatteryStatus {
     .NOTES
         http://www.powershellmagazine.com/2012/10/18/pstip-get-system-power-information/
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleTypes', '',
+        Justification = 'SystemInformation is available on both editions once Add-Type loads System.Windows.Forms.')]
     param()
     try {
         Add-Type -AssemblyName System.Windows.Forms

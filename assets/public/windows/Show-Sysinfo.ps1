@@ -20,6 +20,8 @@ function Show-Sysinfo {
     [CmdletBinding()]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCommands', '',
         Justification = 'Clear-Host exists on every supported edition; the compatibility profile misses it.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleTypes', '',
+        Justification = 'The Windows Forms types are used after Add-Type loads System.Windows.Forms.')]
     param (
         [Parameter(Mandatory = $false)]
         [string]$Path,

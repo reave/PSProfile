@@ -19,6 +19,8 @@
     .LINK
     Get-Credential
 #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '',
+        Justification = 'CredRead returns the stored secret as plain text; this wraps it in a SecureString.')]
     param(
         [Parameter(Mandatory = $true)]
         [string]$TargetName

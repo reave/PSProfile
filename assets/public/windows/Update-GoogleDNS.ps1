@@ -4,17 +4,15 @@
         Update Google Dynamic DNS
     .DESCRIPTION
         Update Google Dynamic DNS via their API
-    .PARAMETER Username
-        The Dynamic DNS Update Username
-    .PARAMETER Password
-        The Dynamic DNS Update Password
+    .PARAMETER Credential
+        The Dynamic DNS update username and password
     .PARAMETER DomainName
         The domain you are updating DNS for. include the subdomain if you are
         updating a subdomain
     .PARAMETER IPAddress
         The external IP Address to assign to the record
     .EXAMPLE
-        PS C:\> Update-GoogleDNS -Username 'user' -Password 'password' -DomainName 'subdomain.example.com' -IPAdress '172.22.22.172'
+        PS C:\> Update-GoogleDNS -Credential (Get-Credential) -DomainName 'subdomain.example.com' -IPAddress '172.22.22.172'
         Update the DNS for subdomain.example.com to 172.22.22.172
     .NOTES
 
@@ -22,9 +20,7 @@
     [CmdLetBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $false)]
-        [string]$Username,
-        [Parameter(Mandatory = $false)]
-        [SecureString]$Password,
+        [System.Management.Automation.PSCredential]$Credential,
         [Parameter(Mandatory = $false)]
         [string]$DomainName,
         [Parameter(Mandatory = $false)]
@@ -37,9 +33,7 @@
     process {
         if (-not $PSCmdlet.ShouldProcess($DomainName, "Update Dynamic DNS record to $IPAddress")) { return }
         try {
-            $Credentials = New-Object System.Management.Automation.PSCredential($Username, $Password)
-            Write-Verbose "Created credential object."
-            $Result = Invoke-WebRequest -Uri $URI -Credential $Credentials
+            $Result = Invoke-WebRequest -Uri $URI -Credential $Credential
             Write-Output "Update Complete."
             $Result
         } catch {

@@ -39,6 +39,8 @@ function New-IsoFile {
     [CmdletBinding(DefaultParameterSetName = 'Source', SupportsShouldProcess)]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCommands', '',
         Justification = 'CompilerParameters and CompilerOptions are each used only on the edition that has them.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleTypes', '',
+        Justification = 'Clipboard is used only on PowerShell 7, after Add-Type loads System.Windows.Forms.')]
     param(
         [Parameter( Position = 1,
             Mandatory = $true,

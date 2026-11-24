@@ -13,6 +13,9 @@ using namespace System.Management.Automation.Runspaces
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Scope = 'Function',
     Target = '__oh-my-posh_escapeStringWithSpecialChars',
     Justification = 'Internal helper whose name follows the oh-my-posh completion script it mirrors.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '', Scope = 'Function',
+    Target = '__oh-my-posh_escapeStringWithSpecialChars',
+    Justification = 'The generated oh-my-posh completion script calls this helper by this exact name.')]
 param()
 
 #- Set Filters

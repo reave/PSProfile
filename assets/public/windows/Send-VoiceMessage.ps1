@@ -11,16 +11,13 @@ function Send-VoiceMessage {
     .PARAMETER Message
         Specifies the message to be read out.
     .PARAMETER Credential
-        Specifies whether you are going to pass a credential object or not.
-
-        Switch (passing it implies $true)
-    .PARAMETER CredentialObject
-        Accepts a PSCredential Object.
+        Specifies a user account that has permission to connect to the remote computer. If you omit
+        it, the command connects as the current user.
     .EXAMPLE
         C:\PS>Send-VoiceMessage -Message 'Hello World'
         Will speak "Hello World" on the local computer
     .EXAMPLE
-        C:\PS>Send-VoiceMessage -ComputerName test01 -Message 'Hello World' -Credential -CredentialObject (Get-Credential)
+        C:\PS>Send-VoiceMessage -ComputerName test01 -Message 'Hello World' -Credential (Get-Credential)
         Will speak the message "Hello World" on the computer test01 using the credential you pass to get-credential
     .NOTES
         Author: reave (https://github.com/reave)
@@ -33,26 +30,8 @@ function Send-VoiceMessage {
         [Parameter(Mandatory = $true)]
         [string]$Message,
         [Parameter(Mandatory = $false)]
-        [switch]$Credential,
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]$CredentialObject
+        [System.Management.Automation.PSCredential]$Credential
     )
-    begin {
-        if ($Credential) {
-            if (!($CredentialObject)) {
-                $CredentialObject = (Get-Credential -Message "Please enter your credentials.")
-
-                if (!($CredentialObject -is [System.Management.Automation.PSCredential])) {
-                    throw "Failed to create credential object."
-                }
-            } else {
-                if (!($CredentialObject -is [System.Management.Automation.PSCredential])) {
-                    throw "Failed to create credential object."
-                }
-            }
-
-        }
-    }
     process {
         if ($ComputerName -eq $env:ComputerName) {
             if (!$Message) {
@@ -63,11 +42,13 @@ function Send-VoiceMessage {
             $object = New-Object System.Speech.Synthesis.SpeechSynthesizer
             $object.Speak($Message)
         } else {
-            if ($CredentialObject) {
-                $Session = New-PSSession -ComputerName $ComputerName -Credential $CredentialObject
+            $sessionParams = @{
+                ComputerName = $ComputerName
             }
-
-            $Session = New-PSSession -ComputerName $ComputerName
+            if ($Credential) {
+                $sessionParams.Credential = $Credential
+            }
+            $Session = New-PSSession @sessionParams
 
             if (!$Message) {
                 Invoke-Command -Session $Session {
@@ -78,11 +59,10 @@ function Send-VoiceMessage {
                     $object.Speak($Message)
                 }
             } else {
-                Invoke-Command -Session $Session -ArgumentList $Message {
-                    param($Text)
+                Invoke-Command -Session $Session {
                     [Reflection.Assembly]::LoadWithPartialName('System.Speech') | Out-Null
                     $object = New-Object System.Speech.Synthesis.SpeechSynthesizer
-                    $object.Speak($Text)
+                    $object.Speak($using:Message)
                 }
             }
         }

@@ -8,6 +8,8 @@
     Justification = 'PSReadLine key handlers must accept $key and $arg.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCommands', '',
     Justification = 'PredictionSource and PredictionViewStyle are set inside a try/catch.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleTypes', '',
+    Justification = 'AcceptNextSuggestionWord is only bound when PSReadLine is 2.1 or later.')]
 param()
 
 if (-not (Get-Module -Name PSReadLine)) { Import-Module -Name PSReadLine -ErrorAction Ignore }
@@ -530,20 +532,24 @@ Set-PSReadLineOption -CommandValidationHandler {
 
 # `ForwardChar` accepts the entire suggestion text when the cursor is at the end of the line.
 # This custom binding makes `RightArrow` behave similarly - accepting the next word instead of the entire suggestion text.
-Set-PSReadLineKeyHandler -Key RightArrow `
-    -BriefDescription ForwardCharAndAcceptNextSuggestionWord `
-    -LongDescription "Move cursor one character to the right in the current editing line and accept the next word in suggestion when it's at the end of current editing line" `
-    -ScriptBlock {
-    param($key, $arg)
+# AcceptNextSuggestionWord was added in PSReadLine 2.1. Older versions, such as the 2.0 that ships with
+# Windows PowerShell 5.1, keep the default RightArrow binding.
+if (@(Get-Module -Name PSReadLine)[0].Version -ge [version]'2.1.0') {
+    Set-PSReadLineKeyHandler -Key RightArrow `
+        -BriefDescription ForwardCharAndAcceptNextSuggestionWord `
+        -LongDescription "Move cursor one character to the right in the current editing line and accept the next word in suggestion when it's at the end of current editing line" `
+        -ScriptBlock {
+        param($key, $arg)
 
-    $line = $null
-    $cursor = $null
-    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
+        $line = $null
+        $cursor = $null
+        [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
 
-    if ($cursor -lt $line.Length) {
-        [Microsoft.PowerShell.PSConsoleReadLine]::ForwardChar($key, $arg)
-    } else {
-        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptNextSuggestionWord($key, $arg)
+        if ($cursor -lt $line.Length) {
+            [Microsoft.PowerShell.PSConsoleReadLine]::ForwardChar($key, $arg)
+        } else {
+            [Microsoft.PowerShell.PSConsoleReadLine]::AcceptNextSuggestionWord($key, $arg)
+        }
     }
 }
 
