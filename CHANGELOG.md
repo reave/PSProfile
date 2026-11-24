@@ -1,11 +1,11 @@
 # Changelog
 
 All notable changes to PSProfile are listed here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version of the profile is the
-`version` in `assets/config/sample-config.json`.
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The version of the profile is the
+`version` in `assets/config/sample-config.json`, written as Major.Minor.Build.Revision so it
+casts to `[version]` in PowerShell.
 
-## 1.0.0 - 2026-11-24
+## 1.0.0.0 - 2026-11-24
 
 The first release.
 

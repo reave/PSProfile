@@ -270,7 +270,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ## Versioning
 
-PSProfile uses [Semantic Versioning](https://semver.org/). The current version is the `version` in `assets/config/sample-config.json`, and a loaded profile exposes it as `$PSProfileVersion`. [CHANGELOG.md](CHANGELOG.md) lists what changed in each version.
+The current version is the `version` in `assets/config/sample-config.json`. It's written as Major.Minor.Build.Revision, such as `1.0.0.0`, so it casts to `[version]`, and a loaded profile exposes it as `$PSProfileVersion` (try `[version]$PSProfileVersion`). [CHANGELOG.md](CHANGELOG.md) lists what changed in each version.
 
 ## Requirements
 
