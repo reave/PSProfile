@@ -162,6 +162,10 @@ Homebrew's installer adds its `PATH` setup to `.zprofile`/`.bash_profile`, which
 profile.ps1              The profile. Loads config, dot-sources functions, applies settings.
 setup.ps1                   The installer (see Install above).
 powershell.config.json      PowerShell engine config (execution policy, experimental features).
+STYLE.md                    Code style and practices for this repository.
+PSScriptAnalyzerSettings.psd1  Lint settings that enforce STYLE.md.
+.editorconfig               Editor indentation and line-ending defaults.
+.markdownlint.json          Markdown lint settings that enforce STYLE.md's documentation rules.
 LICENSE                     Which license covers which files (see License below).
 licenses/                   Full GPL-3.0 and LGPL-3.0 texts for the upstream files that use them.
 assets/
@@ -257,9 +261,10 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 ## Adding functions
 
 1. Drop a `.ps1` file with one function per file into `assets/public/<os>/` (user-callable) or `assets/private/<os>/` (profile-internal). Use the OS folder(s) it actually depends on — see [Why functions are split by OS](#why-functions-are-split-by-os).
-2. Write comment-based help (`.SYNOPSIS`/`.DESCRIPTION`/`.PARAMETER`/`.EXAMPLE`/`.OUTPUTS`) directly above the `function` keyword, with **no other comment line directly above it** (a `#---` banner immediately above a help block breaks PowerShell's association between the two — always leave a blank line between them).
+2. Write comment-based help (`.SYNOPSIS`, a description of each parameter, and at least one `.EXAMPLE`) as the first lines inside the function, so it can't come loose from the `function` keyword. Existing functions with help directly above `function` still work; leave them as they are unless you're rewriting the function.
 3. If the function name might collide with a built-in alias (e.g. `gc`/`Get-Content`, `cd`/`Set-Location`), remove the alias first: `Remove-Item -Path "alias:\<name>" -Force -ErrorAction SilentlyContinue`. PowerShell resolves aliases *before* functions of the same name, so without this the function would silently never run.
 4. If it's cross-platform, copy the identical file into all three `windows`/`macos`/`linux` folders — `profile.ps1` only loads the one matching the running OS, so there's no runtime cost to the duplication.
+5. Follow [STYLE.md](STYLE.md) for code style and practices, and run PSScriptAnalyzer with the repository's [`PSScriptAnalyzerSettings.psd1`](PSScriptAnalyzerSettings.psd1) before committing (VS Code's PowerShell extension does this automatically).
 
 ## Credits
 

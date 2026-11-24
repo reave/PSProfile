@@ -1,0 +1,14 @@
+# Editor defaults for PSProfile. See STYLE.md.
+# Encoding and final-newline handling are deliberately left unset: several upstream
+# files are UTF-8 with BOM and many have no final newline, and an editor rewriting
+# either on save would mix whitespace changes into content changes.
+root = true
+
+[*.{ps1,psm1,psd1}]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+
+[*.{json,md}]
+indent_style = space
+end_of_line = lf
