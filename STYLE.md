@@ -477,11 +477,71 @@ runs at the start of every shell.
   suppress it with a justification where one is intended.
 - **Overriding a built-in alias** (as `gc` or `cd` do) requires removing the alias first. See
   "Adding functions" in the README.
-- **Versions.** The profile's version is the `version` in `assets/config/sample-config.json`,
-  written as Major.Minor.Build.Revision so it casts to `[version]`. A release bumps it there
-  and adds a matching section to `CHANGELOG.md`. Any change to the sample's settings or entries
-  bumps the version in the same commit: `Update-ProfileConfig` finds the sample a `config.json`
-  was made from by its version, so two different samples must never share one.
+- **Versions.** The profile's version is the `version` in `assets/config/sample-config.json`.
+  See [Versioning](#versioning) for which part to bump and when.
+
+## Versioning
+
+The `version` in `assets/config/sample-config.json` is the only place the profile's version is
+written. `profile.ps1` reads it into `$PSProfileVersion`, and `config.json` records the version of
+the sample it was made from.
+
+Write the version as Major.Minor.Build.Revision, such as `1.0.0.0`, so it casts to `[version]`.
+Always write all four parts. A missing part counts as lower than `0`, so
+`[version]'1.0.0' -lt [version]'1.0.0.0'` is `$true`.
+
+### Which part to bump
+
+- **Major** is for a change that can break your scripts or needs a manual action. For example:
+  renaming or removing a command, changing a parameter's type, removing or restructuring a config
+  key, raising the minimum PowerShell version, or changing a default so the profile behaves
+  differently.
+- **Minor** is for a new capability that breaks nothing. For example: a new function, a new
+  parameter or config option with a safe default, support for a new platform, or a new module or
+  alias in `sample-config.json`.
+- **Build** is for fixes and quality work that add nothing new to use. For example: bug fixes,
+  refactors that keep the same behavior (such as WMI to CIM), help, lint and style cleanup, or
+  documentation corrections.
+- **Revision** is for a small correction to the same build, or a hotfix. For example: a typo, a
+  broken example, or a one-line fix for a regression found right after a release.
+
+These rules decide the bump:
+
+- Use the highest part that any change in the release needs. Removing any command is Major.
+- Bumping a part resets the parts after it to `0`. For example, a Minor bump takes `1.2.3.4` to
+  `1.3.0.0`.
+- A change to the shape of `sample-config.json`, such as a new key or entry, is at least Minor.
+  Removing or renaming a key is Major, because `Update-ProfileConfig` has to migrate it in every
+  existing `config.json`.
+- Bump once per release to `main`, not once per pull request. When several pull requests ship as
+  one release, only one of them bumps.
+- The exception is `sample-config.json`. Every change to its settings or entries bumps the version
+  in the same commit. `Update-ProfileConfig` finds the sample a `config.json` was made from by its
+  version, so two different samples must never share one on `main`.
+
+### Bumping the version
+
+1. Decide which part to bump, using [Which part to bump](#which-part-to-bump).
+1. Change `version` in `assets/config/sample-config.json`. Write all four parts, and reset the
+   parts after the one you bumped to `0`.
+1. Add a section for the new version at the top of [CHANGELOG.md](CHANGELOG.md), headed
+   `## <version> - <yyyy-MM-dd>`, with the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+   subsections you need, such as `### Added`, `### Changed`, `### Fixed` or `### Removed`.
+1. Confirm the new version casts to `[version]`:
+
+   ```powershell
+   $sample = Get-Content -Path ./assets/config/sample-config.json -Raw | ConvertFrom-Json
+   [version]$sample.version
+   ```
+
+1. If the shape of `sample-config.json` changed, commit the change, then run
+   `Update-ProfileConfig -WhatIf` in an install whose `config.json` was made from the previous
+   version. Confirm it adds, keeps, updates or removes each setting the way you expect.
+   `Update-ProfileConfig` reads the previous sample from git history, so it can't see an
+   uncommitted change.
+1. Start a new Windows PowerShell 5.1 session and a new PowerShell 7 session with the changed
+   profile. Confirm each one loads without errors and that `$PSProfileVersion` shows the new
+   version.
 
 ## Performance
 

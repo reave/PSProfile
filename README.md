@@ -178,6 +178,7 @@ profile.ps1              The profile. Loads config, dot-sources functions, appli
 setup.ps1                   The installer (see Install above).
 powershell.config.json      PowerShell engine config (execution policy, experimental features).
 STYLE.md                    Code style and practices for this repository.
+CONTRIBUTING.md             How to make a change and bump the version.
 CHANGELOG.md                What changed in each version.
 PSScriptAnalyzerSettings.psd1  Lint settings that enforce STYLE.md.
 .editorconfig               Editor indentation and line-ending defaults.
@@ -270,7 +271,7 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ## Versioning
 
-The current version is the `version` in `assets/config/sample-config.json`. It's written as Major.Minor.Build.Revision, such as `1.0.0.0`, so it casts to `[version]`, and a loaded profile exposes it as `$PSProfileVersion` (try `[version]$PSProfileVersion`). [CHANGELOG.md](CHANGELOG.md) lists what changed in each version.
+The current version is the `version` in `assets/config/sample-config.json`. It's written as Major.Minor.Build.Revision, such as `1.0.0.0`, so it casts to `[version]`, and a loaded profile exposes it as `$PSProfileVersion` (try `[version]$PSProfileVersion`). [CHANGELOG.md](CHANGELOG.md) lists what changed in each version, and [CONTRIBUTING.md](CONTRIBUTING.md#versioning) explains when each part of the version changes.
 
 ## Requirements
 
