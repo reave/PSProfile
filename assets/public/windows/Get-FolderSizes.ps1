@@ -71,7 +71,10 @@ function Get-FolderSizes {
         } #close foreach folder
 
         #here's the output
-        $Folders | Sort-Object @{E = { [decimal]$_.sizeMB } } -Descending | Where-Object { [decimal]$_.sizeMB -gt $SizeMB } | Format-Table -AutoSize
+        $Folders |
+            Sort-Object @{E = { [decimal]$_.sizeMB } } -Descending |
+            Where-Object { [decimal]$_.sizeMB -gt $SizeMB } |
+            Format-Table -AutoSize
         #calculate the total including contents
         $sum = $Folders | Select-Object -ExpandProperty sizeMB | Measure-Object -Sum | Select-Object -ExpandProperty sum
         $sum += ( Get-ChildItem $Path | Measure-Object -Property length -Sum | Select-Object -ExpandProperty sum ) / 1mb

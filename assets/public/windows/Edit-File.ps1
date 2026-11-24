@@ -154,7 +154,8 @@ function Edit-File {
                     foreach ($cand in $candidates) {
                         try {
                             # Use -Depth when available (PowerShell 7+). If not available, the call will still work in many environments.
-                            $found = Get-ChildItem -Path $root -Filter $cand -Recurse -ErrorAction SilentlyContinue -Force -Depth $MaxDepth | Select-Object -First 1
+                            $found = Get-ChildItem -Path $root -Filter $cand -Recurse -ErrorAction SilentlyContinue -Force -Depth $MaxDepth |
+                                Select-Object -First 1
                             if ($found) {
                                 if ($found.Extension -ieq '.lnk') {
                                     $target = Resolve-LnkTarget $found.FullName
@@ -278,7 +279,9 @@ function Edit-File {
             #>
             if (-not $name) { return $null }
             $lc = $name.ToLowerInvariant()
-            return $detected | Where-Object { $_.Name.ToLowerInvariant() -like "*$lc*" -or $_.Key -eq $lc } | Select-Object -First 1
+            return $detected |
+                Where-Object { $_.Name.ToLowerInvariant() -like "*$lc*" -or $_.Key -eq $lc } |
+                Select-Object -First 1
         }
 
         $chosen = $null

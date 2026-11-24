@@ -96,7 +96,7 @@ function Invoke-DNSCacheFlush {
             )
 
             $script = {
-                    # Same logic inside remote session
+                # Same logic inside remote session
                 if (Get-Command -Name Clear-DnsClientCache -ErrorAction SilentlyContinue) {
                     Clear-DnsClientCache -ErrorAction Stop
                     return @{ Success = $true; Method = 'Clear-DnsClientCache'; Message = 'Cache cleared.' }
@@ -111,7 +111,8 @@ function Invoke-DNSCacheFlush {
 
             try {
                 if ($Session) {
-                    Invoke-CimMethod -CimSession $Session -ClassName __Namespace -MethodName NonExistentMethod -ErrorAction SilentlyContinue | Out-Null
+                    Invoke-CimMethod -CimSession $Session -ClassName __Namespace -MethodName NonExistentMethod -ErrorAction SilentlyContinue |
+                        Out-Null
                     # Using Invoke-Command with CimSession isn't direct, so use Invoke-Command against the session's machine
                     $result = Invoke-Command -Session (New-PSSession -ComputerName $Target -ErrorAction Stop) -ScriptBlock $script -ErrorAction Stop
                 } else {

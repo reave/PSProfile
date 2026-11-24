@@ -400,7 +400,8 @@ if ($onWindows -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
-        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue | Out-Null
+        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue |
+            Out-Null
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {
@@ -438,7 +439,8 @@ elseif ($onMacOS -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
-        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue | Out-Null
+        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue |
+            Out-Null
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {
@@ -476,7 +478,8 @@ elseif ($onLinux -and $IsInteractiveShell) {
     }
 
     if ($PSProfileSettings.RunUpdateHelpOnElevated -and $IsElevated) {
-        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue | Out-Null
+        Start-Job -Name "UpdateHelp" -ScriptBlock { Update-Help -Force -ErrorAction SilentlyContinue } -ErrorAction SilentlyContinue |
+            Out-Null
     }
 
     if ($PSProfileSettings.ShowPSVersionBanner) {

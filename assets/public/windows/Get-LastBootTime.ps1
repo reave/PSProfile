@@ -30,7 +30,8 @@ function Get-LastBootTime {
         Write-Verbose "Getting uptime for $ComputerName"
         if ($ComputerName -eq $env:ComputerName) {
             try {
-                Get-CimInstance -ClassName win32_operatingsystem -ErrorAction Stop | Select-Object @{LABEL = "ComputerName"; EXPRESSION = { $_.csname } }, LastbootUpTime
+                Get-CimInstance -ClassName win32_operatingsystem -ErrorAction Stop |
+                    Select-Object @{LABEL = "ComputerName"; EXPRESSION = { $_.csname } }, LastbootUpTime
             } catch {
                 Write-Error $_.Exception.Message
             }

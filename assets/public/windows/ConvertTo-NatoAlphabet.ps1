@@ -67,7 +67,9 @@ function ConvertTo-NatoAlphabet {
                 $Speech = New-Object System.Speech.Synthesis.SpeechSynthesizer
 
                 # Set the voice to use (optional)
-                $voice = $Speech.GetInstalledVoices() | Select-Object -ExpandProperty VoiceInfo | Where-Object { $_.Name -like "*Zira*" }
+                $voice = $Speech.GetInstalledVoices() |
+                    Select-Object -ExpandProperty VoiceInfo |
+                    Where-Object { $_.Name -like "*Zira*" }
                 if ($voice) {
                     Write-Verbose "Using voice: $($voice.Name)"
                     $Speech.SelectVoice($voice.Name)
@@ -142,7 +144,8 @@ function ConvertTo-NatoAlphabet {
 
             # add the nato alphabet array to the output object
             Write-Verbose "Adding nato alphabet array to output object"
-            $outputObject | Add-Member -MemberType NoteProperty -Name 'NATO Phonetic Spelling' -Value ($natoAlphabetArray -join ' -> ')
+            $outputObject |
+                Add-Member -MemberType NoteProperty -Name 'NATO Phonetic Spelling' -Value ($natoAlphabetArray -join ' -> ')
 
             if ($TextToSpeech) {
                 Write-Verbose "Speaking the input string $inputString"

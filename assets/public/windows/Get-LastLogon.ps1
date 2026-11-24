@@ -171,7 +171,9 @@ function Get-LastLogon {
 
                         #Getting the SID of the user from the file ACE to compare
                         $Script:Sddl = $Script:LastProf.GetAccessControl().Sddl
-                        $Script:Sddl = $Script:Sddl.split("(") | Select-String -Pattern "[0-9]\)$" | Select-Object -First 1
+                        $Script:Sddl = $Script:Sddl.split("(") |
+                            Select-String -Pattern "[0-9]\)$" |
+                            Select-Object -First 1
                         #Formatting SID, assuming the 6th entry will be the users SID.
                         $Script:Sddl = $Script:Sddl.ToString().Split(";")[5].Trim(")")
 
@@ -210,7 +212,8 @@ function Get-LastLogon {
                 }
 
                 #Creating Custom PSObject For Output
-                New-Object -TypeName PSObject -Property $Properties | Select-Object Computer, User, SID, Time, CurrentlyLoggedOn
+                New-Object -TypeName PSObject -Property $Properties |
+                    Select-Object Computer, User, SID, Time, CurrentlyLoggedOn
             }#End Try
             catch {
                 if ($_.Exception.Message -like "*Some or all identity references could not be translated*") {

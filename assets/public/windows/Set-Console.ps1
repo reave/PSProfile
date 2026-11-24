@@ -23,7 +23,8 @@ function Set-Console {
 
     process {
         if ($WindowTitle) {
-            $UserInfo = Get-CimInstance -ClassName Win32_NetworkLoginProfile | Where-Object { $_.Caption -eq $env:USERNAME }
+            $UserInfo = Get-CimInstance -ClassName Win32_NetworkLoginProfile |
+                Where-Object { $_.Caption -eq $env:USERNAME }
 
             if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
                 $host.ui.rawui.WindowTitle = "$($host.ui.rawui.WindowTitle) - Welcome $($UserInfo.FullName). Have a great day!"
