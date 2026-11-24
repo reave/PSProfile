@@ -11,15 +11,15 @@
     (no git available at install time), this stops with a pointer to re-run setup.ps1
     instead, since that's the only path that can refresh a non-git install.
 
-    After reloading, also calls Update-Completions to refresh the cached native
+    After reloading, also calls Update-Completion to refresh the cached native
     completions (config.json's NativeCompletions) for whichever of those tools are
-    installed - see Update-Completions for why that's cached rather than run on every
+    installed - see Update-Completion for why that's cached rather than run on every
     normal profile load.
 .PARAMETER SkipReload
     Update the repo but don't re-dot-source the profile afterward. Implies -SkipCompletions,
-    since Update-Completions needs the reloaded profile's functions to be current.
+    since Update-Completion needs the reloaded profile's functions to be current.
 .PARAMETER SkipCompletions
-    Update and reload the profile but don't run Update-Completions afterward.
+    Update and reload the profile but don't run Update-Completion afterward.
 .EXAMPLE
     Update-Profile
 .EXAMPLE
@@ -71,7 +71,7 @@ function Update-Profile {
                 . $profileTarget
 
                 if (-not $SkipCompletions) {
-                    Update-Completions
+                    Update-Completion
                 }
             } else {
                 Write-Warning "Could not find $profileTarget to reload. Restart your shell to pick up the update."

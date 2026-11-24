@@ -1,4 +1,4 @@
-﻿function Get-InactiveADComputers {
+﻿function Get-InactiveADComputer {
     <#
     .SYNOPSIS
     Retrieve all Inactive AD Computers
@@ -11,10 +11,10 @@
 
     Default: 30 days
     .EXAMPLE
-    Get-InactiveComputers -DaysInactive 90
+    Get-InactiveADComputer -DaysInactive 90
 
     .EXAMPLE
-    Get-InactiveComputers
+    Get-InactiveADComputer
     #>
     [CmdletBinding()]
     param(

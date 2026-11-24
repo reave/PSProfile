@@ -10,6 +10,9 @@ using namespace System.Management.Automation.Runspaces
     Justification = 'oh-my-posh init is run this way by design; the splash command is from config.json.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCommands', '',
     Justification = 'PredictionSource and PredictionViewStyle are set inside a try/catch.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Scope = 'Function',
+    Target = '__oh-my-posh_escapeStringWithSpecialChars',
+    Justification = 'Internal helper whose name follows the oh-my-posh completion script it mirrors.')]
 param()
 
 #- Set Filters

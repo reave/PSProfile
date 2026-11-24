@@ -1,4 +1,4 @@
-﻿function Get-LoggedOnUsers {
+﻿function Get-LoggedOnUser {
     <#
     .SYNOPSIS
         Retrieve currently logged on users of a device
@@ -7,10 +7,10 @@
     .PARAMETER ComputerName
         Describes the target computer to retrieve logged on users for
     .EXAMPLE
-        PS C:\> Get-LoggedOnUsers -ComputerName Test-Computer
+        PS C:\> Get-LoggedOnUser -ComputerName Test-Computer
         Retrieves logged on users for Test-Computer
     .EXAMPLE
-        PS C:\> 'Test-Computer' | Get-LoggedOnUsers
+        PS C:\> 'Test-Computer' | Get-LoggedOnUser
         Retrieves logged on users for Test-Computer passed through the pipeline
     #>
     [CmdletBinding()]

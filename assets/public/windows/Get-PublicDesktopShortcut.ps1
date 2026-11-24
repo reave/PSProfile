@@ -1,4 +1,4 @@
-﻿function Get-PublicDesktopShortcuts {
+﻿function Get-PublicDesktopShortcut {
     <#
     .SYNOPSIS
         Lists the shortcuts on the user and public desktops.
@@ -14,12 +14,12 @@
         The computers to read. The default is the local computer.
 
     .EXAMPLE
-        Get-PublicDesktopShortcuts
+        Get-PublicDesktopShortcut
 
         Lists the shortcuts on your desktop and the public desktop.
 
     .EXAMPLE
-        Get-PublicDesktopShortcuts -ComputerName 'Server01'
+        Get-PublicDesktopShortcut -ComputerName 'Server01'
 
         Lists the shortcuts on the public desktop of Server01.
     #>

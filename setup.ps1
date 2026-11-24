@@ -32,7 +32,7 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The installer reports its steps and next steps on the console, which is its interface.')]
 [CmdletBinding()]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '',
-    Justification = 'Sets PSProfileRoot so Update-Completions can find the new install.')]
+    Justification = 'Sets PSProfileRoot so Update-Completion can find the new install.')]
 param(
     [string]$InstallPath = (Join-Path $HOME '.config/powershell/PSProfile'),
     [string]$Branch = 'main',
@@ -252,7 +252,7 @@ $marker (https://github.com/reave/PSProfile) - edit assets/config/config.json in
         # $IsWindows/$IsMacOS don't exist in Windows PowerShell 5.1; check the edition first.
         $onWindows = $PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows
         $osFolder = if ($onWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } else { 'linux' }
-        $updateCompletionsScript = Join-Path $InstallPath "assets\public\$osFolder\Update-Completions.ps1"
+        $updateCompletionsScript = Join-Path $InstallPath "assets\public\$osFolder\Update-Completion.ps1"
         if (Test-Path -Path $updateCompletionsScript) {
             Write-SetupStep 'Populating native completions for installed tools'
             $Global:PSProfileRoot = $InstallPath
@@ -262,14 +262,14 @@ $marker (https://github.com/reave/PSProfile) - edit assets/config/config.json in
                     Loads the installed profile's configuration.
 
                 .DESCRIPTION
-                    A minimal stand-in for the function of the same name in profile.ps1, so Update-Completions
+                    A minimal stand-in for the function of the same name in profile.ps1, so Update-Completion
                     can run during setup. Reads assets\config\config.json from the install folder, or
                     sample-config.json when there's no config.json. Returns $null if neither file exists.
 
                 .EXAMPLE
                     Get-PSProfileConfig
 
-                    Returns the configuration that Update-Completions reads.
+                    Returns the configuration that Update-Completion reads.
                 #>
                 $configPath = Join-Path $InstallPath 'assets\config\config.json'
                 $samplePath = Join-Path $InstallPath 'assets\config\sample-config.json'
@@ -278,7 +278,7 @@ $marker (https://github.com/reave/PSProfile) - edit assets/config/config.json in
                 Get-Content -Path $path -Raw | ConvertFrom-Json
             }
             . $updateCompletionsScript
-            Update-Completions
+            Update-Completion
         }
     } catch {
         Write-Warning "Could not populate native completions: $_"

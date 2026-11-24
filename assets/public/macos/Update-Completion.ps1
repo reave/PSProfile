@@ -15,11 +15,11 @@
     directly any time - e.g. right after installing a new CLI - to pick it up without
     a full profile update.
 .EXAMPLE
-    Update-Completions
+    Update-Completion
 .OUTPUTS
     None
 #>
-function Update-Completions {
+function Update-Completion {
     [CmdletBinding(SupportsShouldProcess)]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '',
         Justification = 'profile.ps1 sets PSProfileRoot so functions in other files can find the install.')]

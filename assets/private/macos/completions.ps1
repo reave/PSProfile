@@ -18,11 +18,11 @@ if (Get-Command -Name pwsh -ErrorAction SilentlyContinue) { . "$PSScriptRoot\com
 if (Get-Command -Name npx -ErrorAction SilentlyContinue) { . "$PSScriptRoot\completions\npx.ps1" }
 
 # config.json's NativeCompletions: tools with their own `completion powershell`-style generator.
-# The generated script is cached under .\completions\native\<name>.ps1 by Update-Completions
+# The generated script is cached under .\completions\native\<name>.ps1 by Update-Completion
 # (called from Update-Profile/setup.ps1) rather than run here - shelling out to each tool on
 # every profile load would be slow (especially anything backed by a daemon, e.g. docker) and
 # would defeat the whole point of caching. A tool with no cache yet just gets skipped until
-# Update-Completions has run once.
+# Update-Completion has run once.
 foreach ($__nc in $PSProfileConfig.NativeCompletions) {
     if (-not (Get-Command -Name $__nc.Name -ErrorAction SilentlyContinue)) { continue }
     $__ncCache = Join-Path $PSScriptRoot "completions\native\$($__nc.Name).ps1"

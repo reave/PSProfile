@@ -1,4 +1,4 @@
-function Get-FolderSizes {
+function Get-FolderSize {
     <#
     .SYNOPSIS
         Shows the size of each folder in a folder.
@@ -19,17 +19,17 @@ function Get-FolderSizes {
         The name of a folder to leave out.
 
     .EXAMPLE
-        Get-FolderSizes -Path 'C:\Users'
+        Get-FolderSize -Path 'C:\Users'
 
         Shows the size of each user's folder and the total.
 
     .EXAMPLE
-        Get-FolderSizes -Path $HOME -SizeMB 500 -ExcludeFolder 'OneDrive'
+        Get-FolderSize -Path $HOME -SizeMB 500 -ExcludeFolder 'OneDrive'
 
         Lists the folders in your home folder that are larger than 500 MB, leaving out OneDrive.
 
     .NOTES
-        Name: Get-FolderSizes
+        Name: Get-FolderSize
         Author: Unknown
     #>
     [cmdletBinding()]
