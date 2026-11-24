@@ -477,6 +477,11 @@ runs at the start of every shell.
   suppress it with a justification where one is intended.
 - **Overriding a built-in alias** (as `gc` or `cd` do) requires removing the alias first. See
   "Adding functions" in the README.
+- **Versions.** The profile's version is the `version` in `assets/config/sample-config.json`, using
+  [Semantic Versioning](https://semver.org/). A release bumps it there and adds a matching section
+  to `CHANGELOG.md`. Any change to the sample's settings or entries bumps the version in the same
+  commit: `Update-ProfileConfig` finds the sample a `config.json` was made from by its version, so
+  two different samples must never share one.
 
 ## Performance
 

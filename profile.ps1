@@ -170,6 +170,33 @@ $onLinux = $PSVersionTable.PSEdition -ne 'Desktop' -and $IsLinux
 $PSProfileConfig = Get-PSProfileConfig
 $PSProfileSettings = $PSProfileConfig.settings
 
+#- The profile's version is the "version" in the sample-config.json it ships with, so the sample
+#- always matches the profile. Update it there, and add a CHANGELOG.md entry, for each release.
+$PSProfileVersion = $null
+try {
+    $sampleConfig = Get-Content -Path (Join-Path $PSScriptRoot 'assets\config\sample-config.json') -Raw |
+        ConvertFrom-Json
+    $PSProfileVersion = [string]$sampleConfig.version
+} catch {
+    Write-Verbose "Could not read the profile version from sample-config.json: $_"
+}
+Set-Variable -Name PSProfileVersion -Value $PSProfileVersion -Scope Global
+
+#- Point out a config.json made from an older sample, which may be missing newer settings.
+$parsedSampleVersion = $null
+$parsedConfigVersion = $null
+$configVersionProperty = if ($PSProfileConfig) { $PSProfileConfig.PSObject.Properties['version'] } else { $null }
+if ((Test-Path -Path (Join-Path $PSScriptRoot 'assets\config\config.json')) -and
+    [version]::TryParse($PSProfileVersion, [ref]$parsedSampleVersion)) {
+    $configVersionText = if ($configVersionProperty) { [string]$configVersionProperty.Value } else { '' }
+    if (-not [version]::TryParse($configVersionText, [ref]$parsedConfigVersion) -or
+        $parsedConfigVersion -lt $parsedSampleVersion) {
+        $configVersionLabel = if ($configVersionText) { "version $configVersionText" } else { 'no version' }
+        Write-Warning ("config.json has $configVersionLabel and this profile is $PSProfileVersion. " +
+            'Run Update-ProfileConfig to add the newer settings; your own settings are kept.')
+    }
+}
+
 #- Set constants
 $MaximumHistoryCount = if ($PSProfileSettings.MaximumHistoryCount) {
     $PSProfileSettings.MaximumHistoryCount
