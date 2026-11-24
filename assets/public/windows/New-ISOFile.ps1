@@ -62,9 +62,8 @@ function New-IsoFile {
     )
 
     begin {
-        ($cp = New-Object System.CodeDom.Compiler.CompilerParameters).CompilerOptions = '/unsafe'
         if (!( 'ISOFile' -as [type] )) {
-            Add-Type -CompilerParameters $cp -TypeDefinition @'
+            $isoFileSource = @'
     public class ISOFile
     {
     public unsafe static void Create(string Path, object Stream, int BlockSize, int TotalBlocks)
@@ -84,6 +83,14 @@ function New-IsoFile {
     }
     }
 '@
+            # The class uses a pointer, so it must be compiled as unsafe code. Windows PowerShell 5.1
+            # takes that through CompilerParameters; PowerShell 7 has no such parameter.
+            if ($PSVersionTable.PSEdition -eq 'Desktop') {
+                ($cp = New-Object System.CodeDom.Compiler.CompilerParameters).CompilerOptions = '/unsafe'
+                Add-Type -CompilerParameters $cp -TypeDefinition $isoFileSource -ErrorAction Stop
+            } else {
+                Add-Type -CompilerOptions '/unsafe' -TypeDefinition $isoFileSource -ErrorAction Stop
+            }
         }
 
         if ( $BootFile ) {
@@ -157,9 +164,16 @@ function New-IsoFile {
         if (-not $CreateImage) { return }
         if ($Boot) { $Image.BootImageOptions = $Boot }
 
-        $Result = $Image.CreateResultImage()
-        [ISOFile]::Create( $Target.FullName, $Result.ImageStream, $Result.BlockSize, $Result.TotalBlocks )
+        try {
+            $Result = $Image.CreateResultImage()
+            [ISOFile]::Create( $Target.FullName, $Result.ImageStream, $Result.BlockSize, $Result.TotalBlocks )
+        } catch {
+            # Don't leave an empty or partial image behind.
+            Remove-Item -LiteralPath $Target.FullName -Force -ErrorAction SilentlyContinue
+            Write-Error -Message "Failed to create $($Target.FullName): $($_.Exception.Message)"
+            return
+        }
         Write-Verbose -Message "Target image ($($Target.FullName)) has been created"
-        $Target
+        Get-Item -LiteralPath $Target.FullName
     }
 }

@@ -1,4 +1,4 @@
-﻿function New-Shortcut {
+function New-Shortcut {
     <#
     .SYNOPSIS
         Create a shortcut on Public Desktop and or the Public Start Menu.
@@ -58,11 +58,8 @@
                             the Start Menu Folder would not be created and fail,
                             the whole script.
 
-        Exit Codes:
-        10004 - Failed to create the start menu folder
-        10005 - Failed to create start menu shortcut
-        10006 - Failed to create the desktop shortcut
-        10007 - Failed to create both shorcuts
+        Failures are reported as errors, and the function returns without
+        closing the PowerShell session.
 
     .EXAMPLE
 
@@ -112,7 +109,7 @@
                                 New-Item -Path $sFolder -ItemType Directory -Force -ErrorAction SilentlyContinue
                             } catch {
                                 Write-Error "Failed to create the start menu folder: $($Name)"
-                                exit(10004)
+                                return
                             }
                         }
                     } else {
@@ -131,10 +128,10 @@
                     try {
                         $Shortcut.Save()
                         Write-Output "Successfully created the start menu shortcut $($Name)."
-                        exit(0)
+                        return
                     } catch {
                         Write-Error "Failed to create start menu shortcut: $($Name)"
-                        exit(10005)
+                        return
                     }
                 } else {
                     if ($StartMenuFolder) {
@@ -146,7 +143,7 @@
                                 New-Item -Path $sFolder -ItemType Directory -Force -ErrorAction SilentlyContinue
                             } catch {
                                 Write-Error "Failed to create the start menu folder: $($Name)"
-                                exit(10004)
+                                return
                             }
                         }
                     } else {
@@ -189,10 +186,10 @@
                     try {
                         $Shortcut.Save()
                         Write-Output "Successfully created the start menu shortcut $($Name)."
-                        exit(0)
+                        return
                     } catch {
                         Write-Error "Failed to create start menu shortcut: $($Name)"
-                        exit(10005)
+                        return
                     }
                 }
             }
@@ -210,10 +207,10 @@
                     try {
                         $Shortcut.Save()
                         Write-Output "Successfully created the desktop shortcut: $($Name)."
-                        exit(0)
+                        return
                     } catch {
                         Write-Error "Failed to create the desktop shortcut: $($Name)"
-                        exit(10006)
+                        return
                     }
                 } else {
                     $sSPath = Join-Path -Path "$env:PUBLIC\Desktop" -ChildPath $Name
@@ -251,10 +248,10 @@
                     try {
                         $Shortcut.Save()
                         Write-Output "Successfully created the desktop shortcut: $($Name)."
-                        exit(0)
+                        return
                     } catch {
                         Write-Error "Failed to create the desktop shortcut: $($Name)"
-                        exit(10006)
+                        return
                     }
                 }
             }
@@ -270,7 +267,7 @@
                                 New-Item -Path $sFolder -ItemType Directory -Force -ErrorAction SilentlyContinue
                             } catch {
                                 Write-Error "Failed to create the start menu folder: $($Name)"
-                                exit(10004)
+                                return
                             }
                         }
                     } else {
@@ -295,23 +292,23 @@
 
                         $ShortcutD.Save()
                         Write-Output "Successfully created shortcut $($Name) in on the Desktop."
-                        exit(0)
+                        return
                     } catch {
                         if (Test-Path -Path $sSPath) {
                             if (Test-Path $sDPath) {
                                 Write-Warning "Both shortcuts appear to have been created but an exception was thrown. Verify the shorctus are correct."
-                                exit(0)
+                                return
                             } else {
                                 Write-Error "Failed to create shorcut $($Name) on the desktop."
-                                exit(10006)
+                                return
                             }
                         } else {
                             if (Test-Path -Path $sDPath) {
                                 Write-Error "Failed to create shortcut $($Name) in the Start Menu."
-                                exit(10005)
+                                return
                             } else {
                                 Write-Error "Failed to create either shorcut."
-                                exit(10007)
+                                return
                             }
                         }
                     }
@@ -327,7 +324,7 @@
                                 New-Item -Path $sFolder -ItemType Directory -Force -ErrorAction SilentlyContinue
                             } catch {
                                 Write-Error "Failed to create the start menu folder:  $($Name)"
-                                exit(10004)
+                                return
                             }
                         }
                     } else {
@@ -382,23 +379,23 @@
 
                         $ShortcutD.Save()
                         Write-Output "Successfully created shortcut $($Name) in on the Desktop."
-                        exit(0)
+                        return
                     } catch {
                         if (Test-Path -Path $sSPath) {
                             if (Test-Path $sDPath) {
                                 Write-Warning "Both shortcuts appear to have been created but an exception was thrown. Verify the shorctus are correct."
-                                exit(0)
+                                return
                             } else {
                                 Write-Error "Failed to create shorcut $($Name) on the desktop."
-                                exit(10006)
+                                return
                             }
                         } else {
                             if (Test-Path -Path $sDPath) {
                                 Write-Error "Failed to create shortcut $($Name) in the Start Menu."
-                                exit(10005)
+                                return
                             } else {
                                 Write-Error "Failed to create either shorcut."
-                                exit(10007)
+                                return
                             }
                         }
                     }
