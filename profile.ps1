@@ -256,7 +256,9 @@ foreach ($module in $PSProfileConfig.Modules) {
         try {
             # Module autoloading may be off (ModuleAutoLoadingPreference), so load PowerShellGet first.
             Import-Module -Name PowerShellGet -ErrorAction Stop
-            Install-Module -Name $module.Name -Force -ErrorAction Stop
+            # CurrentUser needs no admin rights. It's already the default on PowerShell 7, but
+            # Windows PowerShell 5.1's PowerShellGet defaults to AllUsers.
+            Install-Module -Name $module.Name -Scope CurrentUser -Force -ErrorAction Stop
             Import-Module -Name $module.Name -ErrorAction Stop
         } catch { Write-Error "Unable to install $($module.Name) module" }
     }

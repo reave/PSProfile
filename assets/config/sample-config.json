@@ -69,7 +69,7 @@
         {
             "Name": "Microsoft.WinGet.CommandNotFound",
             "Description": "PowerToys CommandNotFound module - suggests winget packages for unrecognized commands",
-            "PSVersionMajor": "5",
+            "PSVersionMajor": "7",
             "OS": "Windows"
         }
     ],
