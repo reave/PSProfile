@@ -224,11 +224,11 @@ Run `Get-Help <FunctionName> -Full` on anything below for parameters, examples, 
 
 ### System info (Windows-only)
 
-`Get-DeviceInfo` · `Get-OSInfo` · `Get-Uptime` · `Get-LastBootTime` · `Get-PendingReboot` · `Get-DiskInfo`/`Get-DiskSize`/`Get-DriveInfo`/`Get-DriveSpace` · `Get-FolderSizes` · `Get-BatteryStatus` · `Get-InstalledSoftware` · `Get-NetFramework` · `Get-WindowsProductKey` · `Show-Sysinfo` · `Get-UserSession`/`Get-LoggedOnUsers`/`Get-LastLogon`
+`Get-DeviceInfo` · `Get-OSInfo` · `Get-LastBootTime` · `Get-PendingReboot` · `Get-DiskInfo`/`Get-DiskSize`/`Get-DriveInfo`/`Get-DriveSpace` · `Get-FolderSizes` · `Get-BatteryStatus` · `Get-InstalledSoftware` · `Get-NetFramework` · `Get-WindowsProductKey` · `Show-Sysinfo` · `Get-UserSession`/`Get-LoggedOnUsers`/`Get-LastLogon`
 
 ### Active Directory (Windows-only)
 
-`Get-ADCertificateInformation` · `Get-ADComputersNoDesc` · `Get-InactiveADComputers` · `Get-LocalAdministrator`/`Get-LocalGroupMember`
+`Get-ADCertificateInformation` · `Get-ADComputersNoDesc` · `Get-InactiveADComputers` · `Get-LocalAdministrator`
 
 ### Security / credentials (Windows-only)
 
@@ -280,7 +280,7 @@ Many functions were pulled in from other PowerShell authors and projects. Everyo
 ### Projects
 
 - **[BornToBeRoot/PowerShell](https://github.com/BornToBeRoot/PowerShell)** (GPL-3.0, see [License](#license)): the bulk of the networking/utility toolkit. `Add-TrustedHost`, `Clear-ARPCache`, `Convert-IPv4Address`, `Convert-ROT13`, `Convert-ROT47`, `Convert-Subnetmask`, `Find-StringInFile`, `Get-ARPCache`, `Get-ConsoleColor`, `Get-InstalledSoftware`, `Get-IPv4Subnet`, `Get-MACAddress`, `Get-MACVendor`, `Get-RandomPassword`, `Get-RandomPIN`, `Get-TrustedHost`, `Get-WindowsProductKey`, `Get-WLANProfile`, `Invoke-IPv4NetworkScan`, `Invoke-IPv4PortScan`, `Remove-TrustedHost`, `Send-WakeOnLan`, `Set-TrustedHost`, `Split-IPv4Subnet`, `Test-IsFileBinary`, `Update-StringInFile`.
-- **Francois-Xavier Cat ([LazyWinAdmin](https://github.com/lazywinadmin/PowerShell), MIT)**: `ConvertFrom-Base64`, `ConvertTo-Base64`, `ConvertTo-StringList`, `Disable-RemoteDesktop`, `Enable-RemoteDesktop`, `Get-ImageInformation`, `Get-LocalAdministrator`, `Get-LocalGroupMember`, `Get-Netstat`, `New-RandomPassword`.
+- **Francois-Xavier Cat ([LazyWinAdmin](https://github.com/lazywinadmin/PowerShell), MIT)**: `ConvertFrom-Base64`, `ConvertTo-Base64`, `ConvertTo-StringList`, `Disable-RemoteDesktop`, `Enable-RemoteDesktop`, `Get-ImageInformation`, `Get-LocalAdministrator`, `Get-Netstat`, `New-RandomPassword`.
 - **[PSAppDeployToolkit](https://github.com/PSAppDeployToolkit/PSAppDeployToolkit)** (LGPL-3.0): `New-ZipFile`, `Resolve-Error`, `Write-Log`.
 - **Microsoft's [PSReadLine sample profile](https://github.com/PowerShell/PSReadLine/blob/master/PSReadLine/SamplePSReadLineProfile.ps1)**: most of the key handlers in `assets/private/<os>/history.ps1` (smart quote/brace insertion, F7 history search via `Out-GridView`, directory marks, the `git cmt` → `commit` autocorrect, and more). Identified by matching `-BriefDescription` names and key bindings against the upstream file.
 - **Oliver Lipkau ([lipkau/PsIni](https://github.com/lipkau/PsIni))**: `Get-IniContent`, with typo fixes credited in its header to SLDR and Dave Stiff.
@@ -325,7 +325,7 @@ Everything original to this repository is public domain ([Unlicense](https://unl
 | Source | License | Files | What it asks of you |
 |---|---|---|---|
 | [BornToBeRoot/PowerShell](https://github.com/BornToBeRoot/PowerShell) | **GPL-3.0** | 26 | Keep it under GPL-3.0 if you redistribute it, modified or not. |
-| [lazywinadmin/PowerShell](https://github.com/lazywinadmin/PowerShell) (Francois-Xavier Cat) | **MIT** | 10 | Keep the copyright and permission notice with copies of the code. |
+| [lazywinadmin/PowerShell](https://github.com/lazywinadmin/PowerShell) (Francois-Xavier Cat) | **MIT** | 9 | Keep the copyright and permission notice with copies of the code. |
 | [PSAppDeployToolkit](https://github.com/PSAppDeployToolkit/PSAppDeployToolkit) | **LGPL-3.0** | 3 | Keep the files themselves, and any changes to them, under LGPL-3.0. |
 
 The file lists are under [Credits](#credits) above. [LICENSE](LICENSE) has the exact paths and the full Unlicense and MIT texts. The full GPL-3.0 and LGPL-3.0 texts are in [`licenses/GPL-3.0.txt`](licenses/GPL-3.0.txt) and [`licenses/LGPL-3.0.txt`](licenses/LGPL-3.0.txt).

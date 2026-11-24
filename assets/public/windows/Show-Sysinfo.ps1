@@ -181,7 +181,9 @@ namespace PInvoke
     $memFree = (Get-Counter '\Memory\Available MBytes').CounterSamples.CookedValue
     $mem = "$memFree MB out of $memTotal MB available"
 
-    $uptime = (Get-Uptime).UptimeHuman
+    # Computed from the last boot time, since Windows PowerShell 5.1 has no Get-Uptime.
+    $uptimeSpan = (Get-Date) - (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
+    $uptime = "{0} days, {1} hours, {2} minutes, {3} seconds" -f $uptimeSpan.Days, $uptimeSpan.Hours, $uptimeSpan.Minutes, $uptimeSpan.Seconds
 
     # DONE: Fix support for Multiple Monitors
     # FROM: Shay Levy's Response - http://stackoverflow.com/questions/7967699/get-screen-resolution-using-wmi-powershell-in-windows-7
