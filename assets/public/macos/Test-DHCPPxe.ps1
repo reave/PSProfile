@@ -66,22 +66,33 @@
 
         .DESCRIPTION
             Creates the packet with a random transaction ID, the given MAC address, the broadcast flag and
-            the DHCP message type option. It then adds option 60 (vendor class) from $Option60String,
-            option 93 (client architecture) from $ProcessorArchitecture and option 97 (client UUID) from
-            $UUIDString, which are Test-DHCPPxe's parameters. Returns the packet as a byte array.
+            the DHCP message type option. It then adds option 60 (vendor class), option 93 (client
+            architecture) and option 97 (client UUID). Returns the packet as a byte array.
 
         .PARAMETER MacAddressString
             The client MAC address to put in the packet, with or without - or : separators. The default is
             AA:BB:CC:DD:EE:FF.
 
+        .PARAMETER UUIDString
+            The client UUID for option 97.
+
+        .PARAMETER Option60String
+            The vendor class identifier for option 60, such as PXEClient.
+
+        .PARAMETER ProcessorArchitecture
+            The client architecture number for option 93, such as 0 for x86/x64 BIOS or 7 for x64 UEFI.
+
         .EXAMPLE
-            New-DhcpDiscoverPacket -MacAddressString '00-15-5D-01-02-03'
+            New-DhcpDiscoverPacket -MacAddressString '00-15-5D-01-02-03' -UUIDString $UUIDString -Option60String 'PXEClient' -ProcessorArchitecture 7
 
             Returns a DHCPDISCOVER packet for that MAC address.
         #>
         [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds a packet in memory; nothing is sent.')]
         param(
-            [String]$MacAddressString = "AA:BB:CC:DD:EE:FF"
+            [String]$MacAddressString = "AA:BB:CC:DD:EE:FF",
+            [String]$UUIDString = "AABBCCDD-AABB-AABB-AABB-AABBCCDDEEFF",
+            [string]$Option60String = "PXEClient",
+            [int]$ProcessorArchitecture = 0
         )
 
         # Generate a Transaction ID for this request
@@ -408,7 +419,7 @@
     #
 
     # Create a Byte Array for the DHCPDISCOVER packet
-    $Message = New-DhcpDiscoverPacket -MacAddressString $MacAddressString
+    $Message = New-DhcpDiscoverPacket -MacAddressString $MacAddressString -UUIDString $UUIDString -Option60String $Option60String -ProcessorArchitecture $ProcessorArchitecture
 
     # Create a socket
     $UdpSocket = New-UdpSocket -SendTimeOut 10 -ReceiveTimeOut 10

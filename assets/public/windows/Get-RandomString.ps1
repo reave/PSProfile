@@ -25,10 +25,12 @@
         ]
         [int]$Length = 8
     )
-    $set = "0123456789".ToCharArray()
-    $result = ""
-    for ($x = 0; $x -lt $Length; $x++) {
-        $result += $set | Get-Random
+    process {
+        $set = "0123456789".ToCharArray()
+        $result = ""
+        for ($x = 0; $x -lt $Length; $x++) {
+            $result += $set | Get-Random
+        }
+        Write-Output $result
     }
-    Write-Output $result
 }

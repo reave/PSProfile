@@ -32,107 +32,109 @@ function Get-OSInfo {
         [Alias('Hostname', 'cn', 'Name')]
         [string[]]$ComputerName = $env:COMPUTERNAME
     )
+    process {
 
-    foreach ($computer in $ComputerName) {
-        Write-Verbose "Verify WSMan Connection to $computer"
-        if ($computer -eq $env:COMPUTERNAME) {
-            try {
-                Write-Verbose "Retrieving Operating System information from $computer"
-                $os = Get-CimInstance -ClassName Win32_OperatingSystem
-                $properties = @{
-                    ComputerName     = $computer
-                    Status           = 'Connected'
-                    OSName           = $os.Caption
-                    SPVersion        = $os.ServicePackMajorVersion
-                    OSVersion        = $os.Version
-                    OSArchitecture   = $os.OSArchitecture
-                    LastBootUpTime   = $os.LastBootUpTime
-                    InstallDirectory = $os.WindowsDirectory
+        foreach ($computer in $ComputerName) {
+            Write-Verbose "Verify WSMan Connection to $computer"
+            if ($computer -eq $env:COMPUTERNAME) {
+                try {
+                    Write-Verbose "Retrieving Operating System information from $computer"
+                    $os = Get-CimInstance -ClassName Win32_OperatingSystem
+                    $properties = @{
+                        ComputerName     = $computer
+                        Status           = 'Connected'
+                        OSName           = $os.Caption
+                        SPVersion        = $os.ServicePackMajorVersion
+                        OSVersion        = $os.Version
+                        OSArchitecture   = $os.OSArchitecture
+                        LastBootUpTime   = $os.LastBootUpTime
+                        InstallDirectory = $os.WindowsDirectory
+                    }
+                } catch {
+                    Write-Error "An error occured"
+                    $properties = @{
+                        ComputerName     = $computer
+                        Status           = 'Disconnected'
+                        OSName           = $Null
+                        SPVersion        = $Null
+                        OSVersion        = $Null
+                        OSArchitecture   = $Null
+                        LastBootUpTime   = $Null
+                        InstallDirectory = $Null
+                    }
+                } finally {
+                    if ($session) { Remove-CimSession -CimSession $session; $session = $null }
+                    $obj = New-Object -TypeName psobject -Property $properties
+                    Write-Output $obj
                 }
-            } catch {
-                Write-Error "An error occured"
-                $properties = @{
-                    ComputerName     = $computer
-                    Status           = 'Disconnected'
-                    OSName           = $Null
-                    SPVersion        = $Null
-                    OSVersion        = $Null
-                    OSArchitecture   = $Null
-                    LastBootUpTime   = $Null
-                    InstallDirectory = $Null
-                }
-            } finally {
-                if ($session) { Remove-CimSession -CimSession $session; $session = $null }
-                $obj = New-Object -TypeName psobject -Property $properties
-                Write-Output $obj
-            }
-        } elseif (Test-WSMan -ComputerName $computer -ErrorAction SilentlyContinue) {
-            Write-Verbose "WSMan is available"
-            try {
-                Write-Verbose "Creating New CimSession to $computer"
-                $session = New-CimSession -ComputerName $computer -ErrorAction Stop
+            } elseif (Test-WSMan -ComputerName $computer -ErrorAction SilentlyContinue) {
+                Write-Verbose "WSMan is available"
+                try {
+                    Write-Verbose "Creating New CimSession to $computer"
+                    $session = New-CimSession -ComputerName $computer -ErrorAction Stop
 
-                Write-Verbose "Retrieving Operating System information from $computer"
-                $os = Get-CimInstance -CimSession $session -ClassName Win32_OperatingSystem
-                $properties = @{
-                    ComputerName     = $computer
-                    Status           = 'Connected'
-                    OSName           = $os.Caption
-                    SPVersion        = $os.ServicePackMajorVersion
-                    OSVersion        = $os.Version
-                    OSArchitecture   = $os.OSArchitecture
-                    LastBootUpTime   = $os.LastBootUpTime
-                    InstallDirectory = $os.WindowsDirectory
+                    Write-Verbose "Retrieving Operating System information from $computer"
+                    $os = Get-CimInstance -CimSession $session -ClassName Win32_OperatingSystem
+                    $properties = @{
+                        ComputerName     = $computer
+                        Status           = 'Connected'
+                        OSName           = $os.Caption
+                        SPVersion        = $os.ServicePackMajorVersion
+                        OSVersion        = $os.Version
+                        OSArchitecture   = $os.OSArchitecture
+                        LastBootUpTime   = $os.LastBootUpTime
+                        InstallDirectory = $os.WindowsDirectory
+                    }
+                } catch {
+                    Write-Error "An error occured"
+                    $properties = @{
+                        ComputerName     = $computer
+                        Status           = 'Disconnected'
+                        OSName           = $Null
+                        SPVersion        = $Null
+                        OSVersion        = $Null
+                        OSArchitecture   = $Null
+                        LastBootUpTime   = $Null
+                        InstallDirectory = $Null
+                    }
+                } finally {
+                    if ($session) { Remove-CimSession -CimSession $session; $session = $null }
+                    $obj = New-Object -TypeName psobject -Property $properties
+                    Write-Output $obj
                 }
-            } catch {
-                Write-Error "An error occured"
-                $properties = @{
-                    ComputerName     = $computer
-                    Status           = 'Disconnected'
-                    OSName           = $Null
-                    SPVersion        = $Null
-                    OSVersion        = $Null
-                    OSArchitecture   = $Null
-                    LastBootUpTime   = $Null
-                    InstallDirectory = $Null
+            } else {
+                Write-Verbose "WSMan is not available"
+                try {
+                    Write-Verbose "Retrieving Opearting System Information information for $computer"
+                    $session = New-CimSession -ComputerName $computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
+                    $os = Get-CimInstance -CimSession $session -ClassName Win32_OperatingSystem -ErrorAction Stop
+                    $properties = @{
+                        ComputerName     = $computer
+                        Status           = 'Connected'
+                        OSName           = $os.Caption
+                        SPVersion        = $os.ServicePackMajorVersion
+                        OSVersion        = $os.Version
+                        OSArchitecture   = $os.OSArchitecture
+                        LastBootUpTime   = $os.LastBootUpTime
+                        InstallDirectory = $os.WindowsDirectory
+                    }
+                } catch {
+                    Write-Error "An error occured"
+                    $properties = @{
+                        ComputerName     = $computer
+                        Status           = 'Disconnected'
+                        OSName           = $Null
+                        SPVersion        = $Null
+                        OSVersion        = $Null
+                        OSArchitecture   = $Null
+                        LastBootUpTime   = $Null
+                        InstallDirectory = $Null
+                    }
+                } finally {
+                    if ($session) { Remove-CimSession -CimSession $session; $session = $null }
+                    $obj = New-Object -TypeName psobject -Property $properties
+                    Write-Output $obj
                 }
-            } finally {
-                if ($session) { Remove-CimSession -CimSession $session; $session = $null }
-                $obj = New-Object -TypeName psobject -Property $properties
-                Write-Output $obj
-            }
-        } else {
-            Write-Verbose "WSMan is not available"
-            try {
-                Write-Verbose "Retrieving Opearting System Information information for $computer"
-                $session = New-CimSession -ComputerName $computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
-                $os = Get-CimInstance -CimSession $session -ClassName Win32_OperatingSystem -ErrorAction Stop
-                $properties = @{
-                    ComputerName     = $computer
-                    Status           = 'Connected'
-                    OSName           = $os.Caption
-                    SPVersion        = $os.ServicePackMajorVersion
-                    OSVersion        = $os.Version
-                    OSArchitecture   = $os.OSArchitecture
-                    LastBootUpTime   = $os.LastBootUpTime
-                    InstallDirectory = $os.WindowsDirectory
-                }
-            } catch {
-                Write-Error "An error occured"
-                $properties = @{
-                    ComputerName     = $computer
-                    Status           = 'Disconnected'
-                    OSName           = $Null
-                    SPVersion        = $Null
-                    OSVersion        = $Null
-                    OSArchitecture   = $Null
-                    LastBootUpTime   = $Null
-                    InstallDirectory = $Null
-                }
-            } finally {
-                if ($session) { Remove-CimSession -CimSession $session; $session = $null }
-                $obj = New-Object -TypeName psobject -Property $properties
-                Write-Output $obj
             }
         }
     }

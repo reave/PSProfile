@@ -30,127 +30,62 @@ function Invoke-IvantiInventoryScan {
         [Alias('Hostname', 'cn', 'Name')]
         [string[]]$ComputerName
     )
-    $LDInventoryScannerPost = "\LANDesk\LDClient\LDISCN32.EXE"
+    process {
+        $LDInventoryScannerPost = "\LANDesk\LDClient\LDISCN32.EXE"
 
-    foreach ($computer in $ComputerName) {
-        Write-Verbose "Verify WSMan Connection to $computer"
-        if (Test-WSMan -ComputerName $computer -ErrorAction SilentlyContinue) {
-            Write-Verbose "WSMan is available"
-            try {
-                Write-Verbose "Creating New CimSession to $computer"
-                $session = New-CimSession -ComputerName $computer -ErrorAction Stop
+        foreach ($computer in $ComputerName) {
+            Write-Verbose "Verify WSMan Connection to $computer"
+            if (Test-WSMan -ComputerName $computer -ErrorAction SilentlyContinue) {
+                Write-Verbose "WSMan is available"
+                try {
+                    Write-Verbose "Creating New CimSession to $computer"
+                    $session = New-CimSession -ComputerName $computer -ErrorAction Stop
 
-                Write-Verbose "Retrieving Operating System Information for $computer"
-                $os = Get-CimInstance -CimSession $session -ClassName Win32_OperatingSystem
+                    Write-Verbose "Retrieving Operating System Information for $computer"
+                    $os = Get-CimInstance -CimSession $session -ClassName Win32_OperatingSystem
 
-                if ($os.OSArchitecture -eq '64-bit') {
-                    $LDInventoryScanner = Join-Path -Path "C:\Program Files (x86)" -ChildPath $LDInventoryScannerPost
-                    $RemotePathTest = Join-Path -Path "\\$($computer)\c$\Program Files (x86)" -ChildPath $LDInventoryScannerPost
-                    if (Test-Path -Path $RemotePathTest -ErrorAction SilentlyContinue) {
-                        Write-Verbose "Detected inventory scan binary at $RemotePathTest"
+                    if ($os.OSArchitecture -eq '64-bit') {
+                        $LDInventoryScanner = Join-Path -Path "C:\Program Files (x86)" -ChildPath $LDInventoryScannerPost
+                        $RemotePathTest = Join-Path -Path "\\$($computer)\c$\Program Files (x86)" -ChildPath $LDInventoryScannerPost
+                        if (Test-Path -Path $RemotePathTest -ErrorAction SilentlyContinue) {
+                            Write-Verbose "Detected inventory scan binary at $RemotePathTest"
+                        } else {
+                            throw "Cannot find Ivanti inventory scan binary"
+                        }
                     } else {
-                        throw "Cannot find Ivanti inventory scan binary"
+                        $LDInventoryScanner = Join-Path -Path "C:\Program Files" -ChildPath $LDInventoryScannerPost
+                        $RemotePathTest = Join-Path -Path "\\$($computer)\c$\Program Files" -ChildPath $LDInventoryScannerPost
+                        if (Test-Path -Path $RemotePathTest -ErrorAction SilentlyContinue) {
+                            Write-Verbose "Detected inventory scan binary at $RemotePathTest"
+                        } else {
+                            throw "Cannot find Ivanti inventory scan binary"
+                        }
                     }
-                } else {
-                    $LDInventoryScanner = Join-Path -Path "C:\Program Files" -ChildPath $LDInventoryScannerPost
-                    $RemotePathTest = Join-Path -Path "\\$($computer)\c$\Program Files" -ChildPath $LDInventoryScannerPost
-                    if (Test-Path -Path $RemotePathTest -ErrorAction SilentlyContinue) {
-                        Write-Verbose "Detected inventory scan binary at $RemotePathTest"
-                    } else {
-                        throw "Cannot find Ivanti inventory scan binary"
+
+                    $LDInventoryArguments = "/F /SYNC /V /NOUI"
+                    Write-Verbose "Defining Inventory Scanner commandline as $LDInventoryArguments"
+
+                    Write-Verbose "Checking if a scan is running already on $computer."
+                    $iProcess = Get-CimInstance -CimSession $session -ClassName Win32_Process -Filter "Name='ldiscn32.exe'" -ErrorAction SilentlyContinue
+                    $vProcess = Get-CimInstance -CimSession $session -ClassName Win32_Process -Filter "Name='vulscan.exe'" -ErrorAction SilentlyContinue
+
+                    if ($iProcess) {
+                        Write-Verbose "A previous inventory scan is already running on $computer."
+                        Write-Warning "A previous inventory scan is running. Please wait for this scan to finish before initiating another one. $computer."
+                        continue
                     }
-                }
 
-                $LDInventoryArguments = "/F /SYNC /V /NOUI"
-                Write-Verbose "Defining Inventory Scanner commandline as $LDInventoryArguments"
-
-                Write-Verbose "Checking if a scan is running already on $computer."
-                $iProcess = Get-CimInstance -CimSession $session -ClassName Win32_Process -Filter "Name='ldiscn32.exe'" -ErrorAction SilentlyContinue
-                $vProcess = Get-CimInstance -CimSession $session -ClassName Win32_Process -Filter "Name='vulscan.exe'" -ErrorAction SilentlyContinue
-
-                if ($iProcess) {
-                    Write-Verbose "A previous inventory scan is already running on $computer."
-                    Write-Warning "A previous inventory scan is running. Please wait for this scan to finish before initiating another one. $computer."
-                    continue
-                }
-
-                if ($vProcess) {
-                    Write-Verbose "A vulnerability scan is running on $computer. We cannot initiate an inventory scan while a vulnerability scan is running."
-                    Write-Warning "A vulnerability scan is running on $computer. Please wait for this scan to finish before initiating an inventory scan."
-                    continue
-                }
-
-                Write-Verbose "Creating New PSSession to $computer"
-                $pssession = New-PSSession -ComputerName $computer -ErrorAction Stop
-
-                Write-Verbose "Invoking Inventory Scanner"
-                $Process = Invoke-Command -Session $pssession -ScriptBlock { param ($FilePath, $MyArgs) Start-Process -FilePath "$($FilePath)" -ArgumentList $($MyArgs) -PassThru -WindowStyle Hidden } -ArgumentList $LDInventoryScanner, $LDInventoryArguments
-                if ($Process) {
-                    Write-Verbose "Inventory scan has begun. Outputting Process object."
-                    Write-Output $Process
-                } else {
-                    Write-Verbose "Did not find the inventory scanner running on $computer. Something may have gone wrong."
-                    Write-Error -Category ResourceUnavailable -Message "Failed to start scan on $computer"
-                }
-            } catch {
-                throw "An error occured"
-            } finally {
-                if ($pssession) { Remove-PSSession -Session $pssession; $pssession = $null }
-                if ($session) { Remove-CimSession -CimSession $session; $session = $null }
-            }
-        } else {
-            Write-Verbose "WSMan is not available"
-            Write-Verbose "Retrieving Operating System Information for $computer"
-            $session = New-CimSession -ComputerName $computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
-            try {
-                $os = Get-CimInstance -CimSession $session -ClassName Win32_OperatingSystem -ErrorAction Stop
-
-                if ($os.OSArchitecture -eq '64-bit') {
-                    $LDInventoryScanner = Join-Path -Path "C:\Program Files (x86)" -ChildPath $LDInventoryScannerPost
-                    $RemotePathTest = Join-Path -Path "\\$($computer)\c$\Program Files (x86)" -ChildPath $LDInventoryScannerPost
-                    if (Test-Path -Path $RemotePathTest -ErrorAction SilentlyContinue) {
-                        Write-Verbose "Detected inventory scan binary at $RemotePathTest"
-                    } else {
-                        throw "Cannot find Ivanti inventory scan binary"
+                    if ($vProcess) {
+                        Write-Verbose "A vulnerability scan is running on $computer. We cannot initiate an inventory scan while a vulnerability scan is running."
+                        Write-Warning "A vulnerability scan is running on $computer. Please wait for this scan to finish before initiating an inventory scan."
+                        continue
                     }
-                } else {
-                    $LDInventoryScanner = Join-Path -Path "C:\Program Files" -ChildPath $LDInventoryScannerPost
-                    $RemotePathTest = Join-Path -Path "\\$($computer)\c$\Program Files" -ChildPath $LDInventoryScannerPost
-                    if (Test-Path -Path $RemotePathTest -ErrorAction SilentlyContinue) {
-                        Write-Verbose "Detected inventory scan binary at $RemotePathTest"
-                    } else {
-                        throw "Cannot find Ivanti inventory scan binary"
-                    }
-                }
 
-                $LDInventoryArguments = "/F /SYNC /V /NOUI"
-                Write-Verbose "Defining Inventory Scanner commandline as $LDInventoryArguments"
+                    Write-Verbose "Creating New PSSession to $computer"
+                    $pssession = New-PSSession -ComputerName $computer -ErrorAction Stop
 
-                Write-Verbose "Checking if a scan is running already on $computer."
-                $iProcess = Get-CimInstance -CimSession $session -ClassName Win32_Process -Filter "Name='ldiscn32.exe'" -ErrorAction SilentlyContinue
-                $vProcess = Get-CimInstance -CimSession $session -ClassName Win32_Process -Filter "Name='vulscan.exe'" -ErrorAction SilentlyContinue
-
-                if ($iProcess) {
-                    Write-Verbose "A previous inventory scan is already running on $computer."
-                    Write-Warning "A previous inventory scan is running. Please wait for this scan to finish before initiating another one. $computer."
-                    continue
-                }
-
-                if ($vProcess) {
-                    Write-Verbose "A vulnerability scan is running on $computer. We cannot initiate an inventory scan while a vulnerability scan is running."
-                    Write-Warning "A vulnerability scan is running on $computer. Please wait for this scan to finish before initiating an inventory scan."
-                    continue
-                }
-
-                $Result = Start-Process psexec -ArgumentList "\\$($computer) -s ""$($LDInventoryScanner)"" $LDInventoryArguments" -PassThru -WindowStyle Hidden
-
-                if ($Result) {
-                    Write-Debug "Sleeping 2 seconds to allow the process to start up."
-                    Start-Sleep -Seconds 2
-
-                    Write-Verbose "The PsExec process has started. Checking for the existence of ldiscn32 on $computer"
-                    $Process = Get-CimInstance -CimSession $session -ClassName Win32_Process -Filter "Name='ldiscn32.exe'" -ErrorAction SilentlyContinue
-
+                    Write-Verbose "Invoking Inventory Scanner"
+                    $Process = Invoke-Command -Session $pssession -ScriptBlock { param ($FilePath, $MyArgs) Start-Process -FilePath "$($FilePath)" -ArgumentList $($MyArgs) -PassThru -WindowStyle Hidden } -ArgumentList $LDInventoryScanner, $LDInventoryArguments
                     if ($Process) {
                         Write-Verbose "Inventory scan has begun. Outputting Process object."
                         Write-Output $Process
@@ -158,9 +93,76 @@ function Invoke-IvantiInventoryScan {
                         Write-Verbose "Did not find the inventory scanner running on $computer. Something may have gone wrong."
                         Write-Error -Category ResourceUnavailable -Message "Failed to start scan on $computer"
                     }
+                } catch {
+                    throw "An error occured"
+                } finally {
+                    if ($pssession) { Remove-PSSession -Session $pssession; $pssession = $null }
+                    if ($session) { Remove-CimSession -CimSession $session; $session = $null }
                 }
-            } finally {
-                Remove-CimSession -CimSession $session
+            } else {
+                Write-Verbose "WSMan is not available"
+                Write-Verbose "Retrieving Operating System Information for $computer"
+                $session = New-CimSession -ComputerName $computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction Stop
+                try {
+                    $os = Get-CimInstance -CimSession $session -ClassName Win32_OperatingSystem -ErrorAction Stop
+
+                    if ($os.OSArchitecture -eq '64-bit') {
+                        $LDInventoryScanner = Join-Path -Path "C:\Program Files (x86)" -ChildPath $LDInventoryScannerPost
+                        $RemotePathTest = Join-Path -Path "\\$($computer)\c$\Program Files (x86)" -ChildPath $LDInventoryScannerPost
+                        if (Test-Path -Path $RemotePathTest -ErrorAction SilentlyContinue) {
+                            Write-Verbose "Detected inventory scan binary at $RemotePathTest"
+                        } else {
+                            throw "Cannot find Ivanti inventory scan binary"
+                        }
+                    } else {
+                        $LDInventoryScanner = Join-Path -Path "C:\Program Files" -ChildPath $LDInventoryScannerPost
+                        $RemotePathTest = Join-Path -Path "\\$($computer)\c$\Program Files" -ChildPath $LDInventoryScannerPost
+                        if (Test-Path -Path $RemotePathTest -ErrorAction SilentlyContinue) {
+                            Write-Verbose "Detected inventory scan binary at $RemotePathTest"
+                        } else {
+                            throw "Cannot find Ivanti inventory scan binary"
+                        }
+                    }
+
+                    $LDInventoryArguments = "/F /SYNC /V /NOUI"
+                    Write-Verbose "Defining Inventory Scanner commandline as $LDInventoryArguments"
+
+                    Write-Verbose "Checking if a scan is running already on $computer."
+                    $iProcess = Get-CimInstance -CimSession $session -ClassName Win32_Process -Filter "Name='ldiscn32.exe'" -ErrorAction SilentlyContinue
+                    $vProcess = Get-CimInstance -CimSession $session -ClassName Win32_Process -Filter "Name='vulscan.exe'" -ErrorAction SilentlyContinue
+
+                    if ($iProcess) {
+                        Write-Verbose "A previous inventory scan is already running on $computer."
+                        Write-Warning "A previous inventory scan is running. Please wait for this scan to finish before initiating another one. $computer."
+                        continue
+                    }
+
+                    if ($vProcess) {
+                        Write-Verbose "A vulnerability scan is running on $computer. We cannot initiate an inventory scan while a vulnerability scan is running."
+                        Write-Warning "A vulnerability scan is running on $computer. Please wait for this scan to finish before initiating an inventory scan."
+                        continue
+                    }
+
+                    $Result = Start-Process psexec -ArgumentList "\\$($computer) -s ""$($LDInventoryScanner)"" $LDInventoryArguments" -PassThru -WindowStyle Hidden
+
+                    if ($Result) {
+                        Write-Debug "Sleeping 2 seconds to allow the process to start up."
+                        Start-Sleep -Seconds 2
+
+                        Write-Verbose "The PsExec process has started. Checking for the existence of ldiscn32 on $computer"
+                        $Process = Get-CimInstance -CimSession $session -ClassName Win32_Process -Filter "Name='ldiscn32.exe'" -ErrorAction SilentlyContinue
+
+                        if ($Process) {
+                            Write-Verbose "Inventory scan has begun. Outputting Process object."
+                            Write-Output $Process
+                        } else {
+                            Write-Verbose "Did not find the inventory scanner running on $computer. Something may have gone wrong."
+                            Write-Error -Category ResourceUnavailable -Message "Failed to start scan on $computer"
+                        }
+                    }
+                } finally {
+                    Remove-CimSession -CimSession $session
+                }
             }
         }
     }

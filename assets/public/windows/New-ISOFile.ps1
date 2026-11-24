@@ -139,16 +139,25 @@ function New-IsoFile {
 
     process {
         if (-not $CreateImage) { return }
+        # $Source is a [string] parameter, so the clipboard's list of files goes in its own variable.
+        $Items = @($Source)
         if ( $FromClipboard ) {
             if ( $PSVersionTable.PSVersion.Major -lt 5 ) {
                 Write-Error -Message 'The -FromClipboard parameter is only supported on PowerShell v5 or higher'
                 break
             }
 
-            $Source = Get-Clipboard -Format FileDropList
+            if ($PSVersionTable.PSEdition -eq 'Desktop') {
+                $Items = @(Get-Clipboard -Format FileDropList)
+            } else {
+                Add-Type -AssemblyName System.Windows.Forms
+                $Items = @([System.Windows.Forms.Clipboard]::GetFileDropList())
+            }
+            $Items = @($Items | Where-Object { $_ })
+            if ($Items.Count -eq 0) { Write-Warning -Message 'The clipboard has no files or folders to add.' }
         }
 
-        foreach ($item in $Source) {
+        foreach ($item in $Items) {
             if ( $item -isnot [System.IO.FileInfo] -and $item -isnot [System.IO.DirectoryInfo] ) {
                 $item = Get-Item -LiteralPath $item
             }

@@ -54,27 +54,29 @@
         [ValidateSet("Alltypes", "TPM", "ExternalKey", "NumericPassword", "TPMAndPin", "TPMAndStartUpdKey", "TPMAndPinAndStartUpKey", "PublicKey", "PassPhrase", "TpmCertificate", "SID")]
         $KeyProtectorType
     )
+    process {
 
-    $BitLocker = Get-CimInstance -Namespace "Root\cimv2\Security\MicrosoftVolumeEncryption" -ClassName "Win32_EncryptableVolume"
+        $BitLocker = Get-CimInstance -Namespace "Root\cimv2\Security\MicrosoftVolumeEncryption" -ClassName "Win32_EncryptableVolume"
 
-    switch ($KeyProtectorType) {
-        ("Alltypes") { $Value = "0" }
-        ("TPM") { $Value = "1" }
-        ("ExternalKey") { $Value = "2" }
-        ("NumericPassword") { $Value = "3" }
-        ("TPMAndPin") { $Value = "4" }
-        ("TPMAndStartUpdKey") { $Value = "5" }
-        ("TPMAndPinAndStartUpKey") { $Value = "6" }
-        ("PublicKey") { $Value = "7" }
-        ("PassPhrase") { $Value = "8" }
-        ("TpmCertificate") { $Value = "9" }
-        ("SID") { $Value = "10" }
-        default { $Value = "0" }
+        switch ($KeyProtectorType) {
+            ("Alltypes") { $Value = "0" }
+            ("TPM") { $Value = "1" }
+            ("ExternalKey") { $Value = "2" }
+            ("NumericPassword") { $Value = "3" }
+            ("TPMAndPin") { $Value = "4" }
+            ("TPMAndStartUpdKey") { $Value = "5" }
+            ("TPMAndPinAndStartUpKey") { $Value = "6" }
+            ("PublicKey") { $Value = "7" }
+            ("PassPhrase") { $Value = "8" }
+            ("TpmCertificate") { $Value = "9" }
+            ("SID") { $Value = "10" }
+            default { $Value = "0" }
+        }
+
+        # CIM instances have no methods of their own, so call GetKeyProtectors on each volume.
+        $Ids = foreach ($Volume in $BitLocker) {
+            (Invoke-CimMethod -InputObject $Volume -MethodName GetKeyProtectors -Arguments @{ KeyProtectorType = [uint32]$Value }).VolumeKeyProtectorID
+        }
+        return $ids
     }
-
-    # CIM instances have no methods of their own, so call GetKeyProtectors on each volume.
-    $Ids = foreach ($Volume in $BitLocker) {
-        (Invoke-CimMethod -InputObject $Volume -MethodName GetKeyProtectors -Arguments @{ KeyProtectorType = [uint32]$Value }).VolumeKeyProtectorID
-    }
-    return $ids
 }

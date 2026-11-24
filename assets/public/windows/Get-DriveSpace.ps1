@@ -5,7 +5,16 @@ function Get-DriveSpace {
     .DESCRIPTION
         Get Drive space for all available drives
     .PARAMETER Computer
-        Devices to get Drive space on
+        The computer to get drive space on. Accepts pipeline input. The default is the local
+        computer. A remote computer is reached over WSMan, or DCOM if WinRM isn't available.
+    .EXAMPLE
+        Get-DriveSpace
+
+        Gets the space on the local computer's fixed drives.
+    .EXAMPLE
+        'Server01', 'Server02' | Get-DriveSpace
+
+        Gets the space on the fixed drives of two remote computers.
     .NOTES
         Name: Get-DriveSpace
         Author: reave (https://github.com/reave)
@@ -21,7 +30,20 @@ function Get-DriveSpace {
     )
     begin { Write-Verbose "Beginning Execution" }
     process {
-        $DriveInfo = Get-CimInstance -ClassName Win32_LogicalDisk -Filter 'DriveType = 3' -ErrorAction SilentlyContinue
+        $cimParams = @{ ClassName = 'Win32_LogicalDisk'; Filter = 'DriveType = 3'; ErrorAction = 'SilentlyContinue' }
+        $session = $null
+        if ($Computer -notin $env:COMPUTERNAME, 'localhost', '.') {
+            # WSMan first, then DCOM for computers without WinRM.
+            try { $session = New-CimSession -ComputerName $Computer -ErrorAction Stop }
+            catch { $session = New-CimSession -ComputerName $Computer -SessionOption (New-CimSessionOption -Protocol Dcom) -ErrorAction SilentlyContinue }
+            if (-not $session) {
+                Write-Error -Message "Can't connect to $Computer."
+                return
+            }
+            $cimParams.CimSession = $session
+        }
+        $DriveInfo = Get-CimInstance @cimParams
+        if ($session) { Remove-CimSession -CimSession $session }
 
         $count = ($DriveInfo | Measure-Object).Count
         $i = 1
@@ -31,6 +53,7 @@ function Get-DriveSpace {
             foreach ($Drive in $DriveInfo) {
                 Write-Verbose "Processing Drive $($i) of $($count)"
                 $Properties = @{
+                    Computer    = $Computer
                     Drive       = $Drive.DeviceID
                     VolumeName  = $Drive.VolumeName
                     TotalSize   = if ($Drive.Size -gt 0) { [Math]::Round($Drive.Size / 1GB) } else { 0 }
