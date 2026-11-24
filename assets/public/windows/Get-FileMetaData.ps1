@@ -33,6 +33,7 @@ function Get-FileMetaData {
 
     #>
     [CmdletBinding()]
+    [OutputType([hashtable])]
     param (
         [Parameter(Mandatory = $true)]
         [string]$Path

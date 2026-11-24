@@ -55,7 +55,7 @@ function Show-Sysinfo {
         )
 
         process {
-            [Reflection.Assembly]::LoadWithPartialName("System.Drawing") > $Null
+            $null = [Reflection.Assembly]::LoadWithPartialName("System.Drawing")
 
             # Changed how $bounds is calculated so that screen shots with multiple monitors that are offset work correctly
             $bounds = [Windows.Forms.SystemInformation]::VirtualScreen

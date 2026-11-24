@@ -126,6 +126,7 @@ function Update-LegacyProfileReference {
         System.Boolean - $true if the file was migrated, $false if nothing needed changing.
     #>
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([bool])]
     param([Parameter(Mandatory)][string]$ProfilePath)
 
     if (-not (Test-Path -Path $ProfilePath -PathType Leaf)) { return $false }

@@ -48,6 +48,8 @@ function Get-IniContent {
     #>
 
     [CmdletBinding()]
+
+    [OutputType([hashtable])]
     param(
         [ValidateNotNullOrEmpty()]
         [ValidateScript( { (Test-Path $_) -and ((Get-Item $_).Extension -eq ".ini") })]
