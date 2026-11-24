@@ -34,6 +34,9 @@ function Update-Profile {
         [switch]$SkipCompletions
     )
 
+    # Show informational messages unless the caller chose otherwise with -InformationAction.
+    if (-not $PSBoundParameters.ContainsKey('InformationAction')) { $InformationPreference = 'Continue' }
+
     $installPath = $Global:PSProfileRoot
     if (-not $installPath -or -not (Test-Path -Path $installPath)) {
         Write-Error 'Could not determine the PSProfile install directory ($Global:PSProfileRoot is unset).'
@@ -57,12 +60,12 @@ function Update-Profile {
             return
         }
 
-        Write-Host 'PSProfile updated.' -ForegroundColor Green
+        Write-Information -MessageData 'PSProfile updated.'
 
         if (-not $SkipReload) {
             $profileTarget = $PROFILE.CurrentUserAllHosts
             if (Test-Path -Path $profileTarget) {
-                Write-Host 'Reloading profile...' -ForegroundColor Cyan
+                Write-Verbose 'Reloading profile...'
                 . $profileTarget
 
                 if (-not $SkipCompletions) {

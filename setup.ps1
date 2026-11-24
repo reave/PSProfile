@@ -29,6 +29,7 @@
 .EXAMPLE
     &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/reave/PSProfile/main/setup.ps1))) -InstallPath 'C:\PSProfile' -Branch 'develop'
 #>
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The installer reports its steps and next steps on the console, which is its interface.')]
 [CmdletBinding()]
 param(
     [string]$InstallPath = (Join-Path $HOME '.config/powershell/PSProfile'),

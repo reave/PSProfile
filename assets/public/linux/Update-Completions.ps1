@@ -23,6 +23,8 @@ function Update-Completions {
     [CmdletBinding(SupportsShouldProcess)]
     param()
 
+    # Show informational messages unless the caller chose otherwise with -InformationAction.
+    if (-not $PSBoundParameters.ContainsKey('InformationAction')) { $InformationPreference = 'Continue' }
     if (-not $Global:PSProfileRoot) {
         Write-Error 'Could not determine the PSProfile install directory ($Global:PSProfileRoot is unset).'
         return
@@ -58,7 +60,7 @@ function Update-Completions {
             $outPath = Join-Path $nativeDir "$($nc.Name).ps1"
             Set-Content -Path $outPath -Value $script -Force -Encoding utf8
             . $outPath
-            Write-Host "Updated completion: $($nc.Name)" -ForegroundColor Green
+            Write-Information -MessageData "Updated completion: $($nc.Name)"
         } catch {
             Write-Error "Failed to generate completion for $($nc.Name): $_"
         }

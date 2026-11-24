@@ -14,6 +14,8 @@ function Update-PowerShell {
     [CmdletBinding(SupportsShouldProcess)]
     param()
 
+    # Show informational messages unless the caller chose otherwise with -InformationAction.
+    if (-not $PSBoundParameters.ContainsKey('InformationAction')) { $InformationPreference = 'Continue' }
     if (-not (Get-Command -Name winget -ErrorAction SilentlyContinue)) {
         Write-Warning 'winget is required to update PowerShell automatically.'
         return
@@ -25,7 +27,7 @@ function Update-PowerShell {
         $latestVersion = [version]($release.tag_name -replace '^v', '')
 
         if ($currentVersion -ge $latestVersion) {
-            Write-Host "PowerShell $currentVersion is up to date." -ForegroundColor Green
+            Write-Information -MessageData "PowerShell $currentVersion is up to date."
             return
         }
 
@@ -35,7 +37,7 @@ function Update-PowerShell {
                 Write-Error "winget failed to update PowerShell. Exit code: $LASTEXITCODE"
                 return
             }
-            Write-Host 'PowerShell has been updated. Restart your shell to use the new version.' -ForegroundColor Magenta
+            Write-Information -MessageData 'PowerShell has been updated. Restart your shell to use the new version.'
         }
     } catch {
         Write-Error "Failed to update PowerShell. Error: $_"

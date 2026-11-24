@@ -5,6 +5,9 @@ using namespace System.Management.Automation.Completion
 using namespace System.Management.Automation.Host
 using namespace System.Management.Automation.Runspaces
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The startup banners are console output by design, which STYLE.md allows.')]
+param()
+
 #- Set Filters
 
 <#
