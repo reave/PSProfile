@@ -6,6 +6,10 @@ using namespace System.Management.Automation.Host
 using namespace System.Management.Automation.Runspaces
 
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The startup banners are console output by design, which STYLE.md allows.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingInvokeExpression', '',
+    Justification = 'oh-my-posh init is run this way by design; the splash command is from config.json.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCommands', '',
+    Justification = 'PredictionSource and PredictionViewStyle are set inside a try/catch.')]
 param()
 
 #- Set Filters

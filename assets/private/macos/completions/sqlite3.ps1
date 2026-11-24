@@ -4,6 +4,10 @@
 # already inside the sqlite3 REPL, not on the initial command line - offered
 # here when the word being completed starts with '.', flags when it starts
 # with '-', so both work from the same completer depending on context.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+    Justification = 'Register-ArgumentCompleter always passes these parameters.')]
+param()
+
 $__sqlite3Flags = @(
     '-A', '-append', '-ascii', '-bail', '-batch', '-box', '-column', '-cmd',
     '-csv', '-deserialize', '-echo', '-init', '-header', '-noheader', '-help',

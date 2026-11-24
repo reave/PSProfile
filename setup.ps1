@@ -31,6 +31,8 @@
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The installer reports its steps and next steps on the console, which is its interface.')]
 [CmdletBinding()]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '',
+    Justification = 'Sets PSProfileRoot so Update-Completions can find the new install.')]
 param(
     [string]$InstallPath = (Join-Path $HOME '.config/powershell/PSProfile'),
     [string]$Branch = 'main',

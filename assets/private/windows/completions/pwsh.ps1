@@ -3,6 +3,10 @@
 # `completion powershell` generator of its own (pwsh completes commands typed
 # *inside* a session natively; this is for completing flags to the pwsh.exe
 # launcher itself, e.g. `pwsh -NoP<TAB>` on a command line).
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+    Justification = 'Register-ArgumentCompleter always passes these parameters.')]
+param()
+
 $__pwshFlags = @(
     '-File', '-Command', '-c', '-EncodedCommand', '-ec', '-ExecutionPolicy', '-ep',
     '-InputFormat', '-if', '-OutputFormat', '-of', '-Interactive', '-i', '-Login', '-l',

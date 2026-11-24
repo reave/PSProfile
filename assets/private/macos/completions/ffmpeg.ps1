@@ -5,6 +5,12 @@
 # and per-stream options. Parses ffmpeg's own help rather than hand-transcribing
 # it, so it always matches whatever version is installed; cached for the rest of
 # the session so repeated Tab presses don't re-run ffmpeg -h.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '',
+    Justification = 'Caches the parsed --help output for the session.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+    Justification = 'Register-ArgumentCompleter always passes these parameters.')]
+param()
+
 $Global:__ffmpegFlagCache = $null
 
 Register-ArgumentCompleter -Native -CommandName ffmpeg -ScriptBlock {

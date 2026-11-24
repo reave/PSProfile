@@ -3,6 +3,10 @@
 # bash-only). Only completes npx's own flags - the package/command name that
 # usually follows isn't completed, since that would mean querying the npm
 # registry or scanning node_modules, out of scope for a flag completer.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+    Justification = 'Register-ArgumentCompleter always passes these parameters.')]
+param()
+
 $__npxFlags = @(
     '--package', '-c', '--call', '-w', '--workspace', '--workspaces',
     '--include-workspace-root', '--allow-scripts', '--strict-allow-scripts',

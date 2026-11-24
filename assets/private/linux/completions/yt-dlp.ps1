@@ -5,6 +5,12 @@
 # yt-dlp adds or renames a flag, so instead this parses `yt-dlp --help` itself -
 # always matches whatever version is actually installed - and caches the result
 # for the rest of the session so repeated Tab presses don't re-run --help.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '',
+    Justification = 'Caches the parsed --help output for the session.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+    Justification = 'Register-ArgumentCompleter always passes these parameters.')]
+param()
+
 $Global:__ytdlpFlagCache = $null
 
 Register-ArgumentCompleter -Native -CommandName yt-dlp -ScriptBlock {

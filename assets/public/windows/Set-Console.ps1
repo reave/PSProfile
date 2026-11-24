@@ -14,6 +14,8 @@ function Set-Console {
     #>
     [CmdletBinding()]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Only sets the title of the current console window and clears the screen.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCommands', '',
+        Justification = 'Clear-Host exists on every supported edition; the compatibility profile misses it.')]
     param(
         [Parameter(Mandatory = $false)]
         [switch]$WindowTitle

@@ -21,6 +21,10 @@
 #>
 function Update-Completions {
     [CmdletBinding(SupportsShouldProcess)]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '',
+        Justification = 'profile.ps1 sets PSProfileRoot so functions in other files can find the install.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingInvokeExpression', '',
+        Justification = 'Runs GenerateCommand from the user''s own config.json, as the README documents.')]
     param()
 
     # Show informational messages unless the caller chose otherwise with -InformationAction.

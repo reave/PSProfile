@@ -4,6 +4,10 @@
 # invoked to discover its own options, since running ssh-keygen with no/wrong
 # arguments can drop straight into an interactive "Generating key pair..."
 # prompt rather than printing help.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+    Justification = 'Register-ArgumentCompleter always passes these parameters.')]
+param()
+
 $__sshKeygenFlags = @(
     '-A', '-a', '-B', '-b', '-C', '-c', '-D', '-E', '-e', '-F', '-f', '-G',
     '-g', '-H', '-h', '-I', '-i', '-J', '-j', '-K', '-k', '-L', '-l', '-M',

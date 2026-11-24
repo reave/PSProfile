@@ -2,6 +2,14 @@
 
 # The key handlers below need PSReadLine. It isn't loaded in non-interactive hosts or when
 # module autoloading is off, so import it if it's installed and skip this file otherwise.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '',
+    Justification = 'PSReadLineMarks is shared by the mark and jump key handlers.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+    Justification = 'PSReadLine key handlers must accept $key and $arg.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCommands', '',
+    Justification = 'PredictionSource and PredictionViewStyle are set inside a try/catch.')]
+param()
+
 if (-not (Get-Module -Name PSReadLine)) { Import-Module -Name PSReadLine -ErrorAction Ignore }
 if (-not (Get-Module -Name PSReadLine)) { return }
 

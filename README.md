@@ -62,7 +62,7 @@ If `config.json` is missing for any reason, the profile falls back to `sample-co
 | `PoshTheme` | string | An oh-my-posh theme name or a full path to a `.omp.json` file. See [Theming](#theming). |
 | `ShowWindowTitle` | bool | Set the console window title to `PowerShell <version> [ADMIN]`/`[ROOT]` when elevated. Cross-platform. |
 | `ShowSplashScreen` | bool | Run a system-info splash command on load (see `SplashCommand` below). Only runs if the configured command is actually installed. |
-| `SplashCommand` | object | Per-OS splash command: `Windows`, `MacOS`, `Linux` keys, e.g. `"winfetch"` or `"screenfetch -E"`. |
+| `SplashCommand` | object | Per-OS splash command: `Windows`, `MacOS`, `Linux` keys, e.g. `"winfetch"` or `"screenfetch -E"`. The command is run as written, so only put commands you trust here. |
 | `ShowElevatedWarning` | bool | Print a red banner when running elevated (Administrator on Windows, root on macOS/Linux). |
 | `RunUpdateHelpOnElevated` | bool | When elevated, kick off `Update-Help` as a background job. |
 | `ShowPSVersionBanner` | bool | Print the PowerShell version and execution policy on load. |
@@ -123,6 +123,8 @@ The `winget` case imports `Microsoft.WinGet.Client` itself, lazily, right before
 ```json
 { "Name": "docker", "GenerateCommand": "docker completion powershell" }
 ```
+
+Each `GenerateCommand` is run as written, with `Invoke-Expression`, when `Update-Completions` runs, so only put commands you trust here.
 
 For tools that generate their own PowerShell completion script (Cobra-based CLIs mostly — `docker`, `kubectl`, `helm`, `gh` with its `-s powershell` flag, and others that support `<tool> completion powershell`). `Name` is checked with `Get-Command` the same way as everywhere else in this config; `GenerateCommand` is the exact command that prints the completion script to stdout.
 

@@ -37,6 +37,8 @@ function New-IsoFile {
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Source', SupportsShouldProcess)]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCommands', '',
+        Justification = 'CompilerParameters and CompilerOptions are each used only on the edition that has them.')]
     param(
         [Parameter( Position = 1,
             Mandatory = $true,

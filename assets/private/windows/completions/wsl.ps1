@@ -3,6 +3,10 @@
 # a handful of them (--install, --manage, --mount, --export, --import, --list,
 # --update) take their own sub-options, offered once that parent flag appears
 # earlier on the command line - same idea as winget.ps1's per-subcommand switch.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+    Justification = 'Register-ArgumentCompleter always passes these parameters.')]
+param()
+
 $__wslTopLevel = @(
     '--help', '--exec', '-e', '--shell-type', '--cd', '--distribution', '-d',
     '--distribution-id', '--user', '-u', '--system', '--debug-shell',

@@ -29,6 +29,8 @@
 #>
 function Update-Profile {
     [CmdletBinding(SupportsShouldProcess)]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidGlobalVars', '',
+        Justification = 'profile.ps1 sets PSProfileRoot so functions in other files can find the install.')]
     param(
         [switch]$SkipReload,
         [switch]$SkipCompletions

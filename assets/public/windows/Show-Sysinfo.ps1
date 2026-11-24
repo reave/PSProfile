@@ -18,6 +18,8 @@ function Show-Sysinfo {
     Another nice screenshotting and information tool. More hardware oriented than screenFetch. For GNU/Linux
     #>
     [CmdletBinding()]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleCommands', '',
+        Justification = 'Clear-Host exists on every supported edition; the compatibility profile misses it.')]
     param (
         [Parameter(Mandatory = $false)]
         [string]$Path,
