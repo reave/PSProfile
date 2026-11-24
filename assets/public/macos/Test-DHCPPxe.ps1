@@ -1,4 +1,4 @@
-Function Test-DHCPPxe {
+﻿function Test-DHCPPxe {
     <#
     .SYNOPSIS
         Test and discover PXE
@@ -37,7 +37,7 @@ Function Test-DHCPPxe {
         DHCP Packet Format (RFC 2131 - http://www.ietf.org/rfc/rfc2131.txt)
     #>
     [CmdletBinding()]
-    Param(
+    param(
         # MAC Address String in Hex-Decimal Format can be delimited with
         # dot, dash or colon (or none)
         [Parameter(Mandatory = $false)]
@@ -63,8 +63,8 @@ Function Test-DHCPPxe {
     #
     # Caller: Main
 
-    Function New-DhcpDiscoverPacket {
-        Param(
+    function New-DhcpDiscoverPacket {
+        param(
             [String]$MacAddressString = "AA:BB:CC:DD:EE:FF"
         )
 
@@ -77,7 +77,7 @@ Function Test-DHCPPxe {
         # Convert the MAC Address String into a Byte Array
 
         # Drop any characters which might be used to delimit the string
-        $MacAddressString = $MacAddressString -Replace "-|:"
+        $MacAddressString = $MacAddressString -replace "-|:"
 
         $MacAddress = [BitConverter]::GetBytes((
                 [UInt64]::Parse($MacAddressString,
@@ -116,10 +116,10 @@ Function Test-DHCPPxe {
         # Set the Option #60
         $DhcpDiscover_Option60 = New-Object Byte[] 2
         $DhcpDiscover_Option60[0] = 60
-        $DhcpDiscover_Option60[1] = [System.Text.Encoding]::ASCII.GetBytes($Option60String).Length;
-        $Option60Array = [System.Text.Encoding]::ASCII.GetBytes($Option60String);
-        $DhcpDiscover_Option60 = $DhcpDiscover_Option60 + $Option60Array;
-        $DhcpDiscover = $DhcpDiscover + $DhcpDiscover_Option60;
+        $DhcpDiscover_Option60[1] = [System.Text.Encoding]::ASCII.GetBytes($Option60String).Length
+        $Option60Array = [System.Text.Encoding]::ASCII.GetBytes($Option60String)
+        $DhcpDiscover_Option60 = $DhcpDiscover_Option60 + $Option60Array
+        $DhcpDiscover = $DhcpDiscover + $DhcpDiscover_Option60
 
         # Set the Option #93
         $DhcpDiscover_Option93 = New-Object Byte[] 4
@@ -127,24 +127,24 @@ Function Test-DHCPPxe {
         $DhcpDiscover_Option93[1] = 2
         $DhcpDiscover_Option93[2] = 0
         $DhcpDiscover_Option93[3] = $ProcessorArchitecture
-        $DhcpDiscover = $DhcpDiscover + $DhcpDiscover_Option93;
+        $DhcpDiscover = $DhcpDiscover + $DhcpDiscover_Option93
 
         # Set the Option #97
         $DhcpDiscover_Option97 = New-Object Byte[] 2
         $DhcpDiscover_Option97[0] = 97
         $DhcpDiscover_Option97[1] = 36 #Length of UUID
-        $UUIDarray = [System.Text.Encoding]::ASCII.GetBytes($UUIDString);
-        $DhcpDiscover_Option97 = $DhcpDiscover_Option97 + $UUIDarray;
-        $DhcpDiscover = $DhcpDiscover + $DhcpDiscover_Option97;
+        $UUIDarray = [System.Text.Encoding]::ASCII.GetBytes($UUIDString)
+        $DhcpDiscover_Option97 = $DhcpDiscover_Option97 + $UUIDarray
+        $DhcpDiscover = $DhcpDiscover + $DhcpDiscover_Option97
 
-        Return $DhcpDiscover
+        return $DhcpDiscover
     }
 
     # Parse a DHCP Packet, returning an object containing each field
     #
     # Caller: Main
 
-    Function Read-DhcpPacket( [Byte[]]$Packet ) {
+    function Read-DhcpPacket( [Byte[]]$Packet ) {
         $Reader = New-Object IO.BinaryReader(New-Object IO.MemoryStream(@(, $Packet)))
 
         $DhcpResponse = New-Object Object
@@ -153,8 +153,7 @@ Function Test-DHCPPxe {
         $DhcpResponse | Add-Member NoteProperty Op $Reader.ReadByte()
         if ($DhcpResponse.Op -eq 1) {
             $DhcpResponse.Op = "BootRequest"
-        }
-        else {
+        } else {
             $DhcpResponse.Op = "BootResponse"
         }
 
@@ -167,7 +166,7 @@ Function Test-DHCPPxe {
         $DhcpResponse | Add-Member NoteProperty Secs $Reader.ReadUInt16()
         $DhcpResponse | Add-Member NoteProperty Flags $Reader.ReadUInt16()
         # Broadcast is the only flag that can be present, the other bits are reserved
-        if ($DhcpResponse.Flags -BAnd 128) { $DhcpResponse.Flags = @("Broadcast") }
+        if ($DhcpResponse.Flags -band 128) { $DhcpResponse.Flags = @("Broadcast") }
 
         $DhcpResponse | Add-Member NoteProperty CIAddr `
         $("$($Reader.ReadByte()).$($Reader.ReadByte())." + `
@@ -200,18 +199,18 @@ Function Test-DHCPPxe {
         # Start reading Options
 
         $DhcpResponse | Add-Member NoteProperty Options @()
-        While ($Reader.BaseStream.Position -lt $Reader.BaseStream.Length) {
+        while ($Reader.BaseStream.Position -lt $Reader.BaseStream.Length) {
             $Option = New-Object Object
             $Option | Add-Member NoteProperty OptionCode $Reader.ReadByte()
             $Option | Add-Member NoteProperty OptionName ""
             $Option | Add-Member NoteProperty Length 0
             $Option | Add-Member NoteProperty OptionValue ""
 
-            If ($Option.OptionCode -ne 0 -And $Option.OptionCode -ne 255) {
+            if ($Option.OptionCode -ne 0 -and $Option.OptionCode -ne 255) {
                 $Option.Length = $Reader.ReadByte()
             }
 
-            Switch ($Option.OptionCode) {
+            switch ($Option.OptionCode) {
                 0 { $Option.OptionName = "PadOption" }
                 1 {
                     $Option.OptionName = "SubnetMask"
@@ -228,7 +227,7 @@ Function Test-DHCPPxe {
                 6 {
                     $Option.OptionName = "DomainNameServer"
                     $Option.OptionValue = @()
-                    For ($i = 0; $i -lt ($Option.Length / 4); $i++) {
+                    for ($i = 0; $i -lt ($Option.Length / 4); $i++) {
                         $Option.OptionValue += `
                         $("$($Reader.ReadByte()).$($Reader.ReadByte())." + `
                                 "$($Reader.ReadByte()).$($Reader.ReadByte())")
@@ -250,7 +249,7 @@ Function Test-DHCPPxe {
                 }
                 53 {
                     $Option.OptionName = "DhcpMessageType"
-                    Switch ($Reader.ReadByte()) {
+                    switch ($Reader.ReadByte()) {
                         1 { $Option.OptionValue = "DHCPDISCOVER" }
                         2 { $Option.OptionValue = "DHCPOFFER" }
                         3 { $Option.OptionValue = "DHCPREQUEST" }
@@ -305,12 +304,12 @@ Function Test-DHCPPxe {
 
             # Override the ToString method
             $Option | Add-Member ScriptMethod ToString `
-            { Return "$($this.OptionName) ($($this.OptionValue))" } -Force
+            { return "$($this.OptionName) ($($this.OptionValue))" } -Force
 
             $DhcpResponse.Options += $Option
         }
 
-        Return $DhcpResponse
+        return $DhcpResponse
 
     }
 
@@ -318,8 +317,8 @@ Function Test-DHCPPxe {
     #
     # Caller: Main
 
-    Function New-UdpSocket {
-        Param(
+    function New-UdpSocket {
+        param(
             [Int32]$SendTimeOut = 5,
             [Int32]$ReceiveTimeOut = 5
         )
@@ -333,15 +332,15 @@ Function Test-DHCPPxe {
         $UdpSocket.SendTimeOut = $SendTimeOut * 1000
         $UdpSocket.ReceiveTimeOut = $ReceiveTimeOut * 1000
 
-        Return $UdpSocket
+        return $UdpSocket
     }
 
     # Close down a Socket
     #
     # Caller: Main
 
-    Function Remove-Socket {
-        Param(
+    function Remove-Socket {
+        param(
             [Net.Sockets.Socket]$Socket
         )
 
@@ -376,9 +375,9 @@ Function Test-DHCPPxe {
 
     $Start = Get-Date
 
-    While ($NoConnectionTimeOut) {
+    while ($NoConnectionTimeOut) {
         $BytesReceived = 0
-        Try {
+        try {
             # Placeholder EndPoint for the Sender
             $SenderEndPoint = [Net.EndPoint](
                 New-Object Net.IPEndPoint($([Net.IPAddress]::Any, 0)))
@@ -389,15 +388,15 @@ Function Test-DHCPPxe {
         #
         # Catch a SocketException, thrown when the Receive TimeOut value is reached
         #
-        Catch [Net.Sockets.SocketException] {
+        catch [Net.Sockets.SocketException] {
             $NoConnectionTimeOut = $False
         }
 
-        If ($BytesReceived -gt 0) {
+        if ($BytesReceived -gt 0) {
             Read-DhcpPacket $ReceiveBuffer[0..$BytesReceived]
         }
 
-        If ((Get-Date) -gt $Start.AddSeconds($DiscoverTimeout)) {
+        if ((Get-Date) -gt $Start.AddSeconds($DiscoverTimeout)) {
             # Exit condition, not error condition
             $NoConnectionTimeOut = $False
         }

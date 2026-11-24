@@ -29,27 +29,27 @@ function Get-FolderSizes {
         [string]$ExcludeFolder
     ) #close param
 
-    Process {
+    process {
 
         if (!(Test-Path $Path)) {
-            Throw "Invalid path. Wants gci's -path parameter."
-            Break
+            throw "Invalid path. Wants gci's -path parameter."
+            break
         }
 
         $objectFSO = New-Object -ComObject Scripting.FileSystemObject
         $Parents = Get-ChildItem $Path -Force | Where-Object { $_.PSisContainer -and $_.Name -ne $ExcludeFolder }
-        $Folders = Foreach ($folder in $parents) {
+        $Folders = foreach ($folder in $parents) {
             $getFolder = $objectFSO.getFolder( $folder.fullname.tostring() )
             if (!$getFolder.Size) {
                 #for "special folders" like appdata
                 $lengthSum = Get-ChildItem $folder.FullName -Recurse -Force -ErrorAction SilentlyContinue | `
-                    Measure-Object -Sum length -ErrorAction SilentlyContinue | Select-Object -ExpandProperty sum
+                        Measure-Object -Sum length -ErrorAction SilentlyContinue | Select-Object -ExpandProperty sum
                 $sizeMBs = "{0:N0}" -f ($lengthSum / 1mb)
             } #close if size property is null
             else { $sizeMBs = "{0:N0}" -f ($getFolder.size / 1mb) }
             #else {$sizeMBs = [int]($getFolder.size /1mb) }
             New-Object -TypeName psobject -Property @{
-                name   = $getFolder.path;
+                name   = $getFolder.path
                 sizeMB = $sizeMBs
             } #close new obj property
         } #close foreach folder

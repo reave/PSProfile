@@ -1,4 +1,4 @@
-Function Show-Sysinfo {
+function Show-Sysinfo {
     <#
     .SYNOPSIS
         Show system information
@@ -25,21 +25,21 @@ Function Show-Sysinfo {
         [ValidateSet('AllMonitors', 'PowerShellOnly')]
         [string]$SSMode
     )
-    if ( $Path -And !( Test-Path -Path $Path) ) {
+    if ( $Path -and !( Test-Path -Path $Path) ) {
         Write-Error "Path cannot be found..."
         break
     }
 
     # DONE: Function to Save the Screenshot
-    Function Save-Screenshot {
+    function Save-Screenshot {
         [CmdletBinding()]
-        Param(
+        param(
             [string]$Width,
             [string]$Height,
             [string]$TarPath
         )
 
-        PROCESS {
+        process {
             [Reflection.Assembly]::LoadWithPartialName("System.Drawing") > $Null
 
             # Changed how $bounds is calculated so that screen shots with multiple monitors that are offset work correctly
@@ -64,9 +64,9 @@ Function Show-Sysinfo {
     }
 
     # Done: Function to screenshot active window
-    Function Export-ActiveWindowScreenshot {
+    function Export-ActiveWindowScreenshot {
         [cmdletbinding()]
-        Param(
+        param(
             [Parameter(Mandatory = $true)]
             [int]$wpid,
             [Parameter(Mandatory = $false)]
@@ -122,8 +122,7 @@ namespace PInvoke
 
                 $bmpScreenCap.Save("$SaveLocation")
             }
-        }
-        finally {
+        } finally {
             if ($bmpScreenCap) { $bmpScreenCap.Dispose() }
             if ($g) { $g.Dispose() }
         }
@@ -133,16 +132,14 @@ namespace PInvoke
     $workstation = $Env:COMPUTERNAME
 
     if ($PSVersionTable.PSVersion.Major -lt 4) {
-        $os = (Get-WmiObject -class Win32_OperatingSystem).Caption
-    }
-    else {
+        $os = (Get-WmiObject -Class Win32_OperatingSystem).Caption
+    } else {
         $os = (Get-CimInstance -ClassName Win32_OperatingSystem).Caption
     }
 
     if ($PSVersionTable.PSVersion.Major -lt 4) {
-        $arch = (Get-WmiObject -class Win32_OperatingSystem).osarchitecture
-    }
-    else {
+        $arch = (Get-WmiObject -Class Win32_OperatingSystem).osarchitecture
+    } else {
         $arch = (Get-CimInstance -ClassName Win32_OperatingSystem).osarchitecture
     }
 
@@ -150,15 +147,13 @@ namespace PInvoke
 
     if ($PSVersionTable.PSVersion.Major -lt 4) {
         $driveSpecs = Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $PSItem.DriveType -eq 3 }
-    }
-    Else {
+    } else {
         $driveSpecs = Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $PSItem.DriveType -eq 3 }
     }
 
     if ($PSVersionTable.PSVersion.Major -lt 4) {
         $memTotal = [Decimal]::Round(((Get-WmiObject -Class Win32_OperatingSystem).TotalVisibleMemorySize / 1024))
-    }
-    else {
+    } else {
         $memTotal = [Decimal]::Round(((Get-CimInstance -ClassName Win32_OperatingSystem).TotalVisibleMemorySize / 1024))
     }
     $memFree = (Get-Counter '\Memory\Available MBytes').CounterSamples.CookedValue
@@ -184,11 +179,11 @@ namespace PInvoke
     # Only show the countdown if we're taking a screen shot
     if ($Path) {
         # DONE: Add Countdown Timer
-        Write-Host "...3" -NoNewline;
+        Write-Host "...3" -NoNewline
         Start-Sleep -s 1
-        Write-Host "...2" -NoNewline;
+        Write-Host "...2" -NoNewline
         Start-Sleep -s 1
-        Write-Host "...1" -NoNewline;
+        Write-Host "...1" -NoNewline
         Start-Sleep -m 500
         Write-Host "    Cheese!"
     }
@@ -233,7 +228,7 @@ namespace PInvoke
     )
 
     # Returns an array of scriptblocks, containing the commands necessary to write one line of system information
-    Function Get-LineScriptBlock($Label, $Value, $LabelSize = 11, $PadLeft = 4 ) {
+    function Get-LineScriptBlock($Label, $Value, $LabelSize = 11, $PadLeft = 4 ) {
         # Using [ScriptBlock]::Create rather than literal notation to force PowerShell to
         # store value of variables in scriptblock, rather than the variables themselves.
         @( [ScriptBlock]::Create("Write-Host `"$(' ' * $PadLeft)$($Label.PadLeft($LabelSize)) `" -foregroundcolor Red -nonewline"),
@@ -283,7 +278,7 @@ namespace PInvoke
 
     # Take Screenshot if the Parameters are assigned...
     if ( $Path ) {
-        Switch ($SSMode) {
+        switch ($SSMode) {
             'AllMonitors' { Save-Screenshot -Width $ScreenWidth -Height $ScreenHeight -TarPath $Path }
             'PowerShellOnly' { Export-ActiveWindowScreenshot -wpid $(([System.Diagnostics.Process]::GetCurrentProcess()).id) -OutPath $Path }
         }
