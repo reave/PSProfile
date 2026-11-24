@@ -21,6 +21,7 @@ function Set-LocationCustom {
         Author: reave (https://github.com/reave)
     #>
     [cmdletBinding()]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Only changes the current location of the session.')]
     param(
         [Parameter(
             Mandatory = $false,

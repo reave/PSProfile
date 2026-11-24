@@ -13,6 +13,7 @@
 #>
 function Set-ProfileWindowTitle {
     [CmdletBinding()]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Only sets the title of the current console window.')]
     param()
 
     try {

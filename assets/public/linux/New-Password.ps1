@@ -36,6 +36,7 @@
         Code based on a blog post of https://mjolinor.wordpress.com/2014/01/31/random-password-generator/
 #>
     [CmdletBinding()]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Generates and returns a password; nothing is changed.')]
     param
     (
         [ValidateNotNull()]

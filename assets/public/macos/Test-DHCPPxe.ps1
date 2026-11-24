@@ -79,6 +79,7 @@
 
             Returns a DHCPDISCOVER packet for that MAC address.
         #>
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds a packet in memory; nothing is sent.')]
         param(
             [String]$MacAddressString = "AA:BB:CC:DD:EE:FF"
         )
@@ -362,6 +363,7 @@
 
             Returns a socket that waits up to 10 seconds for a response.
         #>
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Creates a socket object for this function; nothing outside the session changes.')]
         param(
             [Int32]$SendTimeOut = 5,
             [Int32]$ReceiveTimeOut = 5
@@ -392,6 +394,7 @@
 
             Shuts down sending and receiving on the socket and closes it.
         #>
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Closes a socket this function opened.')]
         param(
             [Net.Sockets.Socket]$Socket
         )

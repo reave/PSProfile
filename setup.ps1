@@ -122,6 +122,7 @@ function Update-LegacyProfileReference {
     .OUTPUTS
         System.Boolean - $true if the file was migrated, $false if nothing needed changing.
     #>
+    [CmdletBinding(SupportsShouldProcess)]
     param([Parameter(Mandatory)][string]$ProfilePath)
 
     if (-not (Test-Path -Path $ProfilePath -PathType Leaf)) { return $false }
@@ -138,6 +139,7 @@ function Update-LegacyProfileReference {
     $text = $encoding.GetString($bytes, $preambleLength, $bytes.Length - $preambleLength)
     $pattern = '(?m)^(\s*\.\s+.*?)profile2\.0\.ps1'
     if ($text -notmatch $pattern) { return $false }
+    if (-not $PSCmdlet.ShouldProcess($ProfilePath, 'Replace profile2.0.ps1 with profile.ps1')) { return $false }
 
     $backupPath = "$ProfilePath.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
     Write-SetupStep "Migrating $ProfilePath from profile2.0.ps1 to profile.ps1 (backup: $backupPath)"

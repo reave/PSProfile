@@ -19,7 +19,7 @@
     .NOTES
 
     #>
-    [CmdLetBinding()]
+    [CmdLetBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $false)]
         [string]$Username,
@@ -35,6 +35,7 @@
         Write-Verbose "API URL Endpoint Updated to: $URI"
     }
     process {
+        if (-not $PSCmdlet.ShouldProcess($DomainName, "Update Dynamic DNS record to $IPAddress")) { return }
         try {
             $Credentials = New-Object System.Management.Automation.PSCredential($Username, $Password)
             Write-Verbose "Created credential object."

@@ -36,7 +36,7 @@ function New-IsoFile {
         LASTEDIT: 10/11/2018 14:38:01
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'Source')]
+    [CmdletBinding(DefaultParameterSetName = 'Source', SupportsShouldProcess)]
     param(
         [Parameter( Position = 1,
             Mandatory = $true,
@@ -120,6 +120,10 @@ function New-IsoFile {
         Write-Verbose -Message "Selected media type is $Media with value $($MediaType.IndexOf($Media))"
         ($Image = New-Object -com IMAPI2FS.MsftFileSystemImage -Property @{VolumeName = $Title }).ChooseImageDefaultsForMediaType($MediaType.IndexOf($Media))
 
+        # Decided once here; process and end skip their work when the image isn't being created.
+        $CreateImage = $PSCmdlet.ShouldProcess($OutFile, 'Create ISO image')
+        if (-not $CreateImage) { return }
+
         if (!( $Target = New-Item -Path $OutFile -ItemType File -Force:$Force -ErrorAction SilentlyContinue )) {
             Write-Error -Message "Cannot create file $Path. Use -Force parameter to overwrite if the target file already exists."
             break
@@ -127,6 +131,7 @@ function New-IsoFile {
     }
 
     process {
+        if (-not $CreateImage) { return }
         if ( $FromClipboard ) {
             if ( $PSVersionTable.PSVersion.Major -lt 5 ) {
                 Write-Error -Message 'The -FromClipboard parameter is only supported on PowerShell v5 or higher'
@@ -149,6 +154,7 @@ function New-IsoFile {
     }
 
     end {
+        if (-not $CreateImage) { return }
         if ($Boot) { $Image.BootImageOptions = $Boot }
 
         $Result = $Image.CreateResultImage()

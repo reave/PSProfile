@@ -10,12 +10,15 @@ function New-Explorer {
     Name: New-Explorer
     Author: Unknown
 #>
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     param(
         [Parameter(Mandatory = $false)]
         [string]$Username
     )
 
-    taskkill /f /IM Explorer.exe
-    runas /noprofile /netonly /user:$UserName explorer
+    if ($PSCmdlet.ShouldProcess('Explorer.exe', "Close and restart as $UserName")) {
+        taskkill /f /IM Explorer.exe
+        runas /noprofile /netonly /user:$UserName explorer
+    }
 
 }

@@ -29,7 +29,7 @@ function Set-RegValue {
         Co-Author: Christopher Kitchen
 
     #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $True)]
         [ValidateSet('HKEY_LOCAL_MACHINE', 'HKEY_CLASSES_ROOT', 'HKEY_CURRENT_USER', 'HKEY_USERS')]
@@ -64,6 +64,8 @@ function Set-RegValue {
         Write-Output ''
     }
     process {
+        if (-not $PSCmdlet.ShouldProcess("$RegPath\$RegValueName", "Set registry value to '$RegValueData' ($RegValueType)")) { return }
+
         Write-Output "$(Get-Date -Format 'ddd, dd MMM yyyy HH:MM:ss') :: INFO :: Checking that $RegPath exists."
 
         if (Get-Item -Path $RegPath -ErrorAction SilentlyContinue) {

@@ -73,7 +73,7 @@
         .\new-shortcut.ps1 -Name 'TestShortcut.lnk' -Description 'This is a test.' -Target "$ENV:ProgramFiles\TestApplication\TestApp.exe" -WorkingDirectory "$ENV:ProgramFiles\TestApplication" -Icon "$ENV:ProgramFiles\TestApplication\icon.ico" -Arguments '-debug' -SaveLocation Desktop -logOutPut -LogDirectory "C:\Test\Log.log"
         Will create a shortcut called "TestShortcut.lnk" on the %PUBLIC%\Desktop pointing to ProgramFiles\TestApplication\TestApp.exe and log the output of the script to C:\Test\Log.Log
     #>
-    [cmdletbinding()]
+    [cmdletbinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $false)]
         [string]$Name,
@@ -98,6 +98,8 @@
         $objShell = New-Object -ComObject WScript.Shell
     }
     process {
+        if (-not $PSCmdlet.ShouldProcess("$Name ($SaveLocation)", "Create shortcut to $Target")) { return }
+
         switch ($SaveLocation) {
             'StartMenu' {
                 if (($Name.ToLower()).EndsWith('url')) {

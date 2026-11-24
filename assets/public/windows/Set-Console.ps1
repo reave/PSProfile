@@ -13,6 +13,7 @@ function Set-Console {
         LastModified: 07/15/2016
     #>
     [CmdletBinding()]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Only sets the title of the current console window and clears the screen.')]
     param(
         [Parameter(Mandatory = $false)]
         [switch]$WindowTitle

@@ -32,6 +32,7 @@ function Set-PathVariable {
 
         Removes a folder from the machine PATH. Run this as Administrator.
     #>
+    [CmdletBinding(SupportsShouldProcess)]
     param (
         [string]$AddPath,
         [string]$RemovePath,
@@ -128,6 +129,9 @@ function Set-PathVariable {
         }
     }
 
+    if ($changed -and -not $PSCmdlet.ShouldProcess("$Scope PATH", "Add '$AddPath', remove '$RemovePath'")) {
+        return
+    }
     if ($changed) {
         # Reconstruct PATH preserving original order as much as possible:
         # Start with original entries order, then append any new entries that weren't present

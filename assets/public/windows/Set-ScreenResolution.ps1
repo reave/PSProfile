@@ -7,7 +7,7 @@ function Set-ScreenResolution {
     .Example
         Set-ScreenResolution -Width 1024 -Height 768
     #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param (
         [Parameter(Mandatory = $true, Position = 0)]
         [int]$Width,
@@ -143,6 +143,8 @@ namespace Resolution
 }
 
 "@
+
+    if (-not $PSCmdlet.ShouldProcess('Primary display', "Set resolution to $Width x $Height")) { return }
 
     Add-Type $pinvokeCode -ErrorAction SilentlyContinue
     [Resolution.PrmaryScreenResolution]::ChangeResolution($width, $height)
